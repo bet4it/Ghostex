@@ -83,6 +83,14 @@ pub(crate) fn copy_submenu(id: &str, row: &SessionRow, group: &MenuGroup<'_>) ->
         work.and_then(|work| work.linear_project.as_ref())
             .and_then(|project| project.url.clone()),
     );
+    // The claude.ai conversation a Claude cloud session's row is linked to.
+    copy_row(
+        "Copy claude.ai Link",
+        "link",
+        row.claude_cloud
+            .as_ref()
+            .and_then(|cloud| cloud.url.clone()),
+    );
     MenuItem::submenu("Copy", "copy", children)
 }
 

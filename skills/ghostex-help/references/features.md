@@ -3258,16 +3258,20 @@ A Claude cloud session runs on Claude's own computers (Claude Code on the web)
 instead of this computer, so it keeps going when the computer sleeps, and still
 has its row in the sidebar. Pick **Claude (cloud)** in New Thread (its Run on row
 then shows **Claude cloud**; picking that place picks the agent, and any other
-agent dims it), choose the Claude account it runs on, and type the task in its
-terminal; the session starts on claude.ai from the project's GitHub repository on
-a new `claude/…` branch. The account is final for that session: its usage,
+agent dims it) and choose the Claude account it runs on. It opens in Chat View
+(its terminal runs behind it): type the task in the chat box and send it, and the
+session starts on claude.ai from the project's GitHub repository on a new
+`claude/…` branch. On the computer the chat pane then shows the session's own
+claude.ai page, signed in as the session's account, where you read and answer
+Claude; the web page and the phone show its terminal instead. The account is final for that session: its usage,
 follow-ups and Bring to this computer all stay on it. New Thread highlights the
 account of the project's last cloud session first. The row always sits under the
 project of the repository's main folder, even when started from a worktree.
 
 - **The row**: a plain cloud icon after the title; hover it for the account,
-  branch and latest status. Clicking it opens the session's claude.ai page in
-  Ghostex's Browser. The row shows working (orange), needs you (blue) and Done
+  branch and latest status. Clicking it opens the session, whose chat pane is its
+  claude.ai page; the row's menu has **Open on claude.ai** (the page in Ghostex's
+  Browser) and **Copy > Copy claude.ai Link**. The row shows working (orange), needs you (blue) and Done
   like any session, read from claude.ai every few seconds whether or not the page
   is open; when Claude needs you, its status and notification say what it asks
   for ("Needs you: paste the ticket's title and description"). What reaches
@@ -3307,8 +3311,9 @@ project of the repository's main folder, even when started from a worktree.
 - **Needs**: Claude Code signed in with claude.ai (Pro, Max, Team or
   Enterprise; not an API key), the repository on GitHub with Claude's GitHub app,
   and a cloud environment set up on claude.ai for that account. Cloud sessions
-  count against your Claude plan's limits. The chat view does not show a cloud
-  session's messages yet; its terminal does.
+  count against your Claude plan's limits. The first time a page needs it, sign
+  in to claude.ai as the session's account right in the pane (or ahead of time in
+  Settings > Accounts); Ghostex keeps that sign-in for the account.
 
 CLI: `ghostex create-agent claude-cloud --project-id <id> --prompt "<task>"`,
 `ghostex claude-cloud status <session>`, `ghostex claude-cloud send <session>

@@ -81,7 +81,7 @@ fn with_signins<T>(read: impl FnOnce(&mut HashMap<String, Value>) -> T) -> T {
     })
 }
 
-fn remember_signin(account_id: &str, email: Option<&str>) {
+pub(crate) fn remember_signin(account_id: &str, email: Option<&str>) {
     let changed = with_signins(|map| {
         let entry = json!({ "email": email, "at": chrono::Utc::now().to_rfc3339() });
         let same = map.get(account_id).and_then(|value| value.get("email")) == entry.get("email");
@@ -471,37 +471,13 @@ impl GhostexGpuiApp {
             }
         }
         let notice = expected.as_ref().and_then(|expected| {
-            let wanted = expected
-                .email
-                .clone()
-                .unwrap_or_else(|| expected.name.clone());
-            if signed_out {
-                return Some(json!({
-                    "text": format!(
-                        "Sign in to claude.ai as {wanted} to see this session. You only do this once for {}.",
-                        expected.name
-                    ),
-                }));
-            }
-            if let (Some(seen), Some(want)) = (&email, &expected.email)
-                && seen != want
-            {
-                return Some(json!({
-                    "text": format!(
-                        "This page is signed in as {seen}, but the session runs on {} ({want}).",
-                        expected.name
-                    ),
-                    "button": format!("Sign in as {}", expected.name),
-                    "action": "signOut",
-                }));
-            }
-            expected.limit_notice.as_ref().map(|limit| {
-                json!({
-                    "text": limit,
-                    "button": "Start a copy on another account",
-                    "action": "copy",
-                })
-            })
+            claude_cloud_page_notice(
+                &expected.name,
+                expected.email.as_deref(),
+                expected.limit_notice.as_deref(),
+                email.as_deref(),
+                signed_out,
+            )
         });
         let show = PAGES.with(|pages| {
             let mut pages = pages.borrow_mut();
@@ -556,7 +532,11 @@ impl GhostexGpuiApp {
     }
 
     /// "Start a copy on another account" from a page's notice: the session's row's own action.
-    fn start_claude_cloud_copy_for_link(&mut self, link: &str, cx: &mut gpui::Context<Self>) {
+    pub(crate) fn start_claude_cloud_copy_for_link(
+        &mut self,
+        link: &str,
+        cx: &mut gpui::Context<Self>,
+    ) {
         let Some(session) = self
             .gx_store
             .core
@@ -588,6 +568,42 @@ impl GhostexGpuiApp {
     }
 }
 
+/// The notice Ghostex puts at the top of a cloud session's claude.ai page for the account it runs
+/// on (`name`, `email`): sign in, signed in as someone else, or out of usage. `seen` is the email
+/// the page is signed in as.
+pub(crate) fn claude_cloud_page_notice(
+    name: &str,
+    email: Option<&str>,
+    limit_notice: Option<&str>,
+    seen: Option<&str>,
+    signed_out: bool,
+) -> Option<Value> {
+    let wanted = email.unwrap_or(name);
+    if signed_out {
+        return Some(json!({
+            "text": format!(
+                "Sign in to claude.ai as {wanted} to see this session. You only do this once for {name}."
+            ),
+        }));
+    }
+    if let (Some(seen), Some(want)) = (seen, email)
+        && seen != want
+    {
+        return Some(json!({
+            "text": format!("This page is signed in as {seen}, but the session runs on {name} ({want})."),
+            "button": format!("Sign in as {name}"),
+            "action": "signOut",
+        }));
+    }
+    limit_notice.map(|limit| {
+        json!({
+            "text": limit,
+            "button": "Start a copy on another account",
+            "action": "copy",
+        })
+    })
+}
+
 /// The cloud session link a claude.ai page belongs to: the page itself, or the session claude.ai's
 /// login page returns to (`/login?returnTo=%2Fcode%2Fsession_…`).
 fn cloud_session_link_in(url: &str) -> Option<String> {
@@ -609,7 +625,7 @@ fn cloud_session_link_in(url: &str) -> Option<String> {
 }
 
 /// Signs one profile out of claude.ai: its claude.ai cookies are deleted, nothing else.
-fn sign_profile_out_of_claude(profile: &str) -> Result<(), String> {
+pub(crate) fn sign_profile_out_of_claude(profile: &str) -> Result<(), String> {
     crate::cef::clear_workspace_browser_site_cookies(
         profile,
         &["https://claude.ai", "https://anthropic.com"],

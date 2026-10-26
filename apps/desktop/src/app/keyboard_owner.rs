@@ -518,6 +518,13 @@ impl GhostexGpuiApp {
         window: &mut Window,
         cx: &mut gpui::Context<Self>,
     ) {
+        // A Claude cloud session's pane is its claude.ai page, which takes the keys instead.
+        if let Some(surface) = self.claude_cloud_chat_page_surface(session_id) {
+            let focus_handle = surface.read(cx).focus_handle.clone();
+            focus_handle.focus(window, cx);
+            surface.update(cx, |surface, _| surface.focus());
+            return;
+        }
         let Some(view) = self.native_chat_views.get(&session_id).cloned() else {
             return;
         };

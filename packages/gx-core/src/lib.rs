@@ -57,7 +57,8 @@ pub use crate::active_project_context::{
 };
 pub use crate::agentbox::{
     agentbox_agent_family, agentbox_location_label, agentbox_locations_from_status,
-    is_agentbox_run_location, session_chat_view_unavailable, AgentboxLocation, AgentboxLocations,
+    is_agentbox_run_location, session_chat_view_unavailable,
+    session_chat_view_unavailable_showing_cloud_pages, AgentboxLocation, AgentboxLocations,
     SessionAgentbox, LOCAL_RUN_LOCATION,
 };
 pub use crate::app_lifecycle::{

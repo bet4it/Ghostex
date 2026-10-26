@@ -370,12 +370,17 @@ pub(crate) fn gpui_effective_preferred_agent_interface_for_agent_icon(
     settings: &serde_json::Map<String, serde_json::Value>,
     agent_icon: Option<&str>,
 ) -> GpuiPreferredAgentInterface {
-    agent_icon
+    let chosen = agent_icon
         .and_then(gpui_default_sidebar_agent_by_icon)
         .and_then(|agent| {
             gpui_preferred_agent_interface_override_from_settings(settings, agent.agent_id)
-        })
-        .unwrap_or_else(|| gpui_preferred_agent_interface_from_settings(settings))
+        });
+    // A Claude cloud session opens in Chat unless its own override says otherwise
+    // (CDXC:ClaudeCloud in packages/gx-core/src/claude_cloud.rs).
+    if agent_icon == Some(ghostex_gx_core::CLAUDE_CLOUD_AGENT_ID) {
+        return chosen.unwrap_or(GpuiPreferredAgentInterface::Chat);
+    }
+    chosen.unwrap_or_else(|| gpui_preferred_agent_interface_from_settings(settings))
 }
 
 pub(crate) fn gpui_session_chat_background_color() -> Hsla {

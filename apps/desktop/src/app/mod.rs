@@ -38,6 +38,7 @@ pub(crate) mod browser_parked_runtime;
 pub(crate) mod browser_site_requests;
 pub(crate) mod cef_deferred_startup;
 pub(crate) mod chrome_input_focus;
+pub(crate) mod claude_cloud_chat_page;
 pub(crate) mod claude_cloud_page;
 pub(crate) mod claude_cloud_sign_in_return;
 pub(crate) mod command_pane_auto_minimize;
