@@ -25,9 +25,11 @@ use std::{cell::Cell, rc::Rc};
 
 /// Space between the parts of a finished turn.
 const PART_GAP: f32 = 10.0;
-/// Space between two transcript list items, the `pb(16)` every row wrapper ends with, which the
-/// live rows had between them before they folded.
-const LIVE_ROW_GAP: f32 = 16.0;
+/// Space between two transcript list items, the gap every row wrapper ends with, which the live
+/// rows had between them before they folded.
+fn live_row_gap() -> f32 {
+    super::transcript_layout::LAYOUT.row_gap
+}
 
 /// A part whose height eases between nothing and its natural height; the fold applies its own
 /// opacity to the rows, so the clip carries none.
@@ -116,37 +118,48 @@ impl NativeChatView {
         };
         self.hide_file_changes = true;
         let files = self.completed_files_fold(item, p, cx);
-        let mut tail: Vec<AnyElement> = Vec::new();
+        // Each part after the files, and whether it is a stack of one-line cards.
+        let mut tail: Vec<(AnyElement, bool)> = Vec::new();
         for message in artifacts {
-            tail.push(self.message_row(message, p, window, cx));
+            tail.push((self.message_row(message, p, window, cx), false));
         }
         // The turn's answered questions, lifted out of the fold so an exchange the reader took
         // part in is never buried by a collapsed "Worked for Xs" section.
         if let Some(cards) = self.question_exchange_cards(&id, questions, p, cx) {
-            tail.push(cards);
+            tail.push((cards, true));
         }
         if let Some(cards) = self.sent_agent_message_cards(sent_messages, p, cx) {
-            tail.push(cards);
+            tail.push((cards, true));
         }
         if let Some(cards) = self.workflow_cards(workflows, p, cx) {
-            tail.push(cards);
+            tail.push((cards, false));
         }
         if let Some(reply) = final_message.as_deref().filter(|reply| reply.is_object()) {
-            tail.push(self.message_row(reply, p, window, cx));
+            tail.push((self.message_row(reply, p, window, cx), false));
         }
+        // The space above each tail part: the heading is a one-line card, so a stack of cards right
+        // under it (or under another stack) sits a row gap away (`SINGLE_LINE_CARD.gap_above`).
+        let mut above_is_card = log.is_none() && files.is_none();
+        let tail: Vec<(AnyElement, f32)> = tail
+            .into_iter()
+            .map(|(part, is_card)| {
+                let gap = SINGLE_LINE_CARD.gap_above(above_is_card, is_card, PART_GAP);
+                above_is_card = is_card;
+                (part, gap)
+            })
+            .collect();
         self.hide_file_changes = false;
 
         let Some(frame) = motion else {
-            let mut row = div()
-                .flex()
-                .flex_col()
-                .w_full()
-                .gap(px(PART_GAP * s))
-                .child(heading);
+            let spaced = |part: AnyElement, gap: f32| div().pt(px(gap * s)).child(part);
+            let mut row = div().flex().flex_col().w_full().child(heading);
             if let Some(log) = log {
-                row = row.children(log);
+                row = row.children(log.into_iter().map(|part| spaced(part, PART_GAP)));
             }
-            return row.children(files).children(tail).into_any_element();
+            return row
+                .children(files.map(|part| spaced(part, PART_GAP)))
+                .children(tail.into_iter().map(|(part, gap)| spaced(part, gap)))
+                .into_any_element();
         };
         self.moving_completed_work_row(&id, frame, heading, log, files, tail, s)
     }
@@ -275,7 +288,7 @@ impl NativeChatView {
         heading: AnyElement,
         log: Option<Vec<AnyElement>>,
         files: Option<AnyElement>,
-        tail: Vec<AnyElement>,
+        tail: Vec<(AnyElement, f32)>,
         s: f32,
     ) -> AnyElement {
         let spaced = |part: AnyElement| div().pt(px(PART_GAP * s)).child(part).into_any_element();
@@ -306,8 +319,8 @@ impl NativeChatView {
                     div()
                         .flex()
                         .flex_col()
-                        .gap(px(LIVE_ROW_GAP * s))
-                        .pb(px((LIVE_ROW_GAP - PART_GAP) * s))
+                        .gap(px(live_row_gap() * s))
+                        .pb(px((live_row_gap() - PART_GAP) * s))
                         .opacity(frame.rows_opacity)
                         .children(rows)
                         .into_any_element(),
@@ -335,7 +348,10 @@ impl NativeChatView {
             }
             row = row.children(files.map(spaced));
         }
-        row.children(tail.into_iter().map(spaced))
-            .into_any_element()
+        row.children(
+            tail.into_iter()
+                .map(|(part, gap)| div().pt(px(gap * s)).child(part).into_any_element()),
+        )
+        .into_any_element()
     }
 }

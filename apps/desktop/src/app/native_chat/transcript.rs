@@ -1,3 +1,4 @@
+use super::cards::SINGLE_LINE_CARD;
 use super::disclosure_body::{DisclosureRail, disclosure_body};
 use super::{appearance::ChatAppearance, state::NativeChatView};
 use crate::app::native_chat::cursor::ChatCursor as _;
@@ -9,6 +10,9 @@ use gpui::{
     Window, div, px, relative,
 };
 use serde_json::Value;
+
+/// The space between the parts of one message row (its text, tools, cards and actions).
+const MESSAGE_PART_GAP: f32 = 8.0;
 
 pub(crate) fn text(value: &Value, key: &str) -> String {
     value[key].as_str().unwrap_or_default().to_string()
@@ -199,7 +203,7 @@ impl NativeChatView {
                     .w_full()
                     .max_w(px(768.0 * s))
                     .px(px(16.0 * s))
-                    .pb(px(16.0 * s))
+                    .pb(px(super::transcript_layout::LAYOUT.row_gap * s))
                     .when_some(p.transcript_width, |this, width| {
                         this.max_w(relative(1.0)).w(relative(width))
                     })
@@ -376,7 +380,7 @@ impl NativeChatView {
             .flex_col()
             .min_w_0()
             .w_full()
-            .gap(px(8.0 * s))
+            .gap(px(MESSAGE_PART_GAP * s))
             .when_some(reply_focus, |row, (focus, _)| {
                 row.track_focus(&focus).tab_stop(false)
             });
@@ -624,6 +628,7 @@ impl NativeChatView {
         }
         // Inside a turn's work fold the raw tool pairs stay plain rows and the cards are hoisted
         // onto the turn instead, so an answer is never rendered twice (the core's questions/hoisting.rs).
+        let mut cards_above = false;
         if !self.in_work_fold
             && let Some(cards) = self.question_exchange_cards(
                 &format!("message:{id}"),
@@ -633,11 +638,16 @@ impl NativeChatView {
             )
         {
             row = row.child(cards);
+            cards_above = true;
         }
         if !self.in_work_fold
             && let Some(cards) = self.sent_agent_message_cards(list(message, "sentMessages"), p, cx)
         {
-            row = row.child(cards);
+            // Right under the answered-question cards it is a row gap away like any two one-line
+            // cards (`SINGLE_LINE_CARD.gap_above`); the row's own 8px gap is already there.
+            let extra =
+                SINGLE_LINE_CARD.gap_above(cards_above, true, MESSAGE_PART_GAP) - MESSAGE_PART_GAP;
+            row = row.child(div().mt(px(extra * s)).child(cards));
         }
         if !self.in_work_fold
             && let Some(cards) = self.workflow_cards(list(message, "workflows"), p, cx)
