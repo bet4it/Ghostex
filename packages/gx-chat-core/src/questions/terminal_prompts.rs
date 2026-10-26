@@ -265,8 +265,9 @@ pub fn terminal_notice_action_answer(
 }
 
 /// `terminalNoticeActionShortcutEligible`: whether the primary shortcut may trigger the action.
-/// Trust and Remember and Sign in are deliberately click-only: a shortcut meant to accept one
-/// prompt must not also change what happens on every later one, or start a browser sign-in.
+/// Trust and Remember, Sign in and Reconnect are deliberately click-only: a shortcut meant to
+/// accept one prompt must not also change what happens on every later one, or start a sign-in.
 pub fn terminal_notice_action_shortcut_eligible(action: &TerminalNoticeAction) -> bool {
-    action.kind != "trustAndRemember" && action.id != "signInAccount"
+    action.kind != "trustAndRemember"
+        && !matches!(action.id.as_str(), "signInAccount" | "reconnectAccount")
 }

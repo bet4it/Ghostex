@@ -20,6 +20,7 @@ mod history;
 mod history_parser;
 pub(crate) mod launch;
 pub(crate) mod limit_wait;
+pub(crate) mod login_expired;
 pub(crate) mod model;
 mod process_login;
 pub(crate) use process_login::process_launch;

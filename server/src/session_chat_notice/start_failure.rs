@@ -4,6 +4,9 @@ use super::*;
 /// sends, with this id as `actionId` (session_chat_agent_restart.rs), so a client built before the
 /// action existed still restarts the agent instead of doing nothing.
 pub const SESSION_CHAT_NOTICE_ACTION_SIGN_IN: &str = "signInAccount";
+/// The id of Reconnect on the card of an agent that reported a sign-in error while it kept running
+/// (session_chat_account_sign_in.rs). It rides the `restartAgent` answer too.
+pub const SESSION_CHAT_NOTICE_ACTION_RECONNECT: &str = "reconnectAccount";
 /// The id of the card's Try again action, the same restart the Restart action of an exited agent is.
 pub const SESSION_CHAT_NOTICE_ACTION_RETRY_START: &str = "retryStart";
 
@@ -163,6 +166,16 @@ impl SessionChatTerminalNotice {
                 .any(|action| action.id == SESSION_CHAT_NOTICE_ACTION_SIGN_IN)
     }
 
+    /// Claude or Codex reported that a request could not sign in ("Login expired · Please run
+    /// /login") while the agent kept running: not a disabled organization, a missing saved login,
+    /// or a sign-in screen waiting in the terminal, which all block input or have their own card.
+    pub fn sign_in_error(&self) -> bool {
+        self.kind == SESSION_CHAT_NOTICE_LOGIN_EXPIRED
+            && !self.blocks_input()
+            && !self.account_disabled()
+            && !self.missing_login()
+    }
+
     /// The agent's start command ended before the agent came up (`agent_start_failure_notice`):
     /// restarting it on its own would fail the same way, so the card waits for the user.
     pub fn start_failed(&self) -> bool {
@@ -185,4 +198,47 @@ impl SessionChatTerminalNotice {
 /// no login) runs in front of the shell.
 pub fn session_chat_screen_ends_with_shell_prompt(screen_text: &str) -> bool {
     NoticeScreen::new(screen_text).ends_with_shell_prompt()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// A Claude screen whose last turn failed with `line`, back at its input box.
+    fn claude_screen(line: &str) -> String {
+        format!(
+            "> fix the login check\n\n  ⎿  {line}\n\n╭────────────────────────────────────────╮\n│ >                                      │\n╰────────────────────────────────────────╯\n  ? for shortcuts\n"
+        )
+    }
+
+    #[test]
+    fn a_login_error_while_claude_runs_is_a_sign_in_error() {
+        let notice = classify_session_chat_terminal_notice(
+            Some("claude"),
+            &claude_screen("Login expired · Please run /login"),
+        )
+        .expect("the login error is classified");
+        assert_eq!(notice.kind, SESSION_CHAT_NOTICE_LOGIN_EXPIRED);
+        assert!(notice.sign_in_error());
+    }
+
+    #[test]
+    fn a_disabled_organization_or_a_missing_saved_login_is_not() {
+        let disabled = classify_session_chat_terminal_notice(
+            Some("claude"),
+            &claude_screen(
+                "API Error: 403 Your organization has disabled Claude subscription access for Claude Code",
+            ),
+        )
+        .expect("the refusal is classified");
+        assert!(disabled.account_disabled());
+        assert!(!disabled.sign_in_error());
+        let missing = classify_session_chat_terminal_notice(
+            Some("claude"),
+            "Error: Account-5 has no stored credentials. Re-add with: cswap --add-account --slot 5\nuser@mac ~ % ",
+        )
+        .expect("the failed start is classified");
+        assert!(missing.missing_login());
+        assert!(!missing.sign_in_error());
+    }
 }

@@ -2216,6 +2216,17 @@ resuming the same conversation. When the rules say Switch accounts or Wait for
 reset, Ghostex moves the session by itself and continues the message that
 failed. Turn Auto-switch back on, reconnect the account, or pick it for a
 session when its access works again.
+When a session's login stops working mid-conversation ("Login expired · Please
+run /login"), the chat's sign-in card offers Reconnect beside Switch account.
+For a session on a saved account it opens the same browser sign-in as that
+account's Reconnect in Settings, and when you finish, the session (and any
+other session on that account showing the same card) restarts on its own
+conversation, so you don't retype anything. The account shows Needs sign-in in
+Settings > Accounts and `ghostex accounts` from the moment a session reports
+the error, and new sessions and automatic switches skip it until it signs in
+again or one of its sessions answers again. A Claude session on its own login
+(not a saved account) gets Reconnect as `/login` typed into Claude, whose
+sign-in steps then show in the chat.
 Reconnecting a Codex account works while that account's sessions keep running.
 When Codex still has to stop first, Settings lists the sessions in the way and
 offers Pause sessions and continue; paused sessions stay in the sidebar and
