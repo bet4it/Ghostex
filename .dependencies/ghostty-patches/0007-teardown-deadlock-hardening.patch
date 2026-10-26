@@ -289,7 +289,7 @@
                  continue;
 --- a/src/termio/Termio.zig
 +++ b/src/termio/Termio.zig
-@@ -550,8 +550,19 @@
+@@ -558,8 +558,19 @@
          }
      }
  
@@ -343,7 +343,7 @@
      }
 --- a/src/termio/stream_handler.zig
 +++ b/src/termio/stream_handler.zig
-@@ -142,7 +142,23 @@
+@@ -144,7 +144,23 @@
          if (self.surface_mailbox.push(msg, .{ .instant = {} }) == 0) {
              self.renderer_state.mutex.unlock(global.io());
              defer self.renderer_state.mutex.lockUncancelable(global.io());
