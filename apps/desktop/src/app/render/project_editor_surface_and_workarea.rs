@@ -335,14 +335,36 @@ impl GhostexGpuiApp {
             return self.render_website_home_setup(id, window, cx);
         }
         let slot_key = ProjectWorkareaCefSurfaceSlotKey::Extension(id);
-        if let Some(surface) = self.project_workarea_runtime_cef_surface_for_render(slot_key) {
-            return self.render_project_workarea_runtime_cef_surface(slot_key, surface, cx);
+        let page =
+            if let Some(surface) = self.project_workarea_runtime_cef_surface_for_render(slot_key) {
+                self.render_project_workarea_runtime_cef_surface(slot_key, surface, cx)
+            } else {
+                // Website, custom URL, Storybook and extension views are web pages.
+                let signature = self
+                    .web_runtime_placeholder_signature(TitlebarMode::Extension(id))
+                    .unwrap_or_else(|| self.extension_view_placeholder_signature(id));
+                self.render_project_editor_placeholder(signature, cx)
+            };
+        // The Claude view has its account bar above the page (claude_web/accounts.rs), a sibling
+        // row, never over it.
+        if !TitlebarMode::Extension(id).is_claude_web() {
+            return page;
         }
-        // Website, custom URL, Storybook and extension views are web pages.
-        let signature = self
-            .web_runtime_placeholder_signature(TitlebarMode::Extension(id))
-            .unwrap_or_else(|| self.extension_view_placeholder_signature(id));
-        self.render_project_editor_placeholder(signature, cx)
+        v_flex()
+            .size_full()
+            .min_w_0()
+            .min_h_0()
+            .child(self.render_claude_web_account_bar(cx))
+            .child(
+                div()
+                    .flex()
+                    .flex_1()
+                    .w_full()
+                    .min_w_0()
+                    .min_h_0()
+                    .child(page),
+            )
+            .into_any_element()
     }
 
     pub(crate) fn render_project_editor_sleeping_placeholder(

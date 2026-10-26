@@ -20,8 +20,7 @@ use gpui_component::v_flex;
 use serde_json::Value;
 
 use crate::app::claude_cloud_page::{
-    claude_account_browser_profile, claude_cloud_page_notice, remember_signin,
-    sign_profile_out_of_claude,
+    claude_account_browser_profile, claude_cloud_page_notice, note_claude_account_signin,
 };
 use crate::app::helpers::*;
 use crate::app::model::*;
@@ -294,13 +293,12 @@ impl GhostexGpuiApp {
             let seen = answer["email"].as_str().map(str::to_lowercase);
             let signed_out = answer["signedOut"].as_bool() == Some(true);
             if let Some(account_id) = target.account_id.as_deref() {
-                match (&seen, signed_out) {
-                    (Some(seen), _) if target.account_email.as_deref() == Some(seen.as_str()) => {
-                        remember_signin(account_id, Some(seen));
-                    }
-                    (_, true) => remember_signin(account_id, None),
-                    _ => {}
-                }
+                note_claude_account_signin(
+                    account_id,
+                    target.account_email.as_deref(),
+                    seen.as_deref(),
+                    signed_out,
+                );
             }
             // A session on the current CLI login has no account to sign in as.
             let notice = target.account_id.as_ref().and_then(|_| {
@@ -327,27 +325,18 @@ impl GhostexGpuiApp {
             }
             match answer["request"].as_str() {
                 Some("signOut") => {
-                    if let Err(error) = sign_profile_out_of_claude(&profile) {
-                        self.dispatch_gpui_workspace_action_toast(
-                            "warning",
-                            "Could not sign this page out of claude.ai",
-                            &error,
-                            cx,
-                        );
-                        continue;
+                    if self.sign_claude_page_out(
+                        &profile,
+                        target.account_id.as_deref(),
+                        &surface,
+                        cx,
+                    ) {
+                        CHAT_PAGES.with(|pages| {
+                            if let Some(page) = pages.borrow_mut().get_mut(&session_id) {
+                                page.notice = None;
+                            }
+                        });
                     }
-                    if let Some(account_id) = target.account_id.as_deref() {
-                        remember_signin(account_id, None);
-                    }
-                    CHAT_PAGES.with(|pages| {
-                        if let Some(page) = pages.borrow_mut().get_mut(&session_id) {
-                            page.notice = None;
-                        }
-                    });
-                    surface.update(cx, |surface, _| {
-                        surface
-                            .execute_app_owned_script("location.href = 'https://claude.ai/login';");
-                    });
                 }
                 Some("copy") => {
                     if let Some(link) = target

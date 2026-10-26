@@ -225,7 +225,7 @@ impl GhostexGpuiApp {
                         cx,
                     );
                 }))
-                .on_click(cx.listener(move |app, event: &gpui::ClickEvent, _, cx| {
+                .on_click(cx.listener(move |app, event: &gpui::ClickEvent, window, cx| {
                     cx.stop_propagation();
                     if event.click_count() == 2 && double_click_rename {
                         app.dispatch_native_sidebar_ui(json!({"type": "sessionAction", "sessionId": session_id, "action": "rename"}), cx);
@@ -234,6 +234,9 @@ impl GhostexGpuiApp {
                     if stale { return; }
                     let modifiers = event.modifiers();
                     let mode = if modifiers.shift { "range" } else if modifiers.platform || modifiers.control { "additive" } else { "focus" };
+                    // The page Claude's sidebar button opened over the sessions closes first, so the
+                    // session shows (CDXC:Extensions 2026-10-25 in app/claude_web/sidebar_button.rs).
+                    if mode == "focus" { app.close_sidebar_extension_view(window, cx); }
                     app.dispatch_native_sidebar_ui(json!({"type": "selectSession", "sessionId": session_id, "mode": mode}), cx);
                     if mode == "focus" {
                         let _ = app.react_to_native_sidebar_session_click(&session_id, cx);

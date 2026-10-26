@@ -2054,8 +2054,9 @@ it at a limit, shown as an Auto-switch on or off tag), Show usage in the sidebar
 and under Advanced the Session badge (up to two letters or numbers on its
 session icons) and its Account number, which you can swap with another
 account's. A Claude account also shows **claude.ai in Ghostex**: whether its own
-Browser profile is signed in to claude.ai for its cloud sessions, with **Sign in
-to claude.ai** or **Sign out** (see Claude cloud sessions). Changes save as you
+Browser profile is signed in to claude.ai for its cloud sessions and the Claude
+view, with **Sign in to claude.ai** or **Sign out** (see Claude cloud
+sessions). Changes save as you
 make them; Sign in again and Remove sit at the
 bottom, and Remove asks first and says how many sessions use the account.
 Turn Enabled off to keep an account you no longer use (for example one whose
@@ -3302,8 +3303,8 @@ project of the repository's main folder, even when started from a worktree.
   take it off the list. `ghostex kill` (and the phone's Kill Session) still
   closes it straight away.
 - **Signing in**: each Claude account has its own claude.ai sign-in in Ghostex,
-  kept in its own Browser profile and used only for its cloud pages (Google
-  sign-in works there too). The first time a row needs it, the page says "Sign in
+  kept in its own Browser profile and used for its cloud pages and the Claude
+  view (Google sign-in works there too). The first time a row needs it, the page says "Sign in
   to claude.ai as <email> to see this session"; or sign in ahead of time from
   Settings > Accounts > the account > claude.ai in Ghostex: Settings steps aside
   while claude.ai's login is open, a **Back to Settings** button at the bottom
@@ -3907,6 +3908,22 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   menus and adds custom open targets. Open In is a built-in extension, on by
   default: switching it off in Settings > Extensions > Store (Features) removes the
   header's Open button, the Open In page and the Open In rows in Quick Access
+- **Claude** is a built-in extension, off by default: turn it on with its switch
+  in Settings > Extensions > Store (Features) to use claude.ai inside Ghostex.
+  It adds a Claude button to the sidebar's bottom bar, just left of Commands.
+  Clicking it opens claude.ai over the whole work area with only the sidebar
+  beside it, from any project; click it again, or click a session in the
+  sidebar, to go back to what you had open. It is also listed in the side
+  panel's Open a view picker. Each saved Claude account (Settings > Accounts)
+  keeps its own claude.ai sign-in, the same one its cloud sessions use, and the
+  bar above the page shows the account you are on (a green dot once it is
+  signed in): click it to switch accounts, sign the current one out of
+  claude.ai, or open Manage accounts. Ghostex remembers the account you
+  picked. When the account is not signed in to claude.ai (the first time, or
+  after its sign-in ran out), the page says which email to sign in as; a page
+  signed in as a different email than its account offers **Sign in as** the
+  right account. With no saved Claude account, the page uses one shared
+  sign-in. Setting: `claudeWebHidden`.
   and menus, and keeps your apps and custom targets for when you turn it back
   on (`openInTitlebarButtonHidden`).
 - Settings > Integrations installs the bundled agent skills (Ghostex CLI,

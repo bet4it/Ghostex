@@ -4,8 +4,8 @@
 //! state Settings > Accounts shows (`claude-cloud-signins.json`, read there by
 //! window/settings_modal/tabs/accounts/editor.rs).
 //!
-//! CDXC:ClaudeCloud 2026-10-23 DECISION:
-//! User: claude.ai sign-ins live in "one Browser profile per Claude account, only for its cloud pages", kept on disk across restarts and built the same way as workspace profiles (`workspace-claude-<hash>`, so the workspace profile machinery opens it, cef/shell/workspace_browser.rs). Other tabs keep the workspace's profile.
+//! CDXC:ClaudeCloud 2026-10-25 DECISION:
+//! User: claude.ai sign-ins live in "one Browser profile per Claude account", kept on disk across restarts and built the same way as workspace profiles (`workspace-claude-<hash>`, so the workspace profile machinery opens it, cef/shell/workspace_browser.rs). Its cloud session pages and the built-in Claude view use it: for the Claude view the user picked "the same sign-in your cloud sessions use" (2026-10-25, CDXC:Extensions in app/claude_web/accounts.rs), superseding the 2026-10-23 "only for its cloud pages". Other Browser tabs keep the workspace's profile.
 //!
 //! CDXC:ClaudeCloud 2026-10-23 DECISION:
 //! User: each account signs in "both" ways: the first time one of its rows needs it (the page shows "Sign in to claude.ai as <email> to see this session" over claude.ai's own login, in that account's profile), or ahead of time from Settings > Accounts; signing in never blocks starting a session. A profile belongs to an account "by email": the email claude.ai reports is matched to the account's email, and signing in as anyone else is a mismatch, answered with "a warning with one Sign in as <account> button"; nothing is signed out without that click.
@@ -62,6 +62,19 @@ pub(crate) fn claude_account_browser_profile(account_id: &str) -> String {
     format!("workspace-claude-{}", &digest[..24])
 }
 
+/// What Ghostex last saw of a saved Claude account's claude.ai sign-in: `Some(Some(email))`
+/// signed in, `Some(None)` signed out, `None` not seen yet.
+pub(crate) fn claude_account_signin_email(account_id: &str) -> Option<Option<String>> {
+    with_signins(|map| {
+        map.get(account_id).map(|entry| {
+            entry
+                .get("email")
+                .and_then(Value::as_str)
+                .map(str::to_string)
+        })
+    })
+}
+
 fn signin_file() -> std::path::PathBuf {
     ghostex_paths::GhostexPaths::resolve()
         .state_dir
@@ -95,6 +108,28 @@ pub(crate) fn remember_signin(account_id: &str, email: Option<&str>) {
             let _ = std::fs::create_dir_all(parent);
         }
         let _ = std::fs::write(path, text);
+    }
+}
+
+/// Keeps what a claude.ai page on a saved account's profile shows of its sign-in: signed in as the
+/// account's own email, or signed out (signed in as anyone else changes nothing). Returns whether
+/// the page is signed in as the account.
+pub(crate) fn note_claude_account_signin(
+    account_id: &str,
+    account_email: Option<&str>,
+    seen: Option<&str>,
+    signed_out: bool,
+) -> bool {
+    match (seen, signed_out) {
+        (Some(seen), _) if account_email == Some(seen) => {
+            remember_signin(account_id, Some(seen));
+            true
+        }
+        (_, true) => {
+            remember_signin(account_id, None);
+            false
+        }
+        _ => false,
     }
 }
 
@@ -417,6 +452,35 @@ impl GhostexGpuiApp {
             };
             self.handle_claude_cloud_page_answer(tab_id, &url, &surface, answer, cx);
         }
+        // The Claude view's page, on a saved account's profile (app/claude_web/accounts.rs).
+        self.sweep_claude_web_page(cx);
+    }
+
+    /// A notice's "Sign in as <account>" (and the Claude view's Sign out): signs the page's
+    /// profile out of claude.ai and sends the page to claude.ai's login. Returns whether it did.
+    pub(crate) fn sign_claude_page_out(
+        &mut self,
+        profile: &str,
+        account_id: Option<&str>,
+        surface: &Entity<CefSurface>,
+        cx: &mut gpui::Context<Self>,
+    ) -> bool {
+        if let Err(error) = sign_profile_out_of_claude(profile) {
+            self.dispatch_gpui_workspace_action_toast(
+                "warning",
+                "Could not sign this page out of claude.ai",
+                &error,
+                cx,
+            );
+            return false;
+        }
+        if let Some(account_id) = account_id {
+            remember_signin(account_id, None);
+        }
+        surface.update(cx, |surface, _| {
+            surface.execute_app_owned_script("location.href = 'https://claude.ai/login';");
+        });
+        true
     }
 
     fn handle_claude_cloud_page_answer(
@@ -431,18 +495,18 @@ impl GhostexGpuiApp {
         let expected = self.expected_claude_account(tab_id, &page_url);
         let email = answer["email"].as_str().map(str::to_lowercase);
         let signed_out = answer["signedOut"].as_bool() == Some(true);
-        if let Some(expected) = &expected {
-            match (&email, signed_out) {
-                (Some(email), _) if expected.email.as_deref() == Some(email.as_str()) => {
-                    remember_signin(&expected.account_id, Some(email));
-                    crate::app::claude_cloud_sign_in_return::finish_claude_sign_in_return(
-                        &expected.account_id,
-                        cx,
-                    );
-                }
-                (_, true) => remember_signin(&expected.account_id, None),
-                _ => {}
-            }
+        if let Some(expected) = &expected
+            && note_claude_account_signin(
+                &expected.account_id,
+                expected.email.as_deref(),
+                email.as_deref(),
+                signed_out,
+            )
+        {
+            crate::app::claude_cloud_sign_in_return::finish_claude_sign_in_return(
+                &expected.account_id,
+                cx,
+            );
         }
         // The reading, for a cloud session's page (gxserver ignores any other page).
         if ghostex_gx_core::claude_cloud_session_link(&page_url).is_some() {
@@ -502,24 +566,17 @@ impl GhostexGpuiApp {
                             .as_ref()
                             .map(|expected| claude_account_browser_profile(&expected.account_id))
                     });
-                if let Some(profile) = profile {
-                    if let Err(error) = sign_profile_out_of_claude(&profile) {
-                        self.dispatch_gpui_workspace_action_toast(
-                            "warning",
-                            "Could not sign this page out of claude.ai",
-                            &error,
-                            cx,
-                        );
-                        return;
-                    }
-                    if let Some(expected) = &expected {
-                        remember_signin(&expected.account_id, None);
-                    }
+                if let Some(profile) = profile
+                    && self.sign_claude_page_out(
+                        &profile,
+                        expected
+                            .as_ref()
+                            .map(|expected| expected.account_id.as_str()),
+                        surface,
+                        cx,
+                    )
+                {
                     PAGES.with(|pages| pages.borrow_mut().remove(&tab_id));
-                    surface.update(cx, |surface, _| {
-                        surface
-                            .execute_app_owned_script("location.href = 'https://claude.ai/login';");
-                    });
                 }
             }
             Some("copy") => {

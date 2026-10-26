@@ -41,6 +41,7 @@ pub(crate) mod chrome_input_focus;
 pub(crate) mod claude_cloud_chat_page;
 pub(crate) mod claude_cloud_page;
 pub(crate) mod claude_cloud_sign_in_return;
+pub(crate) mod claude_web;
 pub(crate) mod command_pane_auto_minimize;
 pub(crate) mod command_pane_remote_action;
 pub(crate) mod coordinator_details_modal_lifecycle;

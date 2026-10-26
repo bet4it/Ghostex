@@ -36,6 +36,7 @@ pub(crate) struct GpuiCustomView {
 pub(crate) fn gpui_custom_views_from_settings() -> Vec<GpuiCustomView> {
     std::iter::once(crate::app::storybook::storybook_view())
         .chain(crate::app::project_websites::website_views())
+        .chain(std::iter::once(crate::app::claude_web::claude_web_view()))
         .chain(
             shared_settings::shared_sidebar_settings_snapshot()
                 .object()

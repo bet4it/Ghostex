@@ -22,6 +22,9 @@ use gpui_component::h_flex;
 use gpui_component::v_flex;
 
 use crate::app::actions::*;
+use crate::app::claude_web::{
+    ManageClaudeWebAccounts, SelectClaudeWebAccount, SignOutClaudeWebAccount,
+};
 use crate::app::consts::*;
 use crate::app::helpers::*;
 use crate::app::hotkeys::*;
@@ -1135,6 +1138,17 @@ impl Render for GhostexGpuiApp {
                     window,
                     cx,
                 );
+            }))
+            .on_action(
+                cx.listener(|this, action: &SelectClaudeWebAccount, _window, cx| {
+                    this.select_claude_web_account(&action.account_id, cx);
+                }),
+            )
+            .on_action(cx.listener(|this, _: &SignOutClaudeWebAccount, _window, cx| {
+                this.sign_out_claude_web_account(cx);
+            }))
+            .on_action(cx.listener(|this, _: &ManageClaudeWebAccounts, _window, cx| {
+                this.open_gpui_settings_tab_from_new_thread_picker("accounts", cx);
             }))
             .on_action(
                 cx.listener(|this, action: &SelectBrowserProfile, window, cx| {

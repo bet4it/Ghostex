@@ -19,6 +19,18 @@ use crate::*;
 /// its 15pt icon plus a little room, so every button stays visible.
 pub(crate) const SIDEBAR_TOP_ROW_BUTTON_MIN_WIDTH: f32 = 20.0;
 
+/// A built-in extension's button in the sidebar's bottom bar (Claude's), listed by the desktop's
+/// app/claude_web/sidebar_button.rs (the web build lists none).
+pub(crate) struct SidebarExtensionButton {
+    /// The view it opens (`TitlebarMode::Extension`).
+    pub(crate) id: String,
+    pub(crate) title: String,
+    pub(crate) icon: &'static str,
+    pub(crate) icon_color: gpui::Hsla,
+    /// Its view is the one on screen.
+    pub(crate) showing: bool,
+}
+
 impl GhostexGpuiApp {
     /// CDXC:Sidebar 2026-09-19 DECISION:
     /// User: the Search row and the Commands row are each one pixel taller.
@@ -222,6 +234,11 @@ impl GhostexGpuiApp {
                 row.children(tile.map(|tile| div().flex_shrink_0().ml(px(5.0 * scale)).child(tile)))
                     .child(div().flex_1())
             })
+            // Claude's button sits left of Commands, which stays the bar's last button
+            // (CDXC:Extensions 2026-10-25 in app/claude_web/sidebar_button.rs).
+            .when(footer, |row| {
+                row.children(self.render_native_sidebar_extension_buttons(appearance, cx))
+            })
             .child(
                 div()
                     .id(format!("native-sidebar-{label}"))
@@ -377,5 +394,62 @@ impl GhostexGpuiApp {
                 )
             })
             .into_any_element()
+    }
+
+    /// The bottom bar's extension buttons: the extension's own mark, its title in the tooltip,
+    /// filled while its view is on screen.
+    fn render_native_sidebar_extension_buttons(
+        &self,
+        appearance: &SidebarAppearance,
+        cx: &mut gpui::Context<Self>,
+    ) -> Vec<AnyElement> {
+        let scale = appearance.scale;
+        let tooltip_delay = appearance.tooltip_delay;
+        self.sidebar_extension_buttons()
+            .into_iter()
+            .map(|button| {
+                let SidebarExtensionButton {
+                    id,
+                    title,
+                    icon,
+                    icon_color,
+                    showing,
+                } = button;
+                let click_id = id.clone();
+                let tooltip = title.clone();
+                div()
+                    .id(gpui::SharedString::from(format!(
+                        "native-sidebar-extension-{id}"
+                    )))
+                    .role(gpui::Role::Button)
+                    .aria_label(title)
+                    .aria_selected(showing)
+                    .when(cfg!(target_os = "windows"), |button| button.occlude())
+                    .h(px(28.0 * scale))
+                    .w(px(34.0 * scale))
+                    .rounded(px(5.0 * scale))
+                    .flex()
+                    .flex_shrink(1.0)
+                    .min_w(px(SIDEBAR_TOP_ROW_BUTTON_MIN_WIDTH * scale))
+                    .items_center()
+                    .justify_center()
+                    .cursor_default()
+                    .when(showing, |button| button.bg(appearance.selected))
+                    .hover(|button| button.bg(appearance.hover))
+                    .child(titlebar_svg_icon(icon, 15.0 * scale, icon_color))
+                    .on_click(cx.listener(move |app, _, window, cx| {
+                        cx.stop_propagation();
+                        app.toggle_sidebar_extension_view(&click_id, window, cx);
+                    }))
+                    .managed_discrete_tooltip_with_placement(
+                        ManagedTooltipPlacement::Right,
+                        tooltip_delay,
+                        move |window, cx| {
+                            super::tooltips::sidebar_style_tooltip(tooltip.clone(), window, cx)
+                        },
+                    )
+                    .into_any_element()
+            })
+            .collect()
     }
 }

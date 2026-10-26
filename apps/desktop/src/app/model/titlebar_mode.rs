@@ -65,6 +65,9 @@ pub(crate) enum TitlebarMode {
     Extension(ExtensionId),
 }
 
+/// The built-in Claude view's tab identity (app/claude_web/ on the desktop).
+pub(crate) const CLAUDE_WEB_VIEW_ID: &str = "claude-web";
+
 impl TitlebarMode {
     pub(crate) fn from_slug(value: &str) -> Option<Self> {
         match value {
@@ -146,6 +149,7 @@ impl TitlebarMode {
                 }
             }
             mode if mode.is_storybook() => TITLEBAR_ICON_LAYOUT_BOARD_SPLIT,
+            mode if mode.is_claude_web() => "agent-icons/claude.svg",
             Self::Agents => TITLEBAR_ICON_LAYOUT_COLUMNS,
             Self::Source => "titlebar/brand-vscode.svg",
             Self::Browser => TITLEBAR_ICON_WORLD,
@@ -169,6 +173,11 @@ impl TitlebarMode {
                 .unwrap_or_else(|| id.as_str().to_string()),
             mode => mode.display_label().to_string(),
         }
+    }
+
+    /// The built-in Claude view (claude.ai, opened from the sidebar's bottom bar).
+    pub(crate) fn is_claude_web(self) -> bool {
+        matches!(self, Self::Extension(id) if id.as_str() == CLAUDE_WEB_VIEW_ID)
     }
 
     /// A view backed by a CEF page, with the awake/sleep lifecycle that implies. The Terminal view

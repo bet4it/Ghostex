@@ -278,6 +278,17 @@ impl GhostexGpuiApp {
                 ),
             ProjectWorkareaCefSurfaceSlotKey::Extension(id) => {
                 if gpui_custom_view(id).is_some() {
+                    // The built-in Claude view opens on the picked Claude account's own claude.ai
+                    // sign-in, and waits while the account list loads (claude_web/accounts.rs).
+                    let profile = if slot_key.titlebar_mode().is_claude_web() {
+                        let account_profile = self.claude_web_profile(&profile, cx)?;
+                        if !self.prepare_workspace_browser_context(&account_profile, cx) {
+                            return None;
+                        }
+                        account_profile
+                    } else {
+                        profile
+                    };
                     // CDXC:Browser 2026-09-22 DECISION:
                     // User: middle-click and Cmd-click in project website views open other tickets in new Browser tabs. Reuse the project-owned popup route, including its background placement and parked-project handling.
                     let popup_remote = if website_view {

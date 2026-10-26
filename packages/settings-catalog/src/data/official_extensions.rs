@@ -324,6 +324,18 @@ pub const GHOSTEX_OFFICIAL_EXTENSIONS: J = J::Arr(&[
         ("title", J::Str("Session details panel")),
         ("settingKeys", J::Arr(&[J::Str("sessionDetailsClaudeTaskTools")])),
     ]),
+    // CDXC:Extensions 2026-10-25 DECISION:
+    // User: claude.ai inside Ghostex "has to be built in extension", not an external Ghostex extension from the Store. Enabled, it "adds a button to the bottom right of the sidebar" that "switches to a global page that just keeps just my sidebar shown", with "different claude profiles for each account" to switch between. A whole-feature entry with a new key (`claudeWebHidden`, default on = hidden, so it starts off like Actions) because the settings file stores every default. Off removes the sidebar button and the Claude view; each account's claude.ai sign-in is kept.
+    // SEE-ALSO: apps/desktop/src/app/claude_web/ (the view, the button and the account bar).
+    J::Obj(&[
+        ("description", J::Str("Use claude.ai inside Ghostex from a button in the sidebar's bottom bar, with one sign-in per saved Claude account and a bar above the page to switch between them.")),
+        ("category", J::Str("features")),
+        ("id", J::Str("claudeWeb")),
+        ("placement", J::Str("feature")),
+        ("settingsKey", J::Str("claudeWebHidden")),
+        ("appWide", J::Bool(true)),
+        ("title", J::Str("Claude")),
+    ]),
     // CDXC:Extensions 2026-10-19 DECISION:
     // User (Q306): Connectors, OS Integration and Debugging join the Settings rail's Extensions group, and "for the ones that aren't in extensions already add them to extensions and allow disabling/enabling them". Q313: "Switch on top of the gate": each is on by default and its page shows only while its switch is on and its gate (`gatedBy`) is open: Enable Experimental Features for Connectors and OS Integration, Show Advanced for Debugging (a search still finds Debugging, CDXC:Settings 2026-09-26 in rail.rs). Its Store card is left out while the gate is closed. Turning Connectors off also turns off `ghostex connectors` and its gxserver routes (server/src/connectors/gate.rs, whose CDXC:Connectors 2026-10-15 decision still holds). New `…Hidden` keys default to false, so nobody's Settings changes.
     J::Obj(&[

@@ -10485,6 +10485,18 @@
       "agentWritable": true
     },
     {
+      "key": "claudeWebHidden",
+      "title": "Turn off Claude",
+      "subtitle": "Turn off Claude: the Claude button in the sidebar's bottom bar and the Claude view, which shows claude.ai with a bar to switch between your saved Claude accounts. Off by default; each account's claude.ai sign-in is kept.",
+      "tab": "extensions",
+      "tabTitle": "Store",
+      "section": "official",
+      "sectionTitle": "Built-in",
+      "type": "boolean",
+      "default": true,
+      "agentWritable": true
+    },
+    {
       "key": "connectorsHidden",
       "title": "Turn off Connectors",
       "subtitle": "Turn off Connectors everywhere: the Connectors page in Settings, the apps your agents get and the ghostex connectors commands. On by default, and shown only while Enable Experimental Features is on; your sign-ins and connected apps are kept.",

@@ -39,6 +39,9 @@ pub const READ_ALOUD: &str = "readAloud";
 /// calls while it is off, and the phone learns it from `builtInFeaturesOff`. Dictate is not part
 /// of it.
 pub const VOICE_AGENT: &str = "voiceAgent";
+/// Claude (claude.ai in a view opened from the sidebar's bottom bar, with an account bar to switch
+/// between the saved Claude accounts' sign-ins). Off by default.
+pub const CLAUDE_WEB: &str = "claudeWeb";
 /// Connectors (Settings > Connectors, the `ghostex connectors` verbs and routes). Gated by Enable
 /// Experimental Features as well as its switch.
 pub const CONNECTORS: &str = "connectors";
