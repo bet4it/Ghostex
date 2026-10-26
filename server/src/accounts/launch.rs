@@ -208,13 +208,24 @@ pub(crate) fn claude_account_argv(
             account.provider.helper()
         ))
     })?;
-    Ok(vec![
+    // A slot whose account is the signed-out default login starts in its own profile, as a local
+    // start's command does (default_login.rs); `env` carries the variable for an argv spawn.
+    let mut argv = super::default_login::signed_out_default_config_dir(&account.selector)
+        .map(|profile| {
+            vec![
+                "/usr/bin/env".to_string(),
+                format!("CLAUDE_CONFIG_DIR={profile}"),
+            ]
+        })
+        .unwrap_or_default();
+    argv.extend([
         executable.to_string_lossy().into_owned(),
         "run".to_string(),
         account.selector.clone(),
         "--share-history".to_string(),
         "--".to_string(),
-    ])
+    ]);
+    Ok(argv)
 }
 
 /// `command` for a session that is about to start on `account`: refused when the helper would only print an error.
