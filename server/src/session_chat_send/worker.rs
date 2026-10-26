@@ -960,6 +960,34 @@ pub(super) async fn run_session_chat_send_worker(
                     let codex = crate::agents::identity::normalize_agent_id(agent.as_deref())
                         .as_deref()
                         == Some("codex");
+                    // Codex's async question editor is left with the keys its own footer shows,
+                    // each one checked against a fresh capture.
+                    if codex
+                        && capture_session_terminal_text_vt(&zmx_name)
+                            .await
+                            .is_some_and(|screen| {
+                                crate::session_chat_codex_async_answer::question_editor_on_screen(
+                                    &screen,
+                                )
+                            })
+                    {
+                        if let Err(message) =
+                            crate::session_chat_codex_async_answer::leave_question_editor(
+                                &project_id,
+                                &session_id,
+                                &zmx_name,
+                                &source,
+                                &|| job_generation != generation.load(Ordering::SeqCst),
+                            )
+                            .await
+                        {
+                            outcome = Err(SessionChatSendError::new(
+                                SessionChatSendFailure::ComposerNotReady,
+                                message,
+                            ));
+                            break;
+                        }
+                    }
                     let attempt_ms = (timeout_ms / SESSION_CHAT_CLAUDE_PANEL_ESCAPES)
                         .max(crate::session_chat_composer::SESSION_CHAT_COMPOSER_POLL_MS);
                     let mut presses = 0;
