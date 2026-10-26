@@ -450,7 +450,11 @@ mod tests {
         std::fs::write(&ghostex, b"build A").unwrap();
         std::fs::hard_link(&ghostex, &gxserver).unwrap();
         // The kernel names the image after ghostex.exe; the process started as gxserver.exe (GitHub #312).
-        assert!(!image_superseded_at(&ghostex, &gxserver, unix_file_identity));
+        assert!(!image_superseded_at(
+            &ghostex,
+            &gxserver,
+            unix_file_identity
+        ));
     }
 
     #[test]
@@ -462,7 +466,11 @@ mod tests {
         std::os::unix::fs::symlink(&gxserver, &link).unwrap();
         assert!(!image_superseded_at(&gxserver, &link, unix_file_identity));
         let respelled = native.join("..").join("native").join("gxserver.exe");
-        assert!(!image_superseded_at(&gxserver, &respelled, unix_file_identity));
+        assert!(!image_superseded_at(
+            &gxserver,
+            &respelled,
+            unix_file_identity
+        ));
         // A different case names the same file wherever the volume ignores case (the Windows and default macOS case).
         let upper = native.join("GXSERVER.EXE");
         if upper.exists() {
@@ -507,7 +515,15 @@ mod tests {
         std::fs::write(&gxserver, b"build A").unwrap();
         let missing = native.join("missing.exe");
         // The installed file is mid-refresh, or the image cannot be opened.
-        assert!(!image_superseded_at(&gxserver, &missing, unix_file_identity));
-        assert!(!image_superseded_at(&missing, &gxserver, unix_file_identity));
+        assert!(!image_superseded_at(
+            &gxserver,
+            &missing,
+            unix_file_identity
+        ));
+        assert!(!image_superseded_at(
+            &missing,
+            &gxserver,
+            unix_file_identity
+        ));
     }
 }
