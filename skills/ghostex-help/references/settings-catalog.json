@@ -12866,7 +12866,7 @@
     {
       "id": "pasteIntoTerminal",
       "title": "Paste",
-      "description": "Paste the clipboard into the focused terminal.",
+      "description": "Paste the clipboard into the focused terminal. On Windows and Linux this key works only in a terminal, and Ctrl+V pastes everywhere else.",
       "defaultKey": "cmd+v",
       "windowsLinuxDefaultKey": "cmd+shift+v"
     },

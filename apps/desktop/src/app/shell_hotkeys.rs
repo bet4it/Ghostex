@@ -70,24 +70,23 @@ fn shell_hotkey_bindings(
     };
     let mut bindings = Vec::new();
     for (action_id, action) in SHELL_HOTKEY_ACTIONS {
+        // Paste is a terminal key on Windows and Linux (CDXC:Clipboard 2026-10-26 DECISION in
+        // packages/settings-catalog/src/hotkeys.rs).
+        let context = ghostex_settings_catalog::hotkey_is_terminal_only(
+            action_id,
+            ghostex_settings_catalog::Platform::current(),
+        )
+        .then_some(terminal_element::TERMINAL_KEY_CONTEXT);
         if let Some(keystroke) = keystroke(action_id) {
-            bindings.push((keystroke, *action, None));
+            bindings.push((keystroke, *action, context));
         }
+        // Ghostty's `shift+insert=paste_from_clipboard`.
         if *action_id == "pasteIntoTerminal" {
             bindings.push((
                 "shift-insert".to_string(),
                 *action,
                 Some(terminal_element::TERMINAL_KEY_CONTEXT),
             ));
-            // CDXC:Clipboard 2026-09-23 DECISION:
-            // User: Ctrl+Shift+V on Windows and Linux terminals uses the same local clipboard paste action, while configured hotkeys keep precedence. Sending raw Ctrl+V instead makes remote PowerShell paste the remote computer's clipboard.
-            if !cfg!(target_os = "macos") {
-                bindings.push((
-                    "ctrl-shift-v".to_string(),
-                    *action,
-                    Some(terminal_element::TERMINAL_KEY_CONTEXT),
-                ));
-            }
         }
         // Zoom In's second key, the `+` the same key types with Shift, while Zoom In is bound.
         if *action_id == "zoomInFocusedView" && keystroke(action_id).is_some() {

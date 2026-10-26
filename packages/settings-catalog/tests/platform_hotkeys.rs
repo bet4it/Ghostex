@@ -10,7 +10,8 @@
 use std::collections::BTreeMap;
 
 use ghostex_settings_catalog::{
-    hotkey_definitions, hotkey_keystroke, platform_hotkey, Platform, VIEW_SCOPED_HOTKEY_IDS,
+    hotkey_definitions, hotkey_is_terminal_only, hotkey_keystroke, modules, platform_hotkey,
+    Platform, VIEW_SCOPED_HOTKEY_IDS, WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
 };
 
 /// The GPUI keystroke each default binds on `platform` (`""` when it has none there).
@@ -370,4 +371,123 @@ fn a_saved_mac_default_moves_to_the_windows_and_linux_default() {
         platform_hotkey("splitMore", "cmd+alt+d", Platform::Linux),
         "cmd+alt+d"
     );
+}
+
+/// CDXC:Clipboard 2026-10-26 DECISION in src/hotkeys.rs: Paste is bound only in a terminal on
+/// Windows and Linux, so Ctrl+V pastes as usual everywhere else, and it is one rebindable key, not
+/// a second fixed Ctrl+Shift+V beside it. macOS keeps Cmd+V app-wide.
+#[test]
+fn paste_is_a_terminal_only_key_on_windows_and_linux() {
+    assert_eq!(
+        WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
+        ["pasteIntoTerminal"]
+    );
+    for platform in WINDOWS_AND_LINUX {
+        assert!(hotkey_is_terminal_only("pasteIntoTerminal", platform));
+        assert_eq!(
+            default_keystrokes(platform)["pasteIntoTerminal"],
+            "ctrl-shift-v"
+        );
+    }
+    assert!(!hotkey_is_terminal_only(
+        "pasteIntoTerminal",
+        Platform::MacOs
+    ));
+    for definition in hotkey_definitions() {
+        if definition.id != "pasteIntoTerminal" {
+            for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
+                assert!(
+                    !hotkey_is_terminal_only(definition.id, platform),
+                    "{}",
+                    definition.id
+                );
+            }
+        }
+    }
+    let source = shell_hotkeys_source();
+    assert!(source.contains("hotkey_is_terminal_only("));
+    assert!(
+        !source.contains("\"ctrl-shift-v\""),
+        "a fixed Ctrl+Shift+V would keep pasting after Paste is rebound"
+    );
+}
+
+fn shell_hotkeys_source() -> String {
+    std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../apps/desktop/src/app/shell_hotkeys.rs"
+    ))
+    .expect("apps/desktop/src/app/shell_hotkeys.rs")
+}
+
+/// Settings > Hotkeys: section id to the hotkey ids it lists.
+fn settings_sections() -> Vec<(String, Vec<String>)> {
+    let sections = modules::exports(modules::module::SETTINGS_TYPES, Platform::Linux)
+        .into_iter()
+        .find(|(name, _)| *name == "HOTKEY_SETTINGS_SECTIONS")
+        .expect("HOTKEY_SETTINGS_SECTIONS")
+        .1
+        .to_value();
+    sections
+        .as_array()
+        .expect("sections")
+        .iter()
+        .map(|section| {
+            let ids = section["ids"]
+                .as_array()
+                .expect("ids")
+                .iter()
+                .map(|id| id.as_str().expect("id").to_string())
+                .collect();
+            (section["id"].as_str().expect("id").to_string(), ids)
+        })
+        .collect()
+}
+
+#[test]
+fn every_hotkey_can_be_changed_in_settings() {
+    let listed: Vec<String> = settings_sections()
+        .into_iter()
+        .flat_map(|(_, ids)| ids)
+        .collect();
+    for definition in hotkey_definitions() {
+        assert!(
+            listed.iter().any(|id| id == definition.id),
+            "{} is missing from Settings > Hotkeys",
+            definition.id
+        );
+    }
+}
+
+/// The user kept Ctrl+1-9 for the session slots on Windows and Linux, rebindable there (Cmd+1-9 on
+/// macOS, pinned above).
+#[test]
+fn session_slots_are_ctrl_digits_on_windows_and_linux_and_can_be_rebound() {
+    let slots: Vec<String> = (1..=9)
+        .map(|slot| format!("focusSessionSlot{slot}"))
+        .collect();
+    let (_, section) = settings_sections()
+        .into_iter()
+        .find(|(id, _)| id == "sessionSlots")
+        .expect("Session Slots section");
+    assert_eq!(section, slots);
+    for platform in WINDOWS_AND_LINUX {
+        let keystrokes = default_keystrokes(platform);
+        for (index, slot) in slots.iter().enumerate() {
+            assert_eq!(keystrokes[slot.as_str()], format!("ctrl-{}", index + 1));
+            // A chord the user records stays theirs instead of moving back to Ctrl+N.
+            let custom = format!("alt+shift+{}", index + 1);
+            let key = platform_hotkey(slot, &custom, platform);
+            assert_eq!(key, custom);
+            assert_eq!(
+                hotkey_keystroke(key, platform).as_deref(),
+                Some(format!("alt-shift-{}", index + 1).as_str())
+            );
+            // Cleared, it binds nothing, so Ctrl+N reaches the terminal.
+            assert_eq!(
+                hotkey_keystroke(platform_hotkey(slot, "", platform), platform),
+                None
+            );
+        }
+    }
 }

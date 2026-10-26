@@ -1398,7 +1398,7 @@ pub const HOTKEY_DEFINITIONS: &[HotkeyDefinition] = &[
     HotkeyDefinition {
         id: "pasteIntoTerminal",
         title: "Paste",
-        description: "Paste the clipboard into the focused terminal.",
+        description: "Paste the clipboard into the focused terminal. On Windows and Linux this key works only in a terminal, and Ctrl+V pastes everywhere else.",
         default_key: "cmd+v",
         windows_linux_default_key: Some("cmd+shift+v"),
         alternate_default_keys: &[],

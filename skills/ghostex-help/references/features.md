@@ -2306,8 +2306,10 @@ managed terminal settings" section in Ghostty's config was left in place and you
 can delete it. Command-click opens links;
 Cmd+V pastes images as previewable links. On Windows and Linux, Ctrl+Shift+V
 pastes from the client computer's clipboard into the focused terminal, including
-a remote terminal, as in Ghostty; Ctrl+V goes to the program in the terminal
-(an image on the clipboard still pastes as a link). Shift+Insert also pastes, in terminals
+a remote terminal, as in Ghostty; in a terminal Ctrl+V goes to the program
+there (an image on the clipboard still pastes as a link), and everywhere else
+(the chat box, text fields, browser pages) Ctrl+V pastes as usual. Change or
+clear the terminal's Paste key in Settings > Hotkeys. Shift+Insert also pastes, in terminals
 and in text fields such as the chat composer and dialogs. A configured hotkey
 using the same chord takes precedence. In an agent's terminal prompt, use
 Prompt Editor in the terminal toolbar, Ctrl+G on macOS, or Ctrl+Shift+G on

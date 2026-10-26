@@ -56,6 +56,16 @@ impl HotkeyDefinition {
 /// hotkey without the two clashing (Settings marks no duplicate for them).
 pub const VIEW_SCOPED_HOTKEY_IDS: &[&str] = &["searchProjectFiles"];
 
+/// CDXC:Clipboard 2026-10-26 DECISION:
+/// User, on Windows and Linux paste (issue #315): "only when a terminal is focused please not always and only on windows/linux and allow rebinding it". So there Paste (Ctrl+Shift+V by default) is bound only while a terminal has the keyboard, plain Ctrl+V goes to the program in the terminal, and everywhere else (the chat box, text fields, browser pages, Files) Ctrl+V pastes as usual. Settings can move or clear it. macOS keeps Cmd+V everywhere. This supersedes the 2026-09-23 decision that bound Ctrl+Shift+V in terminals on top of a separate, app-wide Paste key.
+/// SEE-ALSO: apps/desktop/src/app/shell_hotkeys.rs (binds it in the terminal's key context), packages/settings-catalog/tests/platform_hotkeys.rs.
+pub const WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS: &[&str] = &["pasteIntoTerminal"];
+
+/// Whether the hotkey is bound only while a terminal has the keyboard on `platform`.
+pub fn hotkey_is_terminal_only(id: &str, platform: Platform) -> bool {
+    platform != Platform::MacOs && WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS.contains(&id)
+}
+
 pub fn hotkey_definitions() -> &'static [HotkeyDefinition] {
     HOTKEY_DEFINITIONS
 }

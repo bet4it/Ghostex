@@ -129,7 +129,7 @@ Default bindings are listed for macOS (`cmd`) with the Windows/Linux default whe
 | Start Action 5 | `ctrl+shift+5` | `cmd+shift+5` | Start action 5 from the Actions list. | `runActionSlot5` |
 | Split Sideways | `cmd+d` | `cmd+shift+o` | Create a terminal beside the focused pane. | `splitMore` |
 | Split Downwards | `cmd+shift+d` | `cmd+shift+e` | Create a terminal below the focused pane. | `splitMoreDown` |
-| Paste | `cmd+v` | `cmd+shift+v` | Paste the clipboard into the focused terminal. | `pasteIntoTerminal` |
+| Paste | `cmd+v` | `cmd+shift+v` | Paste the clipboard into the focused terminal. On Windows and Linux this key works only in a terminal, and Ctrl+V pastes everywhere else. | `pasteIntoTerminal` |
 | Find | `cmd+f` | `cmd+shift+f` | Find text in the focused terminal, browser page, chat or file. On Windows and Linux, Ctrl+F also finds anywhere but in a terminal. | `findInFocusedView` |
 | Find Next | `cmd+g` | `f3` | Go to the next match of Find in a browser page. | `findNextInBrowser` |
 | Find Previous | `cmd+shift+g` | `shift+f3` | Go to the previous match of Find in a browser page. | `findPreviousInBrowser` |
