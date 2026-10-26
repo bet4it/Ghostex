@@ -724,7 +724,7 @@ impl GhostexGpuiApp {
         );
     }
 
-    /// The Linux dialog's only action: the release page lists the deb, rpm, tarball and AUR downloads.
+    /// The Linux dialog's only action: the release page lists the deb, rpm, tarball, AppImage and AUR downloads.
     #[cfg(target_os = "linux")]
     pub(crate) fn open_linux_update_download_page(&mut self, cx: &mut gpui::Context<Self>) {
         if let Some(update) = self.linux_update.as_ref() {

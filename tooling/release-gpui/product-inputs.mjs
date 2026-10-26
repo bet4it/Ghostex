@@ -224,31 +224,39 @@ function gxserverProduct(arch) {
 }
 
 /*
- * The three Linux desktop packages of each architecture are one compile and
- * three wrappers over the same staged package root (§7): .deb, .rpm, and the
+ * The four Linux desktop packages of each architecture are one compile and
+ * four wrappers over the same staged package root (§7): .deb, .rpm, the
  * prefix-preserving `.tar.zst` that Arch, ubi, and mise install straight from
- * the release page. ARM64 builds natively on ubuntu-24.04-arm with the same
- * scripts; its names use each format's own spelling of the architecture.
+ * the release page, and the AppImage (GitHub issue #320). ARM64 builds natively
+ * on ubuntu-24.04-arm with the same scripts; its names use each format's own
+ * spelling of the architecture.
  */
 const LINUX_DESKTOP_ARTIFACT_NAMES = Object.freeze({
   x64: Object.freeze({
     deb: (version) => [`ghostex_${version}_amd64.deb`],
     rpm: (version) => [`ghostex-${version}-1.x86_64.rpm`],
     tar: (version) => [`ghostex-${version}-linux-x64.tar.zst`],
+    appimage: (version) => [`ghostex-${version}-linux-x64.AppImage`],
   }),
   arm64: Object.freeze({
     deb: (version) => [`ghostex_${version}_arm64.deb`],
     rpm: (version) => [`ghostex-${version}-1.aarch64.rpm`],
     tar: (version) => [`ghostex-${version}-linux-arm64.tar.zst`],
+    appimage: (version) => [`ghostex-${version}-linux-arm64.AppImage`],
   }),
 });
 
-export const LINUX_DESKTOP_FORMATS = Object.freeze(['deb', 'rpm', 'tar']);
+export const LINUX_DESKTOP_FORMATS = Object.freeze(['deb', 'rpm', 'tar', 'appimage']);
 
 /* x64 keeps its original flags so existing scopes and recorded plans read unchanged. */
 const LINUX_DESKTOP_SCOPE_FLAGS = Object.freeze({
-  x64: Object.freeze({ deb: 'linuxDeb', rpm: 'linuxRpm', tar: 'linuxTar' }),
-  arm64: Object.freeze({ deb: 'linuxDebArm64', rpm: 'linuxRpmArm64', tar: 'linuxTarArm64' }),
+  x64: Object.freeze({ deb: 'linuxDeb', rpm: 'linuxRpm', tar: 'linuxTar', appimage: 'linuxAppimage' }),
+  arm64: Object.freeze({
+    deb: 'linuxDebArm64',
+    rpm: 'linuxRpmArm64',
+    tar: 'linuxTarArm64',
+    appimage: 'linuxAppimageArm64',
+  }),
 });
 
 export function linuxDesktopProductId(format, arch) {
@@ -267,6 +275,7 @@ function linuxDesktopProduct(format, arch = 'x64') {
       { pathspec: 'media/sounds/**' },
       { pathspec: 'tooling/release-gpui/linux-stage.sh' },
       { pathspec: `tooling/release-gpui/linux-${format}.sh` },
+      ...(format === 'appimage' ? [{ pathspec: 'tooling/packaging/appimage/**' }] : []),
       { pathspec: '.github/workflows/release-gpui-linux.yml' },
     ],
     platform: { arch, os: 'linux', runnerLabel: arch === 'arm64' ? 'ubuntu-24.04-arm' : 'ubuntu-24.04' },
@@ -470,9 +479,11 @@ const PRODUCT_LIST = [
   linuxDesktopProduct('deb'),
   linuxDesktopProduct('rpm'),
   linuxDesktopProduct('tar'),
+  linuxDesktopProduct('appimage'),
   linuxDesktopProduct('deb', 'arm64'),
   linuxDesktopProduct('rpm', 'arm64'),
   linuxDesktopProduct('tar', 'arm64'),
+  linuxDesktopProduct('appimage', 'arm64'),
   windowsProduct('x64'),
   windowsProduct('arm64'),
   wslProduct('x64'),
@@ -665,6 +676,8 @@ export function defaultScope(overrides = {}) {
     linuxRpmArm64: true,
     linuxTar: true,
     linuxTarArm64: true,
+    linuxAppimage: true,
+    linuxAppimageArm64: true,
     macos: true,
     prerelease: false,
     signWindows: false,

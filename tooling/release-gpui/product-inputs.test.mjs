@@ -71,9 +71,11 @@ describe('release product input map', () => {
       'linux-deb-x64',
       'linux-rpm-x64',
       'linux-tar-x64',
+      'linux-appimage-x64',
       'linux-deb-arm64',
       'linux-rpm-arm64',
       'linux-tar-arm64',
+      'linux-appimage-arm64',
       'windows-x64',
       'windows-arm64',
       'gxserver-wsl-windows-x64',
@@ -92,6 +94,10 @@ describe('release product input map', () => {
     expect(productDefinition('linux-deb-arm64').artifacts(version)).toEqual(['ghostex_7.8.0_arm64.deb']);
     expect(productDefinition('linux-rpm-arm64').artifacts(version)).toEqual(['ghostex-7.8.0-1.aarch64.rpm']);
     expect(productDefinition('linux-tar-arm64').artifacts(version)).toEqual(['ghostex-7.8.0-linux-arm64.tar.zst']);
+    expect(productDefinition('linux-appimage-x64').artifacts(version)).toEqual(['ghostex-7.8.0-linux-x64.AppImage']);
+    expect(productDefinition('linux-appimage-arm64').artifacts(version)).toEqual([
+      'ghostex-7.8.0-linux-arm64.AppImage',
+    ]);
     expect(productDefinition('android').artifacts(version)).toEqual(['ghostex-android.apk']);
     expect(productDefinition('gxserver-linux-arm64').artifacts(version)).toEqual(['gxserver-linux-arm64.tar.gz']);
     expect(productDefinition('gxserver-wsl-windows-x64').artifacts(version)).toEqual(['gxserver-wsl-windows-x64.zip']);
@@ -158,9 +164,11 @@ describe('release product input map', () => {
       'linux-deb-x64',
       'linux-rpm-x64',
       'linux-tar-x64',
+      'linux-appimage-x64',
       'linux-deb-arm64',
       'linux-rpm-arm64',
       'linux-tar-arm64',
+      'linux-appimage-arm64',
       'windows-x64',
       'windows-arm64',
     ]) {
@@ -195,6 +203,10 @@ describe('release product input map', () => {
     expect(productDefinition('windows-arm64').composedFrom).toContain('code-server');
     expect(productDefinition('linux-rpm-x64').composedFrom).toContain('code-server');
     expect(productDefinition('linux-rpm-arm64').composedFrom).toContain('code-server');
+    /* The AppImage alone also depends on its AppRun launcher. */
+    expect(specs('linux-appimage-x64')).toContain('tooling/release-gpui/linux-appimage.sh');
+    expect(specs('linux-appimage-arm64')).toContain('tooling/packaging/appimage/**');
+    expect(specs('linux-tar-x64')).not.toContain('tooling/packaging/appimage/**');
     /* Rule 9: a workflow file invalidates only the product it builds. */
     expect(specs('android')).toContain('.github/workflows/release-gpui-android.yml');
     expect(specs('android')).not.toContain('.github/workflows/release-gpui-macos.yml');
@@ -205,6 +217,8 @@ describe('release product input map', () => {
     expect(stamped).toEqual([
       'gxserver-wsl-windows-arm64',
       'gxserver-wsl-windows-x64',
+      'linux-appimage-arm64',
+      'linux-appimage-x64',
       'linux-deb-arm64',
       'linux-deb-x64',
       'linux-rpm-arm64',
@@ -245,6 +259,10 @@ describe('release product input map', () => {
       'code-server': ['linux-x64'],
     });
     expect(componentPlatformRequirements('linux-deb-arm64')).toEqual({
+      cef: ['linux-arm64'],
+      'code-server': ['linux-arm64'],
+    });
+    expect(componentPlatformRequirements('linux-appimage-arm64')).toEqual({
       cef: ['linux-arm64'],
       'code-server': ['linux-arm64'],
     });

@@ -141,6 +141,7 @@ describe('release fingerprint algorithm', () => {
     expect(moved).toContain('linux-deb-x64');
     expect(moved).toContain('linux-rpm-x64');
     expect(moved).toContain('linux-tar-x64');
+    expect(moved).toContain('linux-appimage-x64');
   });
 
   test('a package.json version bump alone changes nothing', () => {
@@ -173,6 +174,8 @@ describe('release fingerprint algorithm', () => {
     expect(changed(atOldVersion, atNewVersion)).toEqual([
       'gxserver-wsl-windows-arm64',
       'gxserver-wsl-windows-x64',
+      'linux-appimage-arm64',
+      'linux-appimage-x64',
       'linux-deb-arm64',
       'linux-deb-x64',
       'linux-rpm-arm64',
