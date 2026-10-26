@@ -79,15 +79,18 @@ fn skill_unavailable_reason(skill: &str, platform: &str) -> Option<&'static str>
 /// desktop reads itself and a client without the catalog (the phone) reads here.
 fn catalog_skill(skill: &str) -> Option<Value> {
     use ghostex_settings_catalog::modules::{exports, module};
-    exports(module::AGENT_SKILLS, ghostex_settings_catalog::Platform::current())
-        .into_iter()
-        .find(|(name, _)| *name == "VISIBLE_BUNDLED_GHOSTEX_AGENT_SKILLS")?
-        .1
-        .to_value()
-        .as_array()?
-        .iter()
-        .find(|entry| entry.get("skillName").and_then(Value::as_str) == Some(skill))
-        .cloned()
+    exports(
+        module::AGENT_SKILLS,
+        ghostex_settings_catalog::Platform::current(),
+    )
+    .into_iter()
+    .find(|(name, _)| *name == "VISIBLE_BUNDLED_GHOSTEX_AGENT_SKILLS")?
+    .1
+    .to_value()
+    .as_array()?
+    .iter()
+    .find(|entry| entry.get("skillName").and_then(Value::as_str) == Some(skill))
+    .cloned()
 }
 
 /// The skills' state as the desktop reads its own (`~/.agents/skills/<name>/SKILL.md`).
@@ -204,14 +207,17 @@ fn uninstall_skill(home: &Path, skill: &str) -> Result<(), DomainStateError> {
                 && fs::canonicalize(link).ok() == canonical
         })
         .collect();
-    if metadata.is_dir() && !metadata.file_type().is_symlink() {
+    // A link (on Windows also a junction) is removed as a link, never followed.
+    if metadata.file_type().is_symlink() {
+        ghostex_agent_sync::fsx::remove_link(&path)
+    } else if metadata.is_dir() {
         fs::remove_dir_all(&path)
     } else {
         fs::remove_file(&path)
     }
     .map_err(internal)?;
     for link in agent_links {
-        let _ = fs::remove_file(link);
+        let _ = ghostex_agent_sync::fsx::remove_link(&link);
     }
     Ok(())
 }
@@ -302,7 +308,9 @@ mod tests {
             .find(|row| row["skillName"] == "ghostex-cli")
             .expect("cli row");
         assert_eq!(cli["name"], "Ghostex CLI");
-        assert!(cli["description"].as_str().is_some_and(|text| !text.is_empty()));
+        assert!(cli["description"]
+            .as_str()
+            .is_some_and(|text| !text.is_empty()));
     }
 
     #[test]
