@@ -6,13 +6,13 @@
 //! `/api/agentCliMaintenance` (server/src/agent_cli/endpoint.rs).
 //!
 //! CDXC:AgentProviders 2026-09-28 SEE-ALSO:
-//! The row action and the expanded controls keep separate job states, as their two React hooks do; the desktop has one connection ("This computer"), so the "Install agent CLIs on" select never shows.
+//! The row action and the expanded controls keep separate job states, as their two React hooks do. Every request goes to the machine the page's machine picker shows (tabs/machine_picker.rs): this computer's gxserver, or a connected remote machine's through its tunnel.
 use super::super::super::super::native_modal_kit::*;
 use super::super::super::fields::{
     ButtonSize, ButtonVariant, settings_button_sized, settings_icon, tooltip_text,
 };
 use super::super::super::palette::SettingsPalette;
-use super::super::super::store::store_gxserver_rpc;
+use super::super::super::store::store_machine_gxserver_rpc;
 use super::AgentsTab;
 use super::icons;
 use super::logos::muted_fill;
@@ -34,8 +34,6 @@ const POLL: Duration = Duration::from_millis(1500);
 /// The transport's `AbortSignal.timeout(30_000)`.
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(30);
 const ENDPOINT: &str = "/api/agentCliMaintenance";
-/// `connection.label` of the one desktop connection.
-const CONNECTION_LABEL: &str = "This computer";
 
 /// One row of packages/shared/agent-cli-catalog.json, the fields the page reads.
 pub(super) struct CliCatalogEntry {
@@ -307,6 +305,8 @@ impl CliJob {
 pub(super) struct CliModel {
     /// `useAgentCliList`: every catalog agent's state from one `list` read.
     pub(super) list: HashMap<String, CliState>,
+    /// Why the last `list` read failed (a remote machine not connected, or too old to answer).
+    pub(super) list_error: Option<String>,
     list_seq: u64,
     jobs: HashMap<(CliSlot, String), CliJob>,
     seq: u64,
@@ -368,19 +368,34 @@ impl AgentsTab {
         self.store.read(cx).request().gxserver_rpc_available
     }
 
+    /// Sends to the machine the page shows; an answer that comes back after another machine was
+    /// picked is dropped.
     fn cli_request(&self, params: Value, reply: CliReply, cx: &mut Context<Self>) {
         let weak = cx.entity().downgrade();
         let store = self.store.clone();
-        store_gxserver_rpc(
+        let machine = self.shown_machine.clone();
+        store_machine_gxserver_rpc(
             &store,
+            machine.clone().as_deref(),
             ENDPOINT,
             params,
             REQUEST_TIMEOUT,
             move |result, cx| {
-                let _ = weak.update(cx, |page, cx| reply(page, result, cx));
+                let _ = weak.update(cx, |page, cx| {
+                    if page.shown_machine == machine {
+                        reply(page, result, cx);
+                    }
+                });
             },
             cx,
         );
+    }
+
+    /// The name of the machine the CLI answers describe ("This computer" or the remote's name).
+    pub(super) fn cli_machine_label(&self) -> String {
+        self.shown_machine_name
+            .clone()
+            .unwrap_or_else(|| "This computer".to_string())
     }
 
     fn cli_job(&mut self, slot: CliSlot, agent_id: &str) -> &mut CliJob {
@@ -479,7 +494,10 @@ impl AgentsTab {
         }
         cx.notify();
         if installed {
-            self.on_cli_installed(&installed_agent, cx);
+            // The turn-on steps and resume hooks belong to this computer's agents.
+            if self.shown_machine.is_none() {
+                self.on_cli_installed(&installed_agent, cx);
+            }
             self.cli_changed(cx);
         }
     }
@@ -578,10 +596,14 @@ impl AgentsTab {
             self.cli_install_finished(
                 slot,
                 agent_id,
-                Some(
-                    "No install method is available on this computer. Follow the install docs."
-                        .to_string(),
-                ),
+                Some(format!(
+                    "No install method is available on {}. Follow the install docs.",
+                    if self.shown_machine.is_some() {
+                        self.cli_machine_label()
+                    } else {
+                        "this computer".to_string()
+                    }
+                )),
                 cx,
             );
             return;
@@ -673,22 +695,29 @@ impl AgentsTab {
                     return;
                 }
                 // Rows fall back to hook status on a failed list; the expanded controls show the error.
-                if let Ok(value) = result {
-                    page.cli.list = value
-                        .get("agents")
-                        .and_then(Value::as_array)
-                        .map(|agents| {
-                            agents
-                                .iter()
-                                .filter_map(|agent| {
-                                    let id = nonempty(agent, "agentId")?;
-                                    Some((id, CliState::parse(agent)?))
-                                })
-                                .collect()
-                        })
-                        .unwrap_or_default();
-                    cx.notify();
-                }
+                let value = match result {
+                    Ok(value) => value,
+                    Err(error) => {
+                        page.cli.list_error = Some(error);
+                        cx.notify();
+                        return;
+                    }
+                };
+                page.cli.list_error = None;
+                page.cli.list = value
+                    .get("agents")
+                    .and_then(Value::as_array)
+                    .map(|agents| {
+                        agents
+                            .iter()
+                            .filter_map(|agent| {
+                                let id = nonempty(agent, "agentId")?;
+                                Some((id, CliState::parse(agent)?))
+                            })
+                            .collect()
+                    })
+                    .unwrap_or_default();
+                cx.notify();
             }),
             cx,
         );
@@ -696,7 +725,10 @@ impl AgentsTab {
 
     /// `onCliChanged`: a job finished, so refresh hook status and the list.
     pub(super) fn cli_changed(&mut self, cx: &mut Context<Self>) {
-        self.request_hook_status(cx);
+        // Hook status is this computer's.
+        if self.shown_machine.is_none() {
+            self.request_hook_status(cx);
+        }
         self.cli_list_refresh(cx);
     }
 
@@ -958,7 +990,7 @@ impl AgentsTab {
         };
         let mut status_line = status;
         if connected {
-            status_line.push_str(&format!(" · {CONNECTION_LABEL}"));
+            status_line.push_str(&format!(" · {}", self.cli_machine_label()));
         }
         if let Some(state) = &state {
             status_line.push_str(&format!(" · {}", state.platform));

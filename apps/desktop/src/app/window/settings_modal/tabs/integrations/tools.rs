@@ -11,7 +11,7 @@ use super::super::super::fields::{
     settings_square_button, tooltip_text,
 };
 use super::super::super::palette::SettingsPalette;
-use super::super::super::store::{post_store_message, store_gxserver_rpc};
+use super::super::super::store::{post_store_message, store_machine_gxserver_rpc};
 use super::IntegrationsTab;
 use gpui::{
     AnyElement, Context, ElementId, InteractiveElement as _, IntoElement, ParentElement as _,
@@ -209,13 +209,16 @@ impl IntegrationsTab {
             return;
         }
         let this = cx.weak_entity();
-        store_gxserver_rpc(
+        let machine = self.shown_machine.clone();
+        store_machine_gxserver_rpc(
             &self.store.clone(),
+            machine.clone().as_deref(),
             "/api/managedTools",
             json!({ "action": "list" }),
             TIMEOUT,
             move |result, cx| {
                 let _ = this.update(cx, |page, cx| match result {
+                    _ if page.shown_machine != machine => {}
                     Ok(state) => {
                         page.managed.error = None;
                         let tools = state["tools"].as_array().cloned().unwrap_or_default();
@@ -339,13 +342,18 @@ impl IntegrationsTab {
         self.managed.starting = Some((tool.clone(), operation.to_string()));
         cx.notify();
         let this = cx.weak_entity();
-        store_gxserver_rpc(
+        let machine = self.shown_machine.clone();
+        store_machine_gxserver_rpc(
             &self.store.clone(),
+            machine.clone().as_deref(),
             "/api/managedTools",
             json!({ "action": "start", "tool": tool, "operation": operation }),
             TIMEOUT,
             move |result, cx| {
                 let _ = this.update(cx, |page, cx| {
+                    if page.shown_machine != machine {
+                        return;
+                    }
                     page.managed.starting = None;
                     match result {
                         Ok(state) => page.merge_managed_tool(state, cx),
@@ -385,13 +393,18 @@ impl IntegrationsTab {
         self.managed.checking = Some(tool.clone());
         cx.notify();
         let this = cx.weak_entity();
-        store_gxserver_rpc(
+        let machine = self.shown_machine.clone();
+        store_machine_gxserver_rpc(
             &self.store.clone(),
+            machine.clone().as_deref(),
             "/api/managedTools",
             json!({ "action": "read", "tool": tool, "fresh": true }),
             TIMEOUT,
             move |result, cx| {
                 let _ = this.update(cx, |page, cx| {
+                    if page.shown_machine != machine {
+                        return;
+                    }
                     page.managed.checking = None;
                     match result {
                         Ok(state) => {
@@ -621,9 +634,13 @@ impl IntegrationsTab {
         let mut controls: Vec<AnyElement> = Vec::new();
         if !installed {
             let terminal = text(tool, "terminalCommand").map(str::to_string);
-            let disabled = busy || (terminal.is_none() && !can(tool, "install"));
+            // A terminal install opens a terminal on this computer, so a remote machine's waits for one there.
+            let remote_terminal = terminal.is_some() && self.shown_machine.is_some();
+            let disabled = busy || remote_terminal || (terminal.is_none() && !can(tool, "install"));
             let reason: SharedString = if busy {
                 busy_reason.clone()
+            } else if remote_terminal {
+                format!("Install {name} from a terminal on that machine.").into()
             } else {
                 text(tool, "unavailableReason")
                     .map(str::to_string)

@@ -281,6 +281,9 @@ pub(crate) struct SettingsStore {
     /// Whether the rail's Extensions group is open (`extensionsGroupOpen` in
     /// `settingsModalNavigation`; see `SettingsTabId::EXTENSIONS_GROUP`).
     extensions_group_open: bool,
+    /// The remote machine Agents and Integrations show (tabs/machine_picker.rs); `None` is this
+    /// computer. Shared by both pages and forgotten when Settings closes.
+    picked_machine: Option<String>,
 }
 
 impl EventEmitter<SettingsStoreEvent> for SettingsStore {}
@@ -325,7 +328,9 @@ impl SettingsStore {
             closed: false,
             open_forms,
             extensions_group_open: false,
+            picked_machine: None,
         };
+        store.picked_machine = store.request.initial_machine_id.clone();
         store.active_tab = store.initial_tab();
         store.extensions_group_open = store
             .value("settingsModalNavigation")
@@ -625,6 +630,22 @@ impl SettingsStore {
 
     pub(crate) fn host_payload(&self, kind: &str) -> Option<&Value> {
         self.host_payloads.get(kind)
+    }
+
+    /// The remote machine Agents and Integrations show; `None` is this computer.
+    pub(crate) fn picked_machine(&self) -> Option<&str> {
+        self.picked_machine.as_deref()
+    }
+
+    pub(crate) fn set_picked_machine(
+        &mut self,
+        machine_id: Option<String>,
+        cx: &mut Context<Self>,
+    ) {
+        if self.picked_machine != machine_id {
+            self.picked_machine = machine_id;
+            cx.notify();
+        }
     }
 
     pub(crate) fn sidebar_state(&self) -> &Value {
@@ -1069,6 +1090,34 @@ pub(crate) fn store_gxserver_rpc(
     let host = store.read(cx).host.clone();
     host(
         SettingsModalCommand::GxserverRpc {
+            path: path.to_string(),
+            params,
+            timeout,
+            reply: Box::new(reply),
+        },
+        cx,
+    );
+}
+
+/// [`store_gxserver_rpc`] on the machine the page shows: this computer's gxserver for `None`, else
+/// that remote machine's (`SettingsModalCommand::RemoteGxserverRpc`).
+pub(crate) fn store_machine_gxserver_rpc(
+    store: &Entity<SettingsStore>,
+    machine_id: Option<&str>,
+    path: &str,
+    params: Value,
+    timeout: Duration,
+    reply: impl FnOnce(Result<Value, String>, &mut App) + 'static,
+    cx: &mut App,
+) {
+    let Some(machine_id) = machine_id else {
+        store_gxserver_rpc(store, path, params, timeout, reply, cx);
+        return;
+    };
+    let host = store.read(cx).host.clone();
+    host(
+        SettingsModalCommand::RemoteGxserverRpc {
+            machine_id: machine_id.to_string(),
             path: path.to_string(),
             params,
             timeout,

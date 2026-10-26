@@ -3201,6 +3201,15 @@ sessions, so any client can control agents on any machine.
   machine up to date** switch. A computer whose Ghostex is too old for this
   says so: update it once on that computer, and from then on it can be
   updated from another device.
+  To install or update agent CLIs, agent skills and tools on a remote machine,
+  open Settings > Agents or Settings > Integrations and pick the machine in the
+  **Machine** dropdown at the top (shown once a remote machine is saved). The
+  list then shows that machine's agent CLIs (installed or not, version, update
+  available) or its Ghostex CLI, agent skills and Tools, and Install, Update and
+  Uninstall run there through its own Ghostex. A machine that is not connected
+  shows why and can't be picked; one whose Ghostex is too old says to update it
+  first. Turning agents on, their defaults and resume hooks, and Desktop control
+  (Fast Computer & Browser Use, SpaceO) are set up on each computer itself.
 - **Web app**: the desktop's sidebar (with its session, group and project
   actions, the Git menu and Quick Access), chat and terminal running in a
   browser and talking to gxserver; remote machines, Settings and the commit

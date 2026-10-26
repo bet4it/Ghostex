@@ -183,6 +183,8 @@ pub(crate) struct SettingsOpenRequest {
     pub(crate) initial_remote_section: Option<String>,
     /// `agentHooks`.
     pub(crate) initial_agents_section: Option<String>,
+    /// The remote machine Agents and Integrations open on (their machine picker).
+    pub(crate) initial_machine_id: Option<String>,
     /// The agent (`claude`, `codex`) whose accounts the Accounts page opens on: an account
     /// toast's Open Accounts button (`GpuiAppToastAction::OpenAccounts`).
     pub(crate) initial_accounts_provider: Option<String>,
@@ -244,6 +246,8 @@ impl SettingsOpenRequest {
                 .filter(|section| section == "easyConnect" || section == "tailscale"),
             initial_agents_section: optional_text(message, "initialAgentsSection")
                 .filter(|section| section == "agentHooks"),
+            initial_machine_id: optional_text(message, "initialMachineId")
+                .filter(|id| !id.trim().is_empty()),
             initial_accounts_provider: optional_text(message, "initialAccountsProvider")
                 .filter(|provider| provider == "claude" || provider == "codex"),
             initial_custom_view_id: optional_text(message, "initialCustomViewId"),
@@ -295,6 +299,15 @@ pub(crate) enum SettingsModalCommand {
     /// way the React page's `RemoteSetupRpc` / `AgentCliConnection` called it; `reply` runs on
     /// the main thread with the envelope's `result` or the error message.
     GxserverRpc {
+        path: String,
+        params: Value,
+        timeout: std::time::Duration,
+        reply: GxserverRpcReply,
+    },
+    /// [`Self::GxserverRpc`] sent to a connected remote machine's gxserver through its tunnel
+    /// (`remote_conn/settings_rpc.rs`): Settings > Agents and Integrations with that machine picked.
+    RemoteGxserverRpc {
+        machine_id: String,
         path: String,
         params: Value,
         timeout: std::time::Duration,

@@ -45,6 +45,7 @@ pub mod http_client;
 pub mod identity;
 pub mod ids;
 pub mod logging;
+pub(crate) mod machine_integrations;
 pub(crate) mod managed_tools;
 pub mod navigation_history;
 pub mod notification_feed;

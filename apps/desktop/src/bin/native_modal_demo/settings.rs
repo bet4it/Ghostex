@@ -26,6 +26,8 @@ mod settings_e;
 mod settings_f1;
 #[path = "settings_f2.rs"]
 mod settings_f2;
+#[path = "settings_machines.rs"]
+mod settings_machines;
 #[path = "settings_workspaces.rs"]
 mod settings_workspaces;
 
@@ -64,6 +66,7 @@ fn story_settings(state: &str) -> serde_json::Map<String, Value> {
     settings_f1::story_settings(state, &mut settings);
     settings_e::story_settings(state, &mut settings);
     settings_workspaces::story_settings(state, &mut settings);
+    settings_machines::story_settings(state, &mut settings);
     if let Ok(Value::Object(extra)) = std::env::var("GHOSTEX_NATIVE_MODAL_DEMO_SETTINGS")
         .map_err(|_| ())
         .and_then(|text| serde_json::from_str::<Value>(&text).map_err(|_| ()))
@@ -157,6 +160,9 @@ pub(super) fn open(demo: &super::DemoEnv, cx: &mut App) {
                 for payload in settings_e::answers(&message) {
                     deliver(&host_slot, payload, cx);
                 }
+                for payload in settings_machines::answers(&message) {
+                    deliver(&host_slot, payload, cx);
+                }
             }
             // The system colour panel belongs to the app host (settings_modal_lifecycle.rs).
             SettingsModalCommand::PickSystemColor { key, initial } => {
@@ -190,6 +196,17 @@ pub(super) fn open(demo: &super::DemoEnv, cx: &mut App) {
                     settings_f1::Answer::Reply(result) => result,
                     settings_f1::Answer::NotMine => settings_f2::rpc(&path, &params),
                 };
+                cx.defer(move |cx| reply(result, cx));
+            }
+            SettingsModalCommand::RemoteGxserverRpc {
+                machine_id,
+                path,
+                params,
+                reply,
+                ..
+            } => {
+                eprintln!("remote gxserver rpc ({machine_id}): {path} {params}");
+                let result = settings_machines::remote_rpc(&host_state, &path, &params);
                 cx.defer(move |cx| reply(result, cx));
             }
             SettingsModalCommand::CopyToClipboard(text) => eprintln!("copy: {text}"),
@@ -227,7 +244,8 @@ pub(super) fn open(demo: &super::DemoEnv, cx: &mut App) {
         "tags" => {
             json!({ "initialSection": "sidebarTags", "initialSidebarTagsAction": "createTag" })
         }
-        _ => settings_workspaces::open_message(&state)
+        _ => settings_machines::open_message(&state)
+            .or_else(|| settings_workspaces::open_message(&state))
             .or_else(|| settings_f1::open_message(&state))
             .or_else(|| settings_cloud_boxes::open_message(&state))
             .or_else(|| settings_f2::open_message(&state))
@@ -246,7 +264,12 @@ pub(super) fn open(demo: &super::DemoEnv, cx: &mut App) {
     if state == "select" {
         request.open_select = Some("commandsPanelSide".to_string());
     }
-    request.gxserver_rpc_available = if settings_workspaces::owns(&state) {
+    if state == "machines-agents-open" {
+        request.open_select = Some("settings-machine-picker".to_string());
+    }
+    request.gxserver_rpc_available = if settings_workspaces::owns(&state)
+        || settings_machines::owns(&state)
+    {
         true
     } else if settings_cloud_boxes::owns(&state) {
         settings_cloud_boxes::gxserver_rpc_available(&state)
