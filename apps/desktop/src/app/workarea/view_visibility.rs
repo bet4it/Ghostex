@@ -196,7 +196,7 @@ impl GhostexGpuiApp {
         if self.available_titlebar_mode_or_agents(gone) == gone {
             return false;
         }
-        self.show_view_tab_successor(self.view_tab_successor(gone), cx);
+        self.show_leaving_view_successor(self.leaving_view_successor(gone), false, cx);
         if self.active_mode == TitlebarMode::Browser {
             self.defer_in_main_window(cx, |app, window, cx| {
                 app.sync_browser_address_input_if_shown(window, cx);

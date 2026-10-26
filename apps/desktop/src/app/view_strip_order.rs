@@ -29,14 +29,28 @@ impl GhostexGpuiApp {
     /// Browser's pages have a row of their own (`render/browser_page_tabs.rs`) the strip holds the
     /// Browser tab instead of them, standing where its first page stood until it is dragged.
     pub(crate) fn view_strip_entries(&self) -> Vec<ViewStripEntry> {
+        self.view_strip_entries_keeping(None)
+    }
+
+    /// `view_strip_entries` with `leaving`, the view that just left the panel, still drawn at its
+    /// stored slot although this project can no longer show it. A Browser that left the strip keeps
+    /// only the page that was on screen: its other pages leave with it, so they cannot change where
+    /// the remaining tabs stand around that page.
+    fn view_strip_entries_keeping(&self, leaving: Option<TitlebarMode>) -> Vec<ViewStripEntry> {
         let pages_in_row = self.browser_pages_in_view_row;
         let views = self
-            .open_view_tabs()
-            .into_iter()
+            .open_views
+            .iter()
+            .copied()
+            .filter(|mode| Some(*mode) == leaving || self.titlebar_mode_available(*mode))
             .filter(|mode| pages_in_row || *mode != TitlebarMode::Browser)
             .map(ViewStripEntry::View);
         let pages = if pages_in_row {
             Vec::new()
+        } else if leaving == Some(TitlebarMode::Browser)
+            && !self.titlebar_mode_available(TitlebarMode::Browser)
+        {
+            self.leaving_browser_anchor().into_iter().collect()
         } else {
             self.view_strip_browser_tabs()
         };
@@ -46,6 +60,17 @@ impl GhostexGpuiApp {
                 .collect(),
             ViewStripEntry::key,
         )
+    }
+
+    /// The focused pane's page of a Browser that left the panel, when the strip would draw it: a
+    /// loaded page, or any page while the Browser was the view on screen
+    /// (`view_strip_browser_tabs`).
+    fn leaving_browser_anchor(&self) -> Option<ViewStripBrowserTab> {
+        let pane_id = self.browser_tabs.focused_pane;
+        let tab_id = self.browser_tabs.active_tab_id_for_pane(pane_id)?;
+        let tab = self.browser_tabs.tab(tab_id)?;
+        (self.active_mode == TitlebarMode::Browser || tab.state == BrowserTabState::Loaded)
+            .then_some(ViewStripBrowserTab { pane_id, tab_id })
     }
 
     /// `available` in the strip's drawn order (`GpuiViewStripLayout::in_drawn_order`), the Browser
@@ -120,6 +145,25 @@ impl GhostexGpuiApp {
         let index = entries.iter().position(|entry| entry.key() == shown)?;
         let (left, right) = entries.split_at(index);
         right.iter().chain(left.iter().rev()).find(stays).copied()
+    }
+
+    /// CDXC:Workarea 2026-10-26 WHY:
+    /// A view that leaves the panel without its tab being closed (hidden here, turned off, or a restored project's saved view it can no longer show) is gone from the strip by the time the panel moves on, so the mode-only `view_tab_successor` answered "Browser" for a page drawn beside it, and the Browser showed the page it was last on: with Issue, Files and Pull request in the strip, × on Files showed Pull request but hiding Files did not. The strip is read again with `mode` at its stored slot and its neighbour chosen as × chooses it (`view_strip_successor`), a page included. A Browser that left is anchored at its focused pane's page, and all its pages leave with it. Only a leaving view with no tab of its own in the strip (a Browser with none of its pages drawn) falls back to `view_tab_successor`.
+    pub(crate) fn leaving_view_successor(&self, mode: TitlebarMode) -> Option<ViewStripEntry> {
+        let entries = self.view_strip_entries_keeping(Some(mode));
+        let anchor = if mode == TitlebarMode::Browser && !self.browser_pages_in_view_row {
+            self.browser_tabs
+                .active_tab_id_for_pane(self.browser_tabs.focused_pane)
+                .map(ViewStripTabKey::Browser)
+        } else {
+            Some(ViewStripTabKey::View(mode))
+        };
+        match anchor.filter(|anchor| entries.iter().any(|entry| entry.key() == *anchor)) {
+            Some(anchor) => self.view_strip_successor(&entries, anchor, |other| {
+                mode == TitlebarMode::Browser && matches!(other, ViewStripTabKey::Browser(_))
+            }),
+            None => self.view_tab_successor(mode).map(ViewStripEntry::View),
+        }
     }
 
     /// Puts a tab of the strip on screen the way a click on it does.
