@@ -133,7 +133,7 @@ fn sidebar_section(
         s,
         "projectSwitchKeepAliveMinutes",
         "Keep the previous project live for (minutes)",
-        "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away.",
+        "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away. Keep views loaded (Auto Sleep) keeps every side panel view with no time limit.",
         (
             g.number("MIN_PROJECT_SWITCH_KEEP_ALIVE_MINUTES"),
             g.number("MAX_PROJECT_SWITCH_KEEP_ALIVE_MINUTES"),

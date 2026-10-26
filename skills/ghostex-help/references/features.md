@@ -582,7 +582,7 @@ view from the strip.
 Related settings: `terminalViewWidthMode`, `webLinkOpenTarget`,
 `documentFileOpenTarget`, `otherFileOpenTarget`, `videoFileOpenTarget`,
 `audioFileOpenTarget`, `docsOpenFilesAsTabs`, the Auto Sleep rows
-(`autoSleep*IdleMinutes`), the Search in Files hotkey (`searchProjectFiles`), and
+(`autoSleep*IdleMinutes`, `keepViewsLoaded`), the Search in Files hotkey (`searchProjectFiles`), and
 Settings > Extensions > Store.
 
 ## Sidebar
@@ -678,7 +678,8 @@ workspace that no window shows yet has a new-window button at the right end of
 its row, which opens it in a new window. Switching reopens the session this window
 last had open in that workspace (or its first project with no session, or
 nothing if it is empty), and puts to sleep the open views of projects outside
-it; their tabs stay and reload when you come back. To move a project,
+it; their tabs stay and reload when you come back (with Keep views loaded on,
+nothing is put to sleep). To move a project,
 right-click it and choose Move to workspace; its sessions and worktrees go with
 it, and it leaves its group and Spaces and shows under Other in the new
 workspace. A project you add with Add Project (or clone from it) joins the
@@ -774,7 +775,12 @@ in the background for the "Keep the previous project live for" number of minutes
 (`projectSwitchKeepAliveMinutes`, default 10, 0 to 60), so switching back is
 instant. Set it to 0 to release them as soon as you leave. The page each other
 Space opens on is the exception: it stays loaded for as long as that Space opens
-on it, so swiping to a Space always shows its web page instantly.
+on it, so swiping to a Space always shows its web page instantly. To keep every
+side panel view you opened in a project loaded, not only the one on screen and
+with no time limit, turn on Settings > General > System > Auto Sleep > Keep views
+loaded (`keepViewsLoaded`). Auto Sleep and Sleep still apply, it uses more memory,
+and terminals and chats keep the minutes above. VS Code still reloads when you
+switch VS Code between computers, including when you switch back.
 Starting a new agent from the sidebar launcher or New Thread picker keeps your
 current view open, including Code, Browser, Kanban, Automate, and Files. Select
 Agents when you want to open the new agent there.
@@ -1023,8 +1029,11 @@ when you open it.
   reloads when you select it again. Tabs playing sound, tabs where you typed
   text you have not sent, and the page another Space opens on stay awake. The side panel
   also keeps only the view on screen and the two you used last awake; with more views open,
-  the oldest one sleeps, unless its VS Code, Browser or Project Auto Sleep is Off: Off keeps
-  that view's state (its page, or Code's terminals) in exchange for more memory. When the
+  the oldest one sleeps, unless it is VS Code, Browser, Files, Kanban or Automate with its
+  Auto Sleep Off: Off keeps that view's state (its page, or Code's terminals) in exchange for
+  more memory. Keep views
+  loaded (`keepViewsLoaded`) lifts that limit for every view, website and extension views
+  included, and keeps the views of projects you leave loaded too. When the
   Code view sleeps, its editor restarts: open files and unsaved changes come back, but its
   terminals start fresh. Resources in the
   header's ⋯ menu sleeps many at once and shows CPU and RAM per session. Clean RAM
@@ -1131,7 +1140,7 @@ when you open it.
   keeps running. **Export to Markdown** only saves the file and copies its path.
   Commands & output, File changes and Reasoning choose what the file includes.
 
-Related settings: `autoSleep*`, `clickToWakeSleepingSessions`,
+Related settings: `autoSleep*`, `keepViewsLoaded`, `clickToWakeSleepingSessions`,
 `dimSleepingSessions`, `wakeSleepingSessionsOnSelect`,
 `showSessionIdInTerminalPanes`, `sessionTitleGenerationAgent`,
 `renameSessionOnDoubleClick`.

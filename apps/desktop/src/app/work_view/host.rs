@@ -65,6 +65,21 @@ impl GhostexGpuiApp {
         ProjectWorkareaRealRuntimeUrl::from_authorized_runtime_url(url)
     }
 
+    /// Whether the loaded Work page (`owned`) stays, hidden, while the window shows no work-mode
+    /// project.
+    ///
+    /// CDXC:WorkMode 2026-10-26 WHY:
+    /// With Keep views loaded on, switching to a workspace without a work-mode project must not reload the Work page when you come back, but the page's address exists only while the view is available, so the prune closed it. It now stays loaded and hidden; the view itself still leaves and comes back as before.
+    pub(crate) fn work_view_page_kept_hidden(
+        &self,
+        owned: &ProjectWorkareaRuntimeCefSurface,
+    ) -> bool {
+        self.project_editor_auto_sleep_policy.keep_views_loaded
+            && self
+                .work_view_page_url()
+                .is_some_and(|url| owned.matches_runtime_url(&url))
+    }
+
     /// The sidebar's briefcase: opens Work as a view tab, and a second click closes it like its
     /// tab's close button does.
     pub(crate) fn toggle_work_view(&mut self, window: &mut Window, cx: &mut gpui::Context<Self>) {

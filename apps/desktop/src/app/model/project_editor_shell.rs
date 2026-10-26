@@ -88,6 +88,10 @@ pub(crate) struct ProjectEditorAutoSleepPolicySnapshot {
     pub(crate) kanban: Option<Duration>,
     pub(crate) automate: Option<Duration>,
     pub(crate) manage: Option<Duration>,
+    /// CDXC:Workarea 2026-10-26 WHY:
+    /// Keep views loaded (`keepViewsLoaded`, off by default) is for working across projects and workspaces all day with VS Code, Files, website and Browser views open: without it a fourth awake view, leaving a project with another view on screen, the keep-alive minutes and a workspace switch each close a view's page, and coming back reloads it even with every Auto Sleep Off. It is an opt-in exception to four owner decisions that stay the default: the awake cap (CDXC:Workarea 2026-10-25), keeping only the page on screen (CDXC:Workarea 2026-09-19), the keep-alive limit (CDXC:Workarea 2026-09-30) and the workspace switch sleep (CDXC:Workspaces 2026-10-09).
+    /// SEE-ALSO: apps/desktop/src/app/project_editor.rs, apps/desktop/src/app/project_keep_alive.rs, apps/desktop/src/app/web_page_sleep.rs, apps/desktop/src/app/workspace_windows/window_workspace.rs, apps/desktop/src/app/native_docs/files.rs.
+    pub(crate) keep_views_loaded: bool,
 }
 
 impl ProjectEditorAutoSleepPolicySnapshot {
@@ -105,6 +109,7 @@ impl ProjectEditorAutoSleepPolicySnapshot {
             kanban: project_editor_auto_sleep_duration(TitlebarMode::Kanban, settings),
             automate: project_editor_auto_sleep_duration(TitlebarMode::Automate, settings),
             manage: project_editor_auto_sleep_duration(TitlebarMode::Manage, settings),
+            keep_views_loaded: settings.keep_views_loaded(),
         }
     }
 
@@ -355,11 +360,12 @@ impl ProjectEditorShellModel {
             .is_some_and(|lifecycle| lifecycle.state == ProjectEditorLifecycleState::Awake)
     }
 
-    /// `kept_awake` are the views the cap may not put to sleep besides `mode` itself.
+    /// `None` disables the awake cap (Keep views loaded); `Some` keeps the listed views awake
+    /// besides `mode` itself, and `Some(&[])` applies the cap with no exemption.
     pub(crate) fn mark_mode_awake(
         &mut self,
         mode: TitlebarMode,
-        kept_awake: &[TitlebarMode],
+        cap_exempt: Option<&[TitlebarMode]>,
     ) -> bool {
         if !mode.is_project_editor_mode() {
             return false;
@@ -372,7 +378,9 @@ impl ProjectEditorShellModel {
         };
         lifecycle.state = ProjectEditorLifecycleState::Awake;
         lifecycle.recency = recency;
-        self.enforce_awake_mode_cap(mode, kept_awake);
+        if let Some(kept_awake) = cap_exempt {
+            self.enforce_awake_mode_cap(mode, kept_awake);
+        }
         true
     }
 

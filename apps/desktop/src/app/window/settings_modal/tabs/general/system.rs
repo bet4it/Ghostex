@@ -39,7 +39,7 @@ fn auto_sleep_section(
         (
             "autoSleepProjectEditorIdleMinutes",
             "Project Auto Sleep",
-            "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps them awake when more than three views are open.",
+            "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps Files, Kanban and Automate awake when more than three views are open.",
         ),
         (
             "autoSleepBrowserIdleMinutes",
@@ -63,6 +63,17 @@ fn auto_sleep_section(
             window,
             cx,
         ));
+        if key == "autoSleepBrowserIdleMinutes" {
+            rows.extend(page.toggle(
+                g,
+                s,
+                "keepViewsLoaded",
+                "Keep views loaded",
+                "Keep the side panel views you open loaded when you switch projects or workspaces, without the three-view limit or the previous project's time limit. Auto Sleep and Sleep still apply. Uses more memory.",
+                false,
+                cx,
+            ));
+        }
     }
     if g.values.f64("autoSleepAgentIdleMinutes") > 0.0 {
         rows.extend(page.toggle(
