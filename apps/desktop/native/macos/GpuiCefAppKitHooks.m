@@ -40,6 +40,7 @@ void GhostexGpuiCEFLogDevToolsWindowActivation(int windowIsKey,
                                                const char *responderClass);
 int GhostexGpuiCEFHandleZoomCommandForNativeView(void *nativeView, int command);
 int GhostexGpuiCEFMarkNativeViewFocused(void *nativeView);
+int GhostexGpuiCEFTextIsStrayKeyCharacter(const uint16_t *units, size_t len);
 void GhostexGpuiCEFLogNativeMouseDown(void *nativeView, double eventWindowX,
                                       double eventWindowY, double frameWindowX,
                                       double frameWindowY, double frameWidth,
@@ -117,6 +118,8 @@ static Class GhostexGpuiCEFFocusSuperclass(id self);
 static void GhostexGpuiCEFBrowserViewCut(id self, SEL _cmd, id sender);
 static void GhostexGpuiCEFBrowserViewCopy(id self, SEL _cmd, id sender);
 static void GhostexGpuiCEFBrowserViewPaste(id self, SEL _cmd, id sender);
+static void GhostexGpuiCEFBrowserViewInsertText(id self, SEL _cmd, id string,
+                                                NSRange replacementRange);
 static BOOL GhostexGpuiCEFEventIsCommandA(NSEvent *event);
 static BOOL GhostexGpuiCEFEventIsCommandF(NSEvent *event);
 static BOOL GhostexGpuiCEFEventIsCommandOptionF(NSEvent *event);
@@ -1470,6 +1473,14 @@ static void GhostexGpuiCEFInstallBrowserViewFocusSubclass(NSView *view) {
                     (IMP)GhostexGpuiCEFBrowserViewPaste, "v@:@");
     class_addMethod(subclass, @selector(performKeyEquivalent:),
                     (IMP)GhostexGpuiCEFBrowserViewPerformKeyEquivalent, "c@:@");
+    // Only Chromium's render widget is the page's text input client.
+    Method insertText = class_getInstanceMethod(
+        originalClass, @selector(insertText:replacementRange:));
+    if (insertText && GhostexGpuiResponderIsChromiumContent(view)) {
+      class_addMethod(subclass, @selector(insertText:replacementRange:),
+                      (IMP)GhostexGpuiCEFBrowserViewInsertText,
+                      method_getTypeEncoding(insertText));
+    }
     class_addMethod(subclass, @selector(addSubview:),
                     (IMP)GhostexGpuiCEFBrowserViewAddSubview, "v@:@");
     class_addMethod(subclass, @selector(viewDidChangeEffectiveAppearance),
@@ -1637,6 +1648,31 @@ static BOOL GhostexGpuiCEFBrowserViewPerformKeyEquivalent(id self, SEL _cmd,
     return YES;
   }
   return GhostexGpuiCEFHandleEditCommandForResponder(self, clipboardCommand);
+}
+
+/*
+ CDXC:Hotkeys 2026-10-27 WHY:
+ GitHub #326: an arrow, Home/End or Page Up/Down press in the Code view also typed its layout code (0x1E for Up) into the file, and into the Command Palette's box, which re-filtered the list so the arrows never moved its selection. The macOS input method committed the key event's raw character as text, and Chromium's insertText: hands committed text to the page as is, past Blink's rule that keys never type control characters. A commit made only of control or AppKit function-key characters is dropped here (the rule and its tests are GhostexGpuiCEFTextIsStrayKeyCharacter in cef/macos.rs); Enter, Tab, Backspace, Escape and Ctrl+letter keep reaching the page through Chromium's key event, and every CEF page (Code, Browser, Docs, Settings) shares this view.
+ */
+static void GhostexGpuiCEFBrowserViewInsertText(id self, SEL _cmd, id string,
+                                                NSRange replacementRange) {
+  NSString *text =
+      [string isKindOfClass:NSAttributedString.class] ? [string string] : string;
+  if ([text isKindOfClass:NSString.class] && text.length > 0 &&
+      text.length <= 16) {
+    unichar units[16];
+    [text getCharacters:units range:NSMakeRange(0, text.length)];
+    if (GhostexGpuiCEFTextIsStrayKeyCharacter(units, text.length) != 0) {
+      return;
+    }
+  }
+  struct objc_super superInfo = {
+      .receiver = self,
+      .super_class = GhostexGpuiCEFFocusSuperclass(self),
+  };
+  void (*sendSuper)(struct objc_super *, SEL, id, NSRange) =
+      (void *)objc_msgSendSuper;
+  sendSuper(&superInfo, _cmd, string, replacementRange);
 }
 
 static void GhostexGpuiCEFBrowserViewAddSubview(id self, SEL _cmd,
