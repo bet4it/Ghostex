@@ -261,6 +261,9 @@ pub(crate) fn terminate_process(pid: u32, wait: std::time::Duration) -> bool {
 ///
 /// CDXC:ServerDaemon 2026-09-28 WHY:
 /// The desktop refreshes the managed Windows package by renaming the old binaries into `.retired-native` while they may still be running. A gxserver started during that refresh kept executing the retired image, but `build-identity.json` already named the new build, so health reported the new identity and the app never restarted it: a day of installed fixes never ran (the chat Subagents card stayed empty). Compare the file mapped as this image with the installed path so a superseded daemon reports a mismatched identity and the app restarts it.
+///
+/// CDXC:ServerDaemon 2026-10-27 WHY:
+/// The package ships gxserver.exe as a hard link to ghostex.exe in `resources\native`, and the kernel names the mapped image after the link the section was first created through (ghostex.exe), while `current_exe` is gxserver.exe. Comparing the two paths called every daemon superseded, so it stopped about 10 s after each start and the app relaunched it in a loop, and no agent session could start (GitHub #312). Two paths now count as one file when their volume and file id match, so a hard link, another spelling or a different case of the same file is never superseded; only a different file at the startup path ends it.
 /// SEE-ALSO: `refresh` in apps/desktop/src/windows_terminal_backend/native_package.rs; `gpui_probe_local_gxserver_health_with_diagnostics` in apps/desktop/src/app/helpers/board_gxserver/gxserver_health_and_daemon.rs.
 #[cfg(windows)]
 pub(crate) fn running_image_superseded() -> bool {
@@ -269,7 +272,7 @@ pub(crate) fn running_image_superseded() -> bool {
         ProcessStatus::K32GetMappedFileNameW, Threading::GetCurrentProcess,
     };
     // `current_exe` is the path the loader recorded at startup, not where the image lives now.
-    let Ok(installed) = std::env::current_exe().and_then(std::fs::canonicalize) else {
+    let Ok(installed) = std::env::current_exe() else {
         return false;
     };
     let mut name = vec![0u16; 32_768];
@@ -287,7 +290,51 @@ pub(crate) fn running_image_superseded() -> bool {
     }
     let mut mapped = std::ffi::OsString::from(r"\\?\GLOBALROOT");
     mapped.push(std::ffi::OsString::from_wide(&name[..length]));
-    std::fs::canonicalize(mapped).is_ok_and(|running| running != installed)
+    image_superseded_at(
+        std::path::Path::new(&mapped),
+        &installed,
+        windows_file_identity,
+    )
+}
+
+/// The volume and file id of one file, the same through every hard link, symlink and spelling of its path.
+#[cfg(any(windows, test))]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+struct FileIdentity {
+    volume: u64,
+    file: u64,
+}
+
+/// Whether `running` (the file the image is mapped from) and `installed` (the startup path) are known to be different files. A path that cannot be identified (the installed file is mid-refresh, the image cannot be opened) is not proof, so it never counts as superseded; the next check decides.
+#[cfg(any(windows, test))]
+fn image_superseded_at(
+    running: &std::path::Path,
+    installed: &std::path::Path,
+    identify: impl Fn(&std::path::Path) -> Option<FileIdentity>,
+) -> bool {
+    match (identify(running), identify(installed)) {
+        (Some(running), Some(installed)) => running != installed,
+        _ => false,
+    }
+}
+
+/// The volume serial number and file index of `path`, opened for its attributes only so a running or shared image opens too.
+#[cfg(windows)]
+fn windows_file_identity(path: &std::path::Path) -> Option<FileIdentity> {
+    use std::os::windows::{fs::OpenOptionsExt, io::AsRawHandle};
+    use windows_sys::Win32::Storage::FileSystem::{
+        GetFileInformationByHandle, BY_HANDLE_FILE_INFORMATION, FILE_READ_ATTRIBUTES,
+    };
+    let file = std::fs::OpenOptions::new()
+        .access_mode(FILE_READ_ATTRIBUTES)
+        .open(path)
+        .ok()?;
+    let mut info: BY_HANDLE_FILE_INFORMATION = unsafe { std::mem::zeroed() };
+    let read = unsafe { GetFileInformationByHandle(file.as_raw_handle() as _, &mut info) };
+    (read != 0).then(|| FileIdentity {
+        volume: u64::from(info.dwVolumeSerialNumber),
+        file: (u64::from(info.nFileIndexHigh) << 32) | u64::from(info.nFileIndexLow),
+    })
 }
 
 /// CDXC:ServerDaemon 2026-09-29 WHY:
@@ -372,4 +419,95 @@ pub(crate) fn spawn_server(executable: &OsStr) -> std::io::Result<u32> {
         }
     }
     Err(std::io::Error::last_os_error())
+}
+
+#[cfg(all(test, unix))]
+mod tests {
+    use super::{image_superseded_at, FileIdentity};
+    use std::{os::unix::fs::MetadataExt, path::Path};
+
+    // The same comparison Windows makes, fed the device and inode the Unix filesystem keeps for each file.
+    fn unix_file_identity(path: &Path) -> Option<FileIdentity> {
+        let metadata = std::fs::metadata(path).ok()?;
+        Some(FileIdentity {
+            volume: metadata.dev(),
+            file: metadata.ino(),
+        })
+    }
+
+    fn native_dir() -> (tempfile::TempDir, std::path::PathBuf) {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let native = temp.path().join("resources").join("native");
+        std::fs::create_dir_all(&native).expect("native dir");
+        (temp, native)
+    }
+
+    #[test]
+    fn hard_linked_server_is_not_superseded_by_its_other_name() {
+        let (_temp, native) = native_dir();
+        let ghostex = native.join("ghostex.exe");
+        let gxserver = native.join("gxserver.exe");
+        std::fs::write(&ghostex, b"build A").unwrap();
+        std::fs::hard_link(&ghostex, &gxserver).unwrap();
+        // The kernel names the image after ghostex.exe; the process started as gxserver.exe (GitHub #312).
+        assert!(!image_superseded_at(&ghostex, &gxserver, unix_file_identity));
+    }
+
+    #[test]
+    fn symlinked_or_respelled_path_is_not_superseded() {
+        let (temp, native) = native_dir();
+        let gxserver = native.join("gxserver.exe");
+        std::fs::write(&gxserver, b"build A").unwrap();
+        let link = temp.path().join("gxserver-link.exe");
+        std::os::unix::fs::symlink(&gxserver, &link).unwrap();
+        assert!(!image_superseded_at(&gxserver, &link, unix_file_identity));
+        let respelled = native.join("..").join("native").join("gxserver.exe");
+        assert!(!image_superseded_at(&gxserver, &respelled, unix_file_identity));
+        // A different case names the same file wherever the volume ignores case (the Windows and default macOS case).
+        let upper = native.join("GXSERVER.EXE");
+        if upper.exists() {
+            assert!(!image_superseded_at(&gxserver, &upper, unix_file_identity));
+        }
+    }
+
+    #[test]
+    fn image_renamed_away_with_a_new_build_installed_is_superseded() {
+        let (temp, native) = native_dir();
+        let gxserver = native.join("gxserver.exe");
+        std::fs::write(&gxserver, b"build A").unwrap();
+        let retired = temp.path().join(".retired-native");
+        std::fs::create_dir_all(&retired).unwrap();
+        let running = retired.join("gxserver.exe");
+        std::fs::rename(&gxserver, &running).unwrap();
+        std::fs::write(&gxserver, b"build B").unwrap();
+        assert!(image_superseded_at(&running, &gxserver, unix_file_identity));
+    }
+
+    #[test]
+    fn hard_linked_pair_replaced_by_a_new_build_is_superseded() {
+        let (temp, native) = native_dir();
+        let ghostex = native.join("ghostex.exe");
+        let gxserver = native.join("gxserver.exe");
+        std::fs::write(&ghostex, b"build A").unwrap();
+        std::fs::hard_link(&ghostex, &gxserver).unwrap();
+        let retired = temp.path().join(".retired-native");
+        std::fs::create_dir_all(&retired).unwrap();
+        let running = retired.join("ghostex.exe");
+        std::fs::rename(&ghostex, &running).unwrap();
+        std::fs::remove_file(&gxserver).unwrap();
+        std::fs::write(&ghostex, b"build B").unwrap();
+        std::fs::hard_link(&ghostex, &gxserver).unwrap();
+        assert!(image_superseded_at(&running, &gxserver, unix_file_identity));
+    }
+
+    #[test]
+    fn a_path_that_cannot_be_identified_is_not_superseded() {
+        let (_temp, native) = native_dir();
+        let gxserver = native.join("gxserver.exe");
+        std::fs::write(&gxserver, b"build A").unwrap();
+        let missing = native.join("missing.exe");
+        // The installed file is mid-refresh, or the image cannot be opened.
+        assert!(!image_superseded_at(&gxserver, &missing, unix_file_identity));
+        assert!(!image_superseded_at(&missing, &gxserver, unix_file_identity));
+    }
 }
