@@ -377,6 +377,7 @@ pub(super) fn snapshot_from_view(
                 attention_count: machine.attention_count,
                 background_work_count: machine.background_work_count,
                 question_count: machine.question_count,
+                approval_count: machine.approval_count,
                 id: machine.id.clone(),
                 label: machine.label.clone(),
                 state: machine.state.clone(),
@@ -402,6 +403,7 @@ pub(super) fn snapshot_from_view(
                     attention_count: space.attention_count,
                     background_work_count: space.background_work_count,
                     question_count: space.question_count,
+                    approval_count: space.approval_count,
                 },
             )
             .collect(),
@@ -483,6 +485,7 @@ fn native_group(
             "attentionCount": core.summary.attention_count,
             "backgroundWorkCount": core.summary.background_work_count,
             "questionCount": core.summary.question_count,
+            "approvalCount": core.summary.approval_count,
             "awakeCount": core.summary.awake_count,
         }),
         collapsed: core.collapsed,
@@ -501,6 +504,7 @@ fn native_group(
                 attention_count: section.attention_count,
                 background_work_count: section.background_work_count,
                 question_count: section.question_count,
+                approval_count: section.approval_count,
                 session_ids: section.session_ids.clone(),
                 menu: menus
                     .section_menu(group, section)
@@ -644,6 +648,7 @@ fn native_collection(
         attention_count: collection.attention_count,
         background_work_count: collection.background_work_count,
         question_count: collection.question_count,
+        approval_count: collection.approval_count,
         menu: collection_menu(collection, view, menus, cache),
     }
 }

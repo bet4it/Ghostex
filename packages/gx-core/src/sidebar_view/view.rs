@@ -97,6 +97,8 @@ pub struct MachineSummary {
     pub background_work_count: usize,
     /// Rows with an unanswered question card (the pink dot); they are not counted as attention.
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
 }
 
 /// One machine tab: what the host said about it, plus the counts its badge draws.
@@ -111,6 +113,8 @@ pub struct MachineTabView {
     pub attention_count: usize,
     pub background_work_count: usize,
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
 }
 
 /// The machine a drawn group belongs to; absent for this computer's groups.
@@ -223,6 +227,8 @@ pub struct GroupSummary {
     pub background_work_count: usize,
     /// Rows with an unanswered question card (the pink dot); they are not counted as attention.
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
     pub awake_count: usize,
 }
 
@@ -237,6 +243,8 @@ pub struct SectionView {
     pub attention_count: usize,
     pub background_work_count: usize,
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
     /// The rows this heading draws: its sessions, minus the ones a collapsed heading or a folded
     /// coordinator hides.
     pub session_ids: Vec<String>,
@@ -361,8 +369,9 @@ pub struct ThreadTally {
 /// What a coordinator row's badge shows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CoordinatorBadge {
-    /// The number beside the crew icon: the threads waiting for approval, else the working ones,
-    /// else the waiting ones, else the coordinator's recent threads. `0` draws no number.
+    /// The number beside the crew icon: the sessions waiting for approval, else the threads waiting
+    /// on the user, else the working ones, else the coordinator's recent threads. `0` draws no
+    /// number.
     pub count: u16,
     pub tone: CoordinatorBadgeTone,
 }
@@ -386,10 +395,9 @@ impl RowNesting {
 
     /// The coordinator row's badge.
     ///
-    /// CDXC:Coordinators 2026-10-04 DECISION:
-    /// User: "in this state the main coordinator should show 2 working not 5" (5 threads, 2 working). The badge is the crew icon and one number: how many threads are working; when none work, how many wait on the user; when neither, how many threads the coordinator lists by default (working, waiting or active in the last two hours, worktree threads included; the two-hour rule in `sidebar_view/threads.rs`), so the number matches the rows under it. The tint follows the number: orange when it is the working count, light blue when it is the waiting count, neutral otherwise. Supersedes the 2026-10-01 decision ("make it just show the people icon and the total number of sessions that are part of this one"), which always showed the total.
-    /// CDXC:SessionStatus 2026-10-27 DECISION:
-    /// User: "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve ... This sub thread for outdated dependeincies audit was stuck on this for a long time and i didn't know!!". While any session under the coordinator, at any depth (a nested orchestrator's threads too), waits for approval, the crew icon and number turn red and the number counts those sessions, ahead of the working and waiting counts above.
+    /// CDXC:Coordinators 2026-10-27 DECISION:
+    /// User (Q1, the order under the new red): "Light blue (waiting), then orange (working)". The badge is the crew icon and one number: how many sessions under it (at any depth) wait for approval, in red; when none, how many threads wait on the user, in light blue; when none, how many threads are working, in orange; when none of these, how many threads the coordinator lists by default (working, waiting or active in the last two hours, worktree threads included; the two-hour rule in `sidebar_view/threads.rs`), neutral, so the number matches the rows under it. The tint always follows the number. Supersedes the 2026-10-04 decision ("in this state the main coordinator should show 2 working not 5"), which put the working count ahead of the waiting one.
+    /// User (2026-10-27): "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve ... This sub thread for outdated dependeincies audit was stuck on this for a long time and i didn't know!!", which added the red approval count on top.
     pub fn coordinator_badge(&self) -> CoordinatorBadge {
         let threads = self.threads;
         if threads.approval > 0 {
@@ -399,17 +407,17 @@ impl RowNesting {
             };
         }
         CoordinatorBadge {
-            count: if threads.working > 0 {
-                threads.working
-            } else if threads.waiting > 0 {
+            count: if threads.waiting > 0 {
                 threads.waiting
+            } else if threads.working > 0 {
+                threads.working
             } else {
                 threads.total
             },
-            tone: if threads.working > 0 {
-                CoordinatorBadgeTone::Working
-            } else if threads.waiting > 0 {
+            tone: if threads.waiting > 0 {
                 CoordinatorBadgeTone::Waiting
+            } else if threads.working > 0 {
+                CoordinatorBadgeTone::Working
             } else {
                 CoordinatorBadgeTone::Idle
             },
@@ -442,11 +450,30 @@ impl SessionRow {
             && !self.awaiting_approval
     }
 
-    /// Waiting on the user as the headers and the status indicators count it: attention, or an
-    /// approval only the user can grant, which can sit under a title that settled to idle.
-    pub fn needs_attention(&self) -> bool {
-        self.activity == "attention" || self.awaiting_approval
+    /// Which needs-you dot a header counts this row under, the most urgent first: the red approval
+    /// dot, the pink question dot, then the blue attention dot.
+    ///
+    /// CDXC:SessionStatus 2026-10-27 DECISION:
+    /// User (Q2): section, project, Space and machine headers get "a red dot" for sessions waiting for approval, separate from the blue needs-you count. A row waiting for approval counts there only, never also as a question or as attention.
+    pub fn needs_you(&self) -> Option<NeedsYou> {
+        if self.awaiting_approval {
+            Some(NeedsYou::Approval)
+        } else if self.pending_question_count > 0 {
+            Some(NeedsYou::Question)
+        } else if self.activity == "attention" {
+            Some(NeedsYou::Attention)
+        } else {
+            None
+        }
     }
+}
+
+/// The header count a row that waits on the user falls in (`SessionRow::needs_you`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum NeedsYou {
+    Approval,
+    Question,
+    Attention,
 }
 
 /// One session (or browser tab) as a sidebar row.
@@ -646,6 +673,8 @@ pub struct SpaceView {
     pub attention_count: usize,
     pub background_work_count: usize,
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
 }
 
 /// A collection (a colored folder of projects).
@@ -663,6 +692,8 @@ pub struct CollectionView {
     pub attention_count: usize,
     pub background_work_count: usize,
     pub question_count: usize,
+    /// Rows waiting for approval (the red dot); counted here only, not as questions or attention.
+    pub approval_count: usize,
     pub awake_count: usize,
 }
 
@@ -711,7 +742,7 @@ mod tests {
         .coordinator_badge()
     }
 
-    /// Red (approval) wins over orange (working), which wins over light blue (waiting); the number
+    /// Red (approval) wins over light blue (waiting), which wins over orange (working); the number
     /// follows the tone.
     #[test]
     fn coordinator_badge_tone_priority() {
@@ -725,15 +756,15 @@ mod tests {
         assert_eq!(
             badge(0, 3, 1, 6),
             CoordinatorBadge {
-                count: 3,
-                tone: CoordinatorBadgeTone::Working
+                count: 1,
+                tone: CoordinatorBadgeTone::Waiting
             }
         );
         assert_eq!(
-            badge(0, 0, 1, 6),
+            badge(0, 3, 0, 6),
             CoordinatorBadge {
-                count: 1,
-                tone: CoordinatorBadgeTone::Waiting
+                count: 3,
+                tone: CoordinatorBadgeTone::Working
             }
         );
         assert_eq!(
@@ -756,7 +787,7 @@ mod tests {
             awaiting_approval: true,
             ..SessionRow::default()
         };
-        assert!(row.needs_attention());
+        assert_eq!(row.needs_you(), Some(NeedsYou::Approval));
         assert!(!row.shows_background_work());
         let mut status = FoldedStatus::default();
         status.add(&row);

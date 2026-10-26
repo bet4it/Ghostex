@@ -18,6 +18,7 @@ mod daemon_wait;
 mod drop_landing;
 mod groups;
 mod inputs;
+mod links;
 mod machine_connection;
 pub(crate) mod machine_spaces;
 mod machine_switch;
@@ -42,7 +43,6 @@ pub(crate) mod tags;
 pub(crate) mod text;
 mod threads;
 pub(crate) mod view;
-mod links;
 mod work;
 pub(crate) mod workspaces;
 
@@ -64,6 +64,10 @@ pub use inputs::{
     UnavailableState, GROUP_WORKING_SESSIONS_SETTING_KEY, LOCAL_MACHINE_ID,
     MACHINE_STATE_CONNECTED, MAX_RECENT_SPACE_SESSION_IDS,
 };
+pub use links::{
+    link_chips_that_fit, SessionLink, SessionLinkGlyph, SessionLinkKind, SessionLinkTone,
+    SessionLinks, SessionLinksBadge, SessionLinksDisplay, SessionLinksRow, SuggestedSessionLink,
+};
 pub use machine_connection::{machine_state_copy, machine_state_is_busy, machine_state_is_failure};
 pub use machine_switch::{
     machine_switch_memory, plan_machine_switch_restore, MACHINE_SESSION_MEMORY_SPACE_ID,
@@ -84,13 +88,9 @@ pub use tags::{TagListItem, TagListItemKind, TagPresentation, UNTAGGED_TAG_FILTE
 pub use view::{
     rename_shake_key, CollectionView, CoordinatorBadge, CoordinatorBadgeTone, DelayedSendView,
     EmptyState, FoldedStatus, GroupCore, GroupSummary, GroupView, LabelDeadline, MachineNotice,
-    MachineSummary, MachineTabView, OrderItem, OrderKind, ProjectContextView, RemoteMachineView,
-    RowNesting, SectionView, SessionMenuFacts, SessionRow, SessionTiming, SessionView, SidebarView,
-    SpaceView, ThreadTally, WorktreeView, RENAME_SHAKE_FRESH_MS,
-};
-pub use links::{
-    link_chips_that_fit, SessionLink, SessionLinkGlyph, SessionLinkKind, SessionLinkTone, SessionLinks,
-    SessionLinksBadge, SessionLinksDisplay, SessionLinksRow, SuggestedSessionLink,
+    MachineSummary, MachineTabView, NeedsYou, OrderItem, OrderKind, ProjectContextView,
+    RemoteMachineView, RowNesting, SectionView, SessionMenuFacts, SessionRow, SessionTiming,
+    SessionView, SidebarView, SpaceView, ThreadTally, WorktreeView, RENAME_SHAKE_FRESH_MS,
 };
 pub use work::{SessionWork, WorkGithubIssue, WorkLinearIssue, WorkLinearProject, WorkPullRequest};
 pub use workspaces::{

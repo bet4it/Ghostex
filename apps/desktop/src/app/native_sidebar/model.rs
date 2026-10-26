@@ -80,6 +80,9 @@ pub(crate) struct NativeSidebarSection {
     #[serde(default)]
     pub(crate) background_work_count: usize,
     pub(crate) question_count: usize,
+    /// Rows waiting for approval: the red dot (gx-core `SessionRow::needs_you`).
+    #[serde(default)]
+    pub(crate) approval_count: usize,
     pub(crate) session_ids: Vec<String>,
     /// The heading's right-click menu; only the Parked heading has one (Sleep All, Close All).
     #[serde(skip)]
@@ -155,6 +158,9 @@ pub(crate) struct NativeSidebarMachine {
     pub(crate) background_work_count: usize,
     #[serde(default)]
     pub(crate) question_count: usize,
+    /// Rows waiting for approval: the red dot (gx-core `SessionRow::needs_you`).
+    #[serde(default)]
+    pub(crate) approval_count: usize,
     pub(crate) id: String,
     pub(crate) label: String,
     pub(crate) state: String,
@@ -176,6 +182,9 @@ pub(crate) struct NativeSidebarSpace {
     pub(crate) background_work_count: usize,
     #[serde(default)]
     pub(crate) question_count: usize,
+    /// Rows waiting for approval: the red dot (gx-core `SessionRow::needs_you`).
+    #[serde(default)]
+    pub(crate) approval_count: usize,
 }
 
 #[derive(Clone, Debug, Deserialize)]
@@ -200,6 +209,9 @@ pub(crate) struct NativeSidebarCollection {
     pub(crate) background_work_count: usize,
     #[serde(default)]
     pub(crate) question_count: usize,
+    /// Rows waiting for approval: the red dot (gx-core `SessionRow::needs_you`).
+    #[serde(default)]
+    pub(crate) approval_count: usize,
     pub(crate) menu: Arc<Value>,
 }
 

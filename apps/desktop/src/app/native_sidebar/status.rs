@@ -39,7 +39,7 @@ pub(crate) const FAILED_COLOR: u32 = 0xef4444;
 pub(crate) const QUESTION_COLOR: u32 = 0xf472b6;
 
 /// CDXC:SessionStatus 2026-10-27 DECISION:
-/// User: "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve". A session waiting for approval (gxserver's `awaitingApproval`) draws this red dot ahead of every other status (question, working, attention, shell running, failed), and an orchestrator above it draws its crew icon and number in it. It is the app's one error red (`FAILED_COLOR`), which reads on the dark and the light sidebar alike.
+/// User: "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve". Then (Q2) the section, project, collection, Space and machine headers get "a red dot" of their own for those sessions, separate from the blue needs-you count (gx-core `SessionRow::needs_you`). A session waiting for approval (gxserver's `awaitingApproval`) draws this red dot ahead of every other status (question, working, attention, shell running, failed), and an orchestrator above it draws its crew icon and number in it. It is the app's one error red (`FAILED_COLOR`), which reads on the dark and the light sidebar alike.
 pub(crate) const APPROVAL_COLOR: u32 = FAILED_COLOR;
 
 /// The red dot of a session waiting for approval, in the same slot as every other indicator.
@@ -134,6 +134,7 @@ pub(crate) fn status_dot_stack(
     attention_count: usize,
     background_work_count: usize,
     question_count: usize,
+    approval_count: usize,
     scale: f32,
     backdrop: DotBackdrop,
 ) -> gpui::Div {
@@ -142,7 +143,7 @@ pub(crate) fn status_dot_stack(
         attention_count > 0,
         background_work_count > 0,
         question_count > 0,
-        false,
+        approval_count > 0,
     );
     let hover = backdrop.hover;
     overlapped_dots(dots, scale, backdrop.rest, Some((hover, backdrop.group)))

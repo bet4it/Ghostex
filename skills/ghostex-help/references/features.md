@@ -880,8 +880,10 @@ where they are while you open, change and close views.
   dragging never adds a heading or moves the list.
 - Sidebar section headings (Pinned, Sessions, Drafts, Parked, and
   Snoozed) show an orange dot when a session is working, a blue dot when
-  a session is done, and a pink dot when an agent is waiting for an answer,
-  including rows hidden by a collapsed heading. Pending questions use
+  a session is done, a pink dot when an agent is waiting for an answer, and a
+  red dot when an agent is stuck waiting for your approval, including rows
+  hidden by a collapsed heading. A collapsed project, a collapsed collection, a
+  Space button and a computer tab show the same red for those sessions. Pending questions use
   pink instead of blue; multiple dots appear when multiple states are present,
   including orange and pink when an agent keeps working after asking. Collapsed
   headings show their session count at the right edge and a muted gray hollow
@@ -2678,10 +2680,10 @@ version of the Projects features in Cursor and Claude Code.
   place of its agent's logo, and a crew icon
   with one number: how many sessions under it (its threads' threads too) are
   stuck waiting for your approval; when none, how many of its threads are
-  working; when none are working, how many are waiting on you; when neither,
+  waiting on you; when none are waiting, how many are working; when neither,
   how many threads it lists. The icon and number are red when the number counts
-  sessions waiting for approval, orange when it counts working threads, light
-  blue when it counts threads waiting on you, and grey otherwise. Its
+  sessions waiting for approval, light blue when it counts threads waiting on
+  you, orange when it counts working threads, and grey otherwise. Its
   threads sit indented right under it with their own status dots: the ones
   working, waiting, or active in the last 2 hours. Older threads wait behind an
   "N older threads" row at the end, which lists them all (and "Hide older

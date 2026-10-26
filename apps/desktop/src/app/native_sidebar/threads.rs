@@ -176,7 +176,7 @@ pub(crate) fn coordinator_icon(appearance: &SidebarAppearance) -> AnyElement {
 const BADGE_TEXT_SIZE: f32 = 13.55;
 
 /// The coordinator row's marker: the crew icon and its thread count, tinted when a thread waits for
-/// approval (red), works (orange) or waits on someone (light blue).
+/// approval (red), waits on someone (light blue) or works (orange), in that order.
 ///
 /// CDXC:Coordinators 2026-09-30 WHY:
 /// A coordinator looks like any other session of its agent otherwise, and its thread rows alone do not say which row they hang from once the list scrolls (or once the tree is folded). What the numbers mean is gx-core's `RowNesting::coordinator_badge`.
