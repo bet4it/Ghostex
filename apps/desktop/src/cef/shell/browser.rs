@@ -325,6 +325,11 @@ impl CefBrowser {
             platform::prepare_native_view_for_focus(native_view);
             #[cfg(target_os = "macos")]
             platform::set_native_view_pinch_zoom_disabled(native_view, pinch_zoom_disabled);
+            #[cfg(target_os = "windows")]
+            platform::set_native_view_background_color(
+                native_view,
+                browser_settings.background_color,
+            );
             register_native_view_browser(
                 native_view,
                 &browser,
