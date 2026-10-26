@@ -199,7 +199,10 @@ pub struct GhostexGpuiApp {
     pub(crate) project_views: crate::app::project_views::ProjectViews,
     pub(crate) parked_project_workarea_surfaces:
         Vec<crate::app::project_keep_alive::ParkedProjectWorkareaSurface>,
-    pub(crate) project_keep_alive_expiry_scheduled: bool,
+    /// When the armed keep-alive timer fires, and the number that tells it whether a newer timer
+    /// replaced it (`ensure_project_keep_alive_expiry_scheduled`).
+    pub(crate) project_keep_alive_expiry_at: Option<std::time::Instant>,
+    pub(crate) project_keep_alive_expiry_generation: u64,
     pub(crate) extensions_snapshot: GpuiExtensionsSnapshot,
     pub(crate) extension_projects: HashMap<String, GpuiExtensionProjectMetadata>,
     pub(crate) extension_session_details: HashMap<String, serde_json::Value>,

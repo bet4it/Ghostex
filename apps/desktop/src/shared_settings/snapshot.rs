@@ -488,6 +488,13 @@ impl SharedSidebarSettingsSnapshot {
         strict_bool_field(&self.object, "browserPagesInViewRow").unwrap_or(false)
     }
 
+    /// Side panel views without the three-view limit, every page of a project that is left kept
+    /// for its return, and no sleep on a workspace switch
+    /// (`ProjectEditorAutoSleepPolicySnapshot::keep_views_loaded`).
+    pub fn keep_views_loaded(&self) -> bool {
+        strict_bool_field(&self.object, "keepViewsLoaded").unwrap_or(false)
+    }
+
     pub fn video_file_open_target(&self) -> SharedMediaFileOpenTarget {
         SharedMediaFileOpenTarget::from_settings_value(
             self.object

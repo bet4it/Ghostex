@@ -22,7 +22,7 @@ pub(crate) fn auto_sleep() -> Section {
             row(
                 "autoSleepProjectEditorIdleMinutes",
                 "Project Auto Sleep",
-                "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps them awake when more than three views are open.",
+                "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps Files, Kanban and Automate awake when more than three views are open.",
             )
             .num_options(AUTO_SLEEP_IDLE_MINUTE_OPTIONS),
             row(
@@ -31,6 +31,11 @@ pub(crate) fn auto_sleep() -> Section {
                 "Choose when inactive browser panes sleep, or turn Auto Sleep off. Off also keeps the Browser awake when more than three views are open.",
             )
             .num_options(AUTO_SLEEP_IDLE_MINUTE_OPTIONS),
+            row(
+                "keepViewsLoaded",
+                "Keep views loaded",
+                "Keep the side panel views you open loaded when you switch projects or workspaces, without the three-view limit or the previous project's time limit. Auto Sleep and Sleep still apply. Uses more memory.",
+            ),
             row(
                 "autoSleepAgentIdleMinutes",
                 "Agent Auto Sleep",

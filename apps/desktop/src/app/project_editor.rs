@@ -15,14 +15,21 @@ use crate::app::helpers::*;
 use crate::app::model::*;
 use crate::*;
 impl GhostexGpuiApp {
+    /// CDXC:Workarea 2026-10-26 WHY:
+    /// Keep views loaded wakes a view without the awake cap, so website and extension views stay awake beside the built-ins: an opt-in exception to the cap and to its Auto Sleep Off exemption below, which stay the default (`ProjectEditorAutoSleepPolicySnapshot::keep_views_loaded`).
     pub(crate) fn mark_project_editor_mode_awake(
         &mut self,
         mode: TitlebarMode,
         cx: &mut gpui::Context<Self>,
     ) -> bool {
-        let mut kept_awake = self.view_modes_kept_awake_by_parked_projects();
-        kept_awake.extend(self.view_modes_never_auto_slept());
-        let marked = self.project_editor_shell.mark_mode_awake(mode, &kept_awake);
+        let cap_exempt = (!self.project_editor_auto_sleep_policy.keep_views_loaded).then(|| {
+            let mut kept_awake = self.view_modes_kept_awake_by_parked_projects();
+            kept_awake.extend(self.view_modes_never_auto_slept());
+            kept_awake
+        });
+        let marked = self
+            .project_editor_shell
+            .mark_mode_awake(mode, cap_exempt.as_deref());
         if marked {
             self.release_capped_view_surfaces(cx);
             self.schedule_project_editor_auto_sleep_for_inactive_modes(cx);
@@ -355,7 +362,18 @@ impl GhostexGpuiApp {
             return;
         }
 
+        let keep_views_loaded_changed = self.project_editor_auto_sleep_policy.keep_views_loaded
+            != next_policy.keep_views_loaded;
         self.project_editor_auto_sleep_policy = next_policy;
+        if keep_views_loaded_changed {
+            // Turned on, it keeps the pages already parked; turned off, the pages it held follow
+            // the keep-alive minutes from when they were left.
+            if next_policy.keep_views_loaded {
+                self.hold_parked_project_workarea_surfaces(cx);
+            }
+            self.expire_parked_project_workarea_surfaces();
+            self.ensure_project_keep_alive_expiry_scheduled(cx);
+        }
         self.schedule_project_editor_auto_sleep_for_inactive_modes(cx);
     }
 }

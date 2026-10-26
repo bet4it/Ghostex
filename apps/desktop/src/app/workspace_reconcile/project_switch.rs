@@ -309,7 +309,7 @@ impl GhostexGpuiApp {
             .pending_remote_prompt_editor_request = None;
         self.capture_outgoing_project_view_state();
         if self.agents_workspace_project_id.is_some() {
-            self.park_visible_project_workarea_surfaces_before_switch(cx);
+            self.park_project_workarea_surfaces_before_switch(cx);
         }
         if self.agents_workspace_project_id.is_none()
             && new_project_id.as_ref().is_some_and(|project_id| {

@@ -378,6 +378,7 @@ impl GhostexGpuiApp {
                 created_at: Instant::now(),
             },
         );
+        self.release_held_page_replaced_by(slot_key);
         if slot_key.is_code_editor() {
             self.prepare_code_editor_page(slot_key, &surface, cx);
         }
@@ -594,7 +595,13 @@ impl GhostexGpuiApp {
                     .get(&slot_key)
                     .is_some_and(|owned_surface| owned_surface.matches_runtime_url(runtime_url))
             });
-            if surface_is_current {
+            let work_page_kept = slot_key == ProjectWorkareaCefSurfaceSlotKey::Work
+                && current_runtime_url.is_none()
+                && self
+                    .project_workarea_runtime_cef_surfaces
+                    .get(&slot_key)
+                    .is_some_and(|owned_surface| self.work_view_page_kept_hidden(owned_surface));
+            if surface_is_current || work_page_kept {
                 continue;
             }
             let was_visible = self.project_workarea_runtime_cef_surface_may_be_visible(slot_key);

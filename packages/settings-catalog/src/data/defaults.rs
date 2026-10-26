@@ -439,6 +439,7 @@ pub const DEFAULT_GHOSTEX_SETTINGS: &[(&str, J)] = &[
     ("autoSleepCodeEditorIdleMinutes", J::Num(10.0)),
     ("autoSleepGitEditorIdleMinutes", J::Num(5.0)),
     ("autoSleepProjectEditorIdleMinutes", J::Num(5.0)),
+    ("keepViewsLoaded", J::Bool(false)),
     ("autoSleepRequireAgentResumeCommand", J::Bool(true)),
     ("autoSleepFavoriteAgentSessions", J::Bool(false)),
     ("keepAwakeActivateOnExternalDisplay", J::Bool(false)),
