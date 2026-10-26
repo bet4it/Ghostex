@@ -490,9 +490,15 @@ impl GhostexGpuiApp {
                     .filter(|tab| tab.state == BrowserTabState::Loaded)
                     .map(|tab| (tab.cef_url(), tab.profile_id))
                 {
-                    Some((url, profile_id)) => self
-                        .ensure_browser_surface_for_tab(tab_id, url, profile_id, cx)
-                        .is_some(),
+                    Some((url, profile_id)) => {
+                        match self.ensure_browser_surface_for_tab(tab_id, url, profile_id, cx) {
+                            Some(surface) => {
+                                self.size_background_browser_page(surface, cx);
+                                true
+                            }
+                            None => false,
+                        }
+                    }
                     None => true,
                 }
             } else {
@@ -719,6 +725,11 @@ impl GhostexGpuiApp {
             .parked_browser_runtimes_by_project
             .keys()
             .chain(self.pending_parked_browser_opens.keys())
+            .chain(
+                self.waiting_parked_browser_pages
+                    .iter()
+                    .map(|(project_id, _)| project_id),
+            )
             .map(String::as_str)
             .collect::<Vec<_>>();
         candidates.extend(
@@ -749,6 +760,9 @@ impl GhostexGpuiApp {
         }
         for project_id in &removed {
             self.pending_parked_browser_opens.remove(project_id);
+            // A page not made yet is not made for it later either.
+            self.waiting_parked_browser_pages
+                .retain(|(waiting, _)| waiting != project_id);
             self.sleep_parked_browser_project(project_id, cx);
             let views = self
                 .project_views
