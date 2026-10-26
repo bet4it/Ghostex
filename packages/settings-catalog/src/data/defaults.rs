@@ -748,7 +748,7 @@ pub const DEFAULT_GHOSTEX_SETTINGS: &[(&str, J)] = &[
             ("sessionNote", J::Str("cmd+alt+n")),
             ("stashPrompt", J::Str("alt+s")),
             ("stashedPrompts", J::Str("cmd+alt+s")),
-            ("exportTranscript", J::Str("cmd+alt+e")),
+            ("exportTranscript", J::Str("")),
             ("toggleAgentActions", J::Str("cmd+alt+a")),
             ("toggleChatView", J::Str("alt+g")),
             ("openFindPrompts", J::Str("cmd+shift+f")),

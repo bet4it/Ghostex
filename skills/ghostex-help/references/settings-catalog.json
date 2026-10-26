@@ -3715,7 +3715,7 @@
         "sessionNote": "cmd+alt+n",
         "stashPrompt": "alt+s",
         "stashedPrompts": "cmd+alt+s",
-        "exportTranscript": "cmd+alt+e",
+        "exportTranscript": "",
         "toggleAgentActions": "cmd+alt+a",
         "toggleChatView": "alt+g",
         "openFindPrompts": "cmd+shift+f",
@@ -12490,9 +12490,13 @@
       "id": "exportTranscript",
       "title": "Handoff / Export",
       "description": "Export the focused agent session's transcript and hand it off to another agent.",
-      "defaultKey": "cmd+alt+e",
-      "terminalDefaultKey": "cmd+alt+e",
-      "windowsLinuxTerminalDefaultKey": "cmd+alt+x"
+      "defaultKey": "",
+      "retiredDefaultKeys": [
+        "cmd+alt+e",
+        "ctrl+alt+e",
+        "cmd+alt+x"
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "toggleAgentActions",

@@ -697,14 +697,18 @@ pub const HOTKEY_DEFINITIONS: &[HotkeyDefinition] = &[
     // Handoff / Export writes the focused agent session's conversation to a
     // markdown file on the machine that owns the transcript, then offers to
     // seed a new conversation from it.
+    //
+    // CDXC:Hotkeys 2026-10-27 DECISION:
+    // User, asked about Export Transcript sharing Ctrl+Alt+E with Expand View Panel on Windows and Linux: "remove "export transcript" default hotkey". It has no default key on any platform, in either section of Settings > Hotkeys, and stays a row the user can record. Its old defaults are retired so a saved copy of them (`hotkeys` stores the whole table) resolves to unassigned: Cmd+Option+E (`cmd+alt+e`, Ctrl+Alt+E on Windows and Linux, also spelled `ctrl+alt+e` there) and the short-lived Terminal focused `cmd+alt+x`.
+    // SEE-ALSO: apps/desktop/src/app/hotkeys.rs (`gpui_migrated_hotkey_for_action`), apps/desktop/src/terminal_element.rs (`terminal_overlay_hotkey_label`).
     HotkeyDefinition {
         id: "exportTranscript",
         title: "Handoff / Export",
         description: "Export the focused agent session's transcript and hand it off to another agent.",
-        default_key: "cmd+alt+e",
+        default_key: "",
         windows_linux_default_key: None,
         alternate_default_keys: &[],
-        retired_default_keys: &[],
+        retired_default_keys: &["cmd+alt+e", "ctrl+alt+e", "cmd+alt+x"],
         action: J::Obj(&[("id", J::Str("exportTranscript")), ("kind", J::Str("terminalToolbarAction")), ("terminalToolbarAction", J::Str("exportTranscript"))]),
     },
     HotkeyDefinition {

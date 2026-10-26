@@ -68,7 +68,7 @@ While a terminal has the keyboard, the Terminal focused binding applies instead 
 | Session Note | `cmd+alt+n` |  | `cmd+alt+n` |  | Open the note attached to the focused agent conversation. | `sessionNote` |
 | Stash Prompt | `alt+s` |  | `alt+s` |  | Stash the current prompt in the focused agent terminal. | `stashPrompt` |
 | Saved Prompts | `cmd+alt+s` | `cmd+shift+s` | `cmd+alt+s` | `cmd+shift+s` | Open saved prompts for the focused agent session. | `stashedPrompts` |
-| Handoff / Export | `cmd+alt+e` |  | `cmd+alt+e` | `cmd+alt+x` | Export the focused agent session's transcript and hand it off to another agent. | `exportTranscript` |
+| Handoff / Export | unassigned |  | unassigned |  | Export the focused agent session's transcript and hand it off to another agent. | `exportTranscript` |
 | Toggle Agent Actions | `cmd+alt+a` |  | `cmd+alt+a` |  | Show or hide the focused terminal's Agent Actions buttons. | `toggleAgentActions` |
 | Toggle Chat View | `alt+g` |  | `alt+g` |  | Toggle between the terminal and chat view for the focused agent session. | `toggleChatView` |
 | Find Prompts | `cmd+shift+f` |  | `cmd+shift+f` | `cmd+alt+h` | Search every prompt you have sent to an agent, then resume or fork it. | `openFindPrompts` |

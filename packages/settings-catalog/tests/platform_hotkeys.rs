@@ -118,7 +118,8 @@ fn macos_normal_bindings_keep_their_chords() {
         ("sessionNote", "cmd-alt-n"),
         ("stashPrompt", "alt-s"),
         ("stashedPrompts", "cmd-alt-s"),
-        ("exportTranscript", "cmd-alt-e"),
+        // No default since 2026-10-27 (CDXC:Hotkeys DECISION on its row); it was cmd-alt-e.
+        ("exportTranscript", ""),
         ("toggleAgentActions", "cmd-alt-a"),
         ("toggleChatView", "alt-g"),
         ("openFindPrompts", "cmd-shift-f"),
@@ -289,7 +290,8 @@ fn windows_and_linux_normal_bindings_are_the_ones_the_app_always_had() {
         ("sessionNote", "ctrl-alt-n"),
         ("stashPrompt", "alt-s"),
         ("stashedPrompts", "ctrl-shift-s"),
-        ("exportTranscript", "ctrl-alt-e"),
+        // No default since 2026-10-27, which ended its clash with Expand View Panel.
+        ("exportTranscript", ""),
         ("toggleAgentActions", "ctrl-alt-a"),
         ("toggleChatView", "alt-g"),
         ("openFindPrompts", "ctrl-shift-f"),
@@ -523,7 +525,7 @@ fn windows_and_linux_terminal_focused_ghostex_keys() {
             ("openBrowserPane", "ctrl-shift-l"),
             ("openFindPrompts", "ctrl-alt-h"),
             ("openNotifications", "ctrl-shift-i"),
-            ("exportTranscript", "ctrl-alt-x"),
+            ("exportTranscript", ""),
             ("sleepFocusedSession", ""),
             ("toggleAgentsFocusMode", "ctrl-alt-f"),
             ("unfocusTerminal", "ctrl-shift-m"),
@@ -578,9 +580,9 @@ fn windows_and_linux_leave_text_editing_keys_alone() {
     }
 }
 
-/// Conflicts are checked within one section only. The normal section on Windows and Linux keeps
-/// the one clash it always had (Expand View Panel and Export Transcript on Ctrl+Alt+E, which the
-/// user chose to keep as it was); the Terminal focused section has none.
+/// Conflicts are checked within one section only, and no section has one on any platform (Export
+/// Transcript's default, which shared Ctrl+Alt+E with Expand View Panel on Windows and Linux, was
+/// removed on 2026-10-27).
 #[test]
 fn no_two_defaults_share_a_chord_within_a_section() {
     let duplicates = |keystrokes: BTreeMap<&'static str, String>| {
@@ -594,14 +596,10 @@ fn no_two_defaults_share_a_chord_within_a_section() {
         by_keystroke
     };
     for platform in WINDOWS_AND_LINUX {
-        let normal = duplicates(normal_keystrokes(platform));
-        let known: BTreeMap<String, Vec<&str>> = [(
-            "ctrl-alt-e".to_string(),
-            vec!["expandViewPanel", "exportTranscript"],
-        )]
-        .into_iter()
-        .collect();
-        assert_eq!(normal, known, "{platform:?}");
+        assert!(
+            duplicates(normal_keystrokes(platform)).is_empty(),
+            "{platform:?}"
+        );
         assert!(
             duplicates(terminal_keystrokes(platform)).is_empty(),
             "{platform:?}"
@@ -931,4 +929,57 @@ fn session_slots_are_ctrl_digits_on_windows_and_linux_and_can_be_rebound() {
             );
         }
     }
+}
+
+/// Export Transcript has no default key (CDXC:Hotkeys 2026-10-27 DECISION on its row), and its old
+/// defaults are retired: the user's own saved `"exportTranscript": "cmd+alt+e"` (`hotkeys` stores
+/// the whole table), a Windows and Linux `ctrl+alt+e`, and the short-lived Terminal focused
+/// `cmd+alt+x` all resolve to unassigned instead of counting as keys the user chose.
+#[test]
+fn export_transcript_has_no_default_and_its_old_defaults_retire() {
+    let definition = hotkey_definition("exportTranscript").expect("exportTranscript");
+    for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
+        assert_eq!(
+            normal_keystrokes(platform)["exportTranscript"],
+            "",
+            "{platform:?}"
+        );
+        assert_eq!(
+            terminal_keystrokes(platform)["exportTranscript"],
+            "",
+            "{platform:?}"
+        );
+        for old in ["cmd+alt+e", "ctrl+alt+e", "cmd+alt+x"] {
+            assert!(definition.retired_default_keys.contains(&old));
+            // A saved normal copy is not a customization, so the terminal row does not inherit it.
+            assert_eq!(
+                customized_normal_hotkey("exportTranscript", Some(old), platform),
+                None,
+                "{old} on {platform:?}"
+            );
+            let customized = customized_normal_hotkey("exportTranscript", Some(old), platform);
+            assert_eq!(
+                terminal_hotkey("exportTranscript", None, customized.as_deref(), platform)
+                    .as_deref(),
+                Some(""),
+                "{old} on {platform:?}"
+            );
+            // A saved Terminal focused copy resolves to unassigned too.
+            assert_eq!(
+                terminal_hotkey("exportTranscript", Some(old), None, platform).as_deref(),
+                Some(""),
+                "{old} on {platform:?}"
+            );
+        }
+        // A key the user records is kept.
+        assert_eq!(
+            customized_normal_hotkey("exportTranscript", Some("cmd+alt+shift+x"), platform)
+                .as_deref(),
+            Some("cmd+alt+shift+x")
+        );
+    }
+    // The desktop retires the same keys for the bindings it makes.
+    let hotkeys = desktop_source("app/hotkeys.rs");
+    assert!(hotkeys.contains("(\"exportTranscript\", \"\"),"));
+    assert!(hotkeys.contains("[\"cmd+alt+e\", \"ctrl+alt+e\", \"cmd+alt+x\"]"));
 }

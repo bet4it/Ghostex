@@ -119,6 +119,15 @@ pub(crate) fn gpui_migrated_hotkey_for_action<'a>(
     if action_id == "focusNextGroup" && key.trim().eq_ignore_ascii_case("cmd+]") {
         return default_key;
     }
+    // Export Transcript's retired defaults, mirroring retiredDefaultKeys in
+    // packages/settings-catalog/src/hotkey_definitions.rs (CDXC:Hotkeys 2026-10-27 DECISION there).
+    if action_id == "exportTranscript"
+        && ["cmd+alt+e", "ctrl+alt+e", "cmd+alt+x"]
+            .iter()
+            .any(|retired| key.trim().eq_ignore_ascii_case(retired))
+    {
+        return default_key;
+    }
     // CDXC:Hotkeys 2026-09-19: macOS owns Cmd+Tab, so Previous/Next Session
     // moved to Ctrl+Tab and Windows/Linux Back/Forward gave Ctrl+Alt+[ / ] to
     // pane-tab cycling. Mirrors retiredDefaultKeys in
@@ -268,7 +277,8 @@ pub(crate) const GPUI_DEFAULT_GHOSTEX_HOTKEYS: &[(&str, &str)] = &[
     ("sessionNote", "cmd+alt+n"),
     ("stashPrompt", "alt+s"),
     ("stashedPrompts", "cmd+alt+s"),
-    ("exportTranscript", "cmd+alt+e"),
+    // No default key (CDXC:Hotkeys 2026-10-27 DECISION in packages/settings-catalog/src/hotkey_definitions.rs).
+    ("exportTranscript", ""),
     ("toggleAgentActions", "cmd+alt+a"),
     ("toggleChatView", "alt+g"),
     ("openModelPicker", "alt+p"),
