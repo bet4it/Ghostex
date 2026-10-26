@@ -328,6 +328,23 @@ impl GhostexGpuiApp {
         true
     }
 
+    /// Puts project `project_id` (a workspace project id) on screen without choosing, waking or
+    /// creating a session: its remembered view comes back, as after a click on its header. For an
+    /// open that shows something of the project's own, such as a Browser tab. Returns whether the
+    /// id named a project.
+    pub(crate) fn gx_store_focus_project(
+        &mut self,
+        project_id: &str,
+        cx: &mut gpui::Context<Self>,
+    ) -> bool {
+        let Some(project) = ProjectKey::parse_workspace_project_id(project_id.trim()) else {
+            return false;
+        };
+        self.gx_store_focus_intent(Intent::FocusProject { project }, cx);
+        self.gx_store_publish_workspace_focus(cx);
+        true
+    }
+
     /// A project or group focus intent on the store, with the list following it.
     pub(super) fn gx_store_focus_intent(&mut self, intent: Intent, cx: &mut gpui::Context<Self>) {
         let output = self.gx_store.core.handle(Event::Intent(intent), now_ms());

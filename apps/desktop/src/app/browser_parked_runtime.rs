@@ -296,18 +296,11 @@ impl GhostexGpuiApp {
             }
         };
         let page_title = parked_tabs.tab(tab_id).map(|tab| tab.title.clone());
-        self.pending_parked_browser_opens
-            .insert(project_id.to_string(), tab_id);
-        let workarea_split_ratio = self.project_editor_shell.workarea_split_ratio;
-        let saved_view = self
-            .project_view_states_by_project
-            .entry(project_id.to_string())
-            .or_insert_with(|| GpuiProjectViewState::closed(workarea_split_ratio));
-        saved_view.show_browser();
-        if new_tab {
-            saved_view.append_browser_tab(tab_id, parked_tabs);
+        self.queue_parked_browser_tab(project_id, tab_id, new_tab);
+        if !self.start_parked_browser_page(project_id, tab_id, cx) {
+            self.waiting_parked_browser_pages
+                .insert((project_id.to_string(), tab_id));
         }
-        self.start_parked_browser_page(project_id, tab_id, cx);
         let project_title = self
             .parked_project_title(project_id)
             .unwrap_or_else(|| "another project".to_string());
@@ -344,22 +337,22 @@ impl GhostexGpuiApp {
     /// page is parked under it like one left behind by a project switch. It opens in the Browser
     /// profile of the project's own workspace, the one it gets when the project is next on screen
     /// (a project of another workspace switches the window to it). Nothing for a project on
-    /// screen, a tab that already has a page, or one with no address; a page that cannot be made
-    /// yet (CEF or the workspace profile still starting) is made by
-    /// `start_waiting_parked_browser_pages` once it can.
+    /// screen, a tab that already has a page, or one with no address. Returns false only for a page
+    /// that cannot be made yet (CEF or the workspace profile still starting), which the caller
+    /// leaves in `waiting_parked_browser_pages`.
     pub(crate) fn start_parked_browser_page(
         &mut self,
         project_id: &str,
         tab_id: BrowserTabId,
         cx: &mut gpui::Context<Self>,
-    ) {
+    ) -> bool {
         if self.browser_tabs_project_id.as_deref() == Some(project_id)
             || self
                 .parked_browser_runtimes_by_project
                 .get(project_id)
                 .is_some_and(|runtime| runtime.surfaces.contains_key(&tab_id))
         {
-            return;
+            return true;
         }
         let Some((url, profile_id)) = self
             .parked_browser_tabs_by_project
@@ -368,7 +361,7 @@ impl GhostexGpuiApp {
             .filter(|tab| tab.state == BrowserTabState::Loaded)
             .map(|tab| (tab.cef_url(), tab.profile_id))
         else {
-            return;
+            return true;
         };
         let workspace_id = match self.gx_store_local_project_workspace_id(project_id) {
             Some(workspace_id) => self
@@ -385,7 +378,7 @@ impl GhostexGpuiApp {
             .parked_project_title(project_id)
             .unwrap_or_else(|| self.project_name.clone());
         let Some(tabs) = self.parked_browser_tabs_by_project.remove(project_id) else {
-            return;
+            return true;
         };
         let mut runtime = self
             .parked_browser_runtimes_by_project
@@ -424,9 +417,11 @@ impl GhostexGpuiApp {
             self.parked_browser_runtimes_by_project
                 .insert(project_id.to_string(), runtime);
         }
-        if let Some(surface) = surface {
-            self.size_background_browser_page(surface, cx);
-        }
+        let Some(surface) = surface else {
+            return false;
+        };
+        self.size_background_browser_page(surface, cx);
+        true
     }
 
     /// CDXC:Browser 2026-10-26 WHY:
@@ -476,16 +471,129 @@ impl GhostexGpuiApp {
         )
     }
 
-    /// The pages opened for parked projects that could not be made at the time, made now: called
-    /// when CEF has started and when a workspace profile's context is ready.
+    /// The pages opened for projects off screen that could not be made at the time
+    /// (`waiting_parked_browser_pages`), made now: called when CEF has started and when a
+    /// workspace profile's context is ready. A project that came on screen meanwhile gets the page
+    /// in its live tabs, hidden unless its tab is in front; a tab closed or emptied since is
+    /// dropped.
     pub(crate) fn start_waiting_parked_browser_pages(&mut self, cx: &mut gpui::Context<Self>) {
         let waiting = self
-            .pending_parked_browser_opens
+            .waiting_parked_browser_pages
             .iter()
-            .map(|(project_id, tab_id)| (project_id.clone(), *tab_id))
+            .cloned()
             .collect::<Vec<_>>();
         for (project_id, tab_id) in waiting {
-            self.start_parked_browser_page(&project_id, tab_id, cx);
+            let done = if self.browser_tabs_project_id.as_deref() == Some(project_id.as_str()) {
+                match self
+                    .browser_tabs
+                    .tab(tab_id)
+                    .filter(|tab| tab.state == BrowserTabState::Loaded)
+                    .map(|tab| (tab.cef_url(), tab.profile_id))
+                {
+                    Some((url, profile_id)) => {
+                        match self.ensure_browser_surface_for_tab(tab_id, url, profile_id, cx) {
+                            Some(surface) => {
+                                self.size_background_browser_page(surface, cx);
+                                true
+                            }
+                            None => false,
+                        }
+                    }
+                    None => true,
+                }
+            } else {
+                self.start_parked_browser_page(&project_id, tab_id, cx)
+            };
+            if done {
+                self.waiting_parked_browser_pages
+                    .remove(&(project_id, tab_id));
+            }
+        }
+    }
+
+    /// `tab_id`, now in front of `project_id`'s parked tab model, is shown when the project is next
+    /// on screen: the project's saved view comes back on Browser, and a `new_tab` goes last in its
+    /// saved strip.
+    fn queue_parked_browser_tab(&mut self, project_id: &str, tab_id: BrowserTabId, new_tab: bool) {
+        self.pending_parked_browser_opens
+            .insert(project_id.to_string(), tab_id);
+        let workarea_split_ratio = self.project_editor_shell.workarea_split_ratio;
+        let saved_view = self
+            .project_view_states_by_project
+            .entry(project_id.to_string())
+            .or_insert_with(|| GpuiProjectViewState::closed(workarea_split_ratio));
+        saved_view.show_browser();
+        if new_tab && let Some(tabs) = self.parked_browser_tabs_by_project.get(project_id) {
+            saved_view.append_browser_tab(tab_id, tabs);
+        }
+    }
+
+    /// The tab `target` names (its `notification_target`) in this window, and the tab model that
+    /// holds it now: the live one, or a parked project's. A tab whose page sleeps counts.
+    pub(crate) fn browser_tab_of_notification(
+        &self,
+        target: uuid::Uuid,
+    ) -> Option<(BrowserTabId, BrowserRuntimeOwner)> {
+        let named = |tabs: &BrowserTabModel| {
+            tabs.tabs
+                .iter()
+                .find(|tab| tab.notification_target == target)
+                .map(|tab| tab.id)
+        };
+        if let Some(tab_id) = named(&self.browser_tabs) {
+            return Some((tab_id, BrowserRuntimeOwner::Live));
+        }
+        self.parked_browser_tabs_by_project
+            .iter()
+            .find_map(|(project_id, tabs)| {
+                named(tabs).map(|tab_id| (tab_id, BrowserRuntimeOwner::Parked(project_id.clone())))
+            })
+    }
+
+    /// CDXC:Browser 2026-10-25 WHY:
+    /// A click on a page's notification brings back the tab whose page posted it, wherever that tab is now: the window that holds it comes forward and enters the project's workspace when it shows another (the tab lives in that window, so the click is not sent to another one), a project that is not on screen comes on screen without choosing or starting a session (`gx_store_focus_project`), and its Browser shows that tab, waking its page if it slept (`land_pending_parked_browser_open`). The notification names the tab by a random id that lives only for this run (`notification_target`), not by its address, project, tab number or page: opening the address in the project on screen added a copy of another project's page there; a project taken when the page was made can change (a page adopted by a project); a tab number is reused by the last tab's placeholder; a page is dropped when it sleeps while its tab stays; numbered ids repeat in the next run; and macOS drops a click whose id holds a `/`. A closed tab leaves nothing to bring back.
+    pub(crate) fn show_browser_tab_of_notification(
+        &mut self,
+        target: uuid::Uuid,
+        window: &mut gpui::Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let Some((tab_id, owner)) = self.browser_tab_of_notification(target) else {
+            return;
+        };
+        let tabs = match &owner {
+            BrowserRuntimeOwner::Live => Some(&mut self.browser_tabs),
+            BrowserRuntimeOwner::Parked(project_id) => {
+                self.parked_browser_tabs_by_project.get_mut(project_id)
+            }
+        };
+        let Some(tabs) = tabs else {
+            return;
+        };
+        if gpui_titlebar_mode_hidden_from_settings(TitlebarMode::Browser) {
+            if let Some(url) = tabs.tab(tab_id).map(|tab| tab.url.clone()) {
+                self.copy_path_for_disabled_project_workarea(&url, "Browser", cx);
+            }
+            return;
+        }
+        let Some(pane_id) = find_browser_leaf_id_for_tab(&tabs.root, tab_id) else {
+            return;
+        };
+        match owner {
+            BrowserRuntimeOwner::Live => {
+                self.open_browser_tab_from_view_strip(pane_id, tab_id, window, cx);
+            }
+            BrowserRuntimeOwner::Parked(project_id) => {
+                tabs.select_tab_in_pane(pane_id, tab_id);
+                // A project of another workspace: this window, which holds the tab, goes there.
+                let switched = self.enter_workspace_of_project(&project_id, cx);
+                self.queue_parked_browser_tab(&project_id, tab_id, false);
+                self.persist_shell_layout_state();
+                self.gx_store_focus_project(&project_id, cx);
+                if switched {
+                    self.settle_routed_window_workspace(cx);
+                }
+            }
         }
     }
 
@@ -536,6 +644,9 @@ impl GhostexGpuiApp {
         if !tab_is_parked {
             return;
         }
+        // A page still waiting to be made is not made later: the sleep wins.
+        self.waiting_parked_browser_pages
+            .remove(&(project_id.to_string(), tab_id));
         if !self.forget_parked_browser_tab_runtime(project_id, tab_id) {
             return;
         }
@@ -575,6 +686,8 @@ impl GhostexGpuiApp {
         if self.pending_parked_browser_opens.get(project_id) == Some(&tab_id) {
             self.pending_parked_browser_opens.remove(project_id);
         }
+        self.waiting_parked_browser_pages
+            .remove(&(project_id.to_string(), tab_id));
         let active_profile_id = self.browser_profiles.active_profile_id();
         let Some(parked_tabs) = self.parked_browser_tabs_by_project.get_mut(project_id) else {
             return;
@@ -612,6 +725,11 @@ impl GhostexGpuiApp {
             .parked_browser_runtimes_by_project
             .keys()
             .chain(self.pending_parked_browser_opens.keys())
+            .chain(
+                self.waiting_parked_browser_pages
+                    .iter()
+                    .map(|(project_id, _)| project_id),
+            )
             .map(String::as_str)
             .collect::<Vec<_>>();
         candidates.extend(
@@ -642,6 +760,9 @@ impl GhostexGpuiApp {
         }
         for project_id in &removed {
             self.pending_parked_browser_opens.remove(project_id);
+            // A page not made yet is not made for it later either.
+            self.waiting_parked_browser_pages
+                .retain(|(waiting, _)| waiting != project_id);
             self.sleep_parked_browser_project(project_id, cx);
             let views = self
                 .project_views

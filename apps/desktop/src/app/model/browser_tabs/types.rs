@@ -130,6 +130,10 @@ pub(crate) struct BrowserTab {
     Each GPUI Browser tab carries its selected generated profile id. Changing a tab's profile recreates only that tab's CEF surface with the selected request context, and shell-state persistence stores only this safe numeric id so different tabs keep different profiles across restart without persisting profile names, paths, cookies, credentials, history, or user-entered browser data.
     */
     pub(crate) id: BrowserTabId,
+    /// What a page notification names the tab by (browser_page_notifications.rs): random for each
+    /// tab of this run and never saved, so it stays with the tab while its page sleeps or its
+    /// project is parked, and a notification from an earlier run or a closed tab matches nothing.
+    pub(crate) notification_target: uuid::Uuid,
     pub(crate) profile_id: BrowserProfileId,
     pub(crate) title: String,
     pub(crate) runtime_page_title: Option<String>,

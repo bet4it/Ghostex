@@ -20,6 +20,8 @@ impl BrowserTabModel {
 
         if self.tabs.len() == 1 {
             let tab = &mut self.tabs[0];
+            // The placeholder keeps the closed tab's id, not what its notifications name.
+            tab.notification_target = uuid::Uuid::new_v4();
             tab.profile_id = active_profile_id;
             tab.title = "New Tab".to_string();
             tab.runtime_page_title = None;

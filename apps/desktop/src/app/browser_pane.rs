@@ -728,7 +728,10 @@ impl GhostexGpuiApp {
             }
         };
         self.browser_surfaces.insert(tab_id, surface.clone());
-        self.relay_browser_page_notifications(&surface, page_profile, cx);
+        if let Some(tab) = self.browser_tabs.tab(tab_id) {
+            let target = tab.notification_target;
+            self.relay_browser_page_notifications(&surface, page_profile, target, cx);
+        }
         support_logs::append_for_scenario(
             support_logs::GpuiSupportLog::SidebarRefresh,
             "native.sidebar.refresh",
@@ -1092,6 +1095,12 @@ impl GhostexGpuiApp {
     pub(crate) fn sleep_browser_tab(&mut self, tab_id: BrowserTabId, cx: &mut gpui::Context<Self>) {
         if find_browser_leaf_id_for_tab(&self.browser_tabs.root, tab_id).is_none() {
             return;
+        }
+        // A page opened while its project was off screen and still waiting to be made is not made
+        // later: the sleep wins (`waiting_parked_browser_pages`).
+        if let Some(project_id) = self.browser_tabs_project_id.clone() {
+            self.waiting_parked_browser_pages
+                .remove(&(project_id, tab_id));
         }
         self.remove_browser_surface(tab_id, cx);
         self.browser_find_states.remove(&tab_id);
