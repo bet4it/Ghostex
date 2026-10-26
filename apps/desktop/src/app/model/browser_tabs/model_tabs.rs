@@ -42,6 +42,7 @@ impl BrowserTabModel {
         let first_tab = BrowserTab {
             remote_machine_id: None,
             id: BrowserTabId(1),
+            notification_target: uuid::Uuid::new_v4(),
             profile_id,
             title: browser_tab_title_for_url(&default_url),
             runtime_page_title: None,
@@ -418,6 +419,7 @@ impl BrowserTabModel {
         let tab = BrowserTab {
             remote_machine_id: None,
             id: tab_id,
+            notification_target: uuid::Uuid::new_v4(),
             profile_id,
             title: browser_tab_title_for_url(&requested_url),
             runtime_page_title: None,

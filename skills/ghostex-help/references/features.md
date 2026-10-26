@@ -361,7 +361,8 @@ view from the strip.
   other permission a site asks for (show notifications, know your location, use the
   clipboard, camera or microphone, and the like) asks "… wants to show notifications."
   with Allow and Block, remembered for that site in that workspace's Browser; a site you
-  allow to notify shows real system notifications, and clicking one brings its page back.
+  allow to notify shows real system notifications, and clicking one brings its page back
+  in its own project, switching to that project when another one is on screen.
   A sign-in window a site opens (Continue with Google, Apple or GitHub) opens as its own
   small window and closes itself when you finish. These
   questions show as a bar at the top of the page that asked, under the Browser's address
