@@ -3266,11 +3266,19 @@ project of the repository's main folder, even when started from a worktree.
 
 - **The row**: a plain cloud icon after the title; hover it for the account,
   branch and latest status. Clicking it opens the session's claude.ai page in
-  Ghostex's Browser. While that page is open, the row shows working (orange),
-  needs you (blue) and Done like any session (the page stays open through Browser
-  Auto Sleep while the session runs); otherwise it says what reached
-  GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") with a blue
-  dot and a notification.
+  Ghostex's Browser. The row shows working (orange), needs you (blue) and Done
+  like any session, read from claude.ai every few seconds whether or not the page
+  is open; when Claude needs you, its status and notification say what it asks
+  for ("Needs you: paste the ticket's title and description"). What reaches
+  GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") shows there
+  too, with a blue dot and a notification.
+- **Its terminal**: shows the conversation (your messages and Claude's replies,
+  including a question it asks with options) and what Claude needs. Type a reply
+  or follow-up and press Enter to send it. A question with options or a
+  permission request can only be answered on the claude.ai page; the terminal
+  says so. A message sent to the session from its chat or with `ghostex agents
+  send` goes to claude.ai the same way, and one sent before the session has its
+  task starts it with that task.
 - **Close keeps it, asleep**: Close on a cloud row that is running on claude.ai
   (from the row, its tab, a project's Close Inactive, or the phone) puts it to
   sleep instead, because the session goes on running there; the row stays with
@@ -3298,9 +3306,8 @@ project of the repository's main folder, even when started from a worktree.
 - **Needs**: Claude Code signed in with claude.ai (Pro, Max, Team or
   Enterprise; not an API key), the repository on GitHub with Claude's GitHub app,
   and a cloud environment set up on claude.ai for that account. Cloud sessions
-  count against your Claude plan's limits. Claude does not yet let Ghostex show a
-  cloud session's live messages in its own terminal or chat; when it does, the
-  row opens Ghostex's terminal instead of the page.
+  count against your Claude plan's limits. The chat view does not show a cloud
+  session's messages yet; its terminal does.
 
 CLI: `ghostex create-agent claude-cloud --project-id <id> --prompt "<task>"`,
 `ghostex claude-cloud status <session>`, `ghostex claude-cloud send <session>

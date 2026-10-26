@@ -217,6 +217,29 @@ pub(crate) async fn send_session_chat_message_with_draft(
     {
         return sent;
     }
+    // A Claude cloud session's terminal runs Ghostex's cloud client, not an agent to type into.
+    let cloud_send = if target
+        .session
+        .pointer("/runtimeSettings/claudeCloud")
+        .is_some_and(Value::is_object)
+    {
+        super::cloud_send::send_claude_cloud_message(
+            state,
+            project_id,
+            session_id,
+            text,
+            image_paths,
+            source == SessionChatMessageSource::Composer,
+            draft_before_send.as_ref(),
+            draft_version,
+        )
+        .await
+    } else {
+        None
+    };
+    if let Some(sent) = cloud_send {
+        return sent;
+    }
     let agent = session_chat_agent_for_session(&target.session);
     let terminal_agent =
         crate::session_chat_composer::session_chat_composer_agent_id(&target.session)

@@ -7,7 +7,7 @@ use std::sync::Mutex;
 
 use serde_json::{json, Map, Value};
 
-use super::github::{new_cloud_branch, task_with_branch};
+use super::github::task_with_branch;
 use super::record::{session_cloud_record, write_cloud_record, CloudRecord, CloudState};
 use crate::cloud_runner::{claude_code_on_the_web, CloudStartRequest, MAX_CLOUD_PROMPT_CHARS};
 use crate::domain::{DomainRepository, DomainStateError};
@@ -204,11 +204,13 @@ fn start_inner(
         .and_then(Value::as_str)
         .ok_or_else(|| DomainStateError::bad_request("This project has no folder."))?
         .to_string();
-    let branch = record
-        .branch
-        .clone()
-        .unwrap_or_else(|| new_cloud_branch(&task));
-    let prompt = task_with_branch(&task, &branch);
+    // A copy or a Work page ticket names its branch; otherwise claude.ai picks one and reports it
+    // (remote.rs).
+    let branch = record.branch.clone();
+    let prompt = match &branch {
+        Some(branch) => task_with_branch(&task, branch),
+        None => task.clone(),
+    };
     let length = prompt.chars().count();
     if length > MAX_CLOUD_PROMPT_CHARS {
         return Err(DomainStateError::bad_request(format!(
@@ -217,7 +219,6 @@ fn start_inner(
     }
     let runner = runner_for(state, &db, &record)?;
     record.state = CloudState::Starting;
-    record.branch = Some(branch.clone());
     record.error = None;
     record.raw.insert("task".to_string(), json!(task));
     record.raw.insert(
@@ -238,8 +239,9 @@ fn start_inner(
     drop(repository);
     drop(db);
     // A copy works on its original's branch, which GitHub already has (copy.rs).
-    let on_branch =
-        (record.raw.get("onBranch").and_then(Value::as_bool) == Some(true)).then(|| branch.clone());
+    let on_branch = branch
+        .clone()
+        .filter(|_| record.raw.get("onBranch").and_then(Value::as_bool) == Some(true));
     let started = runner.start(&CloudStartRequest {
         repo_dir: Path::new(&repo_dir),
         prompt: &prompt,
@@ -291,6 +293,8 @@ pub(crate) fn send_to_cloud_session(
     runner
         .send(&url, &message)
         .map_err(DomainStateError::bad_request)?;
+    // The row turns to working as soon as claude.ai takes the message.
+    super::poller::wake_claude_cloud_poller();
     Ok(json!({ "ok": true }))
 }
 
