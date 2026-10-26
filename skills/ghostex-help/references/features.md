@@ -35,11 +35,16 @@ clicking one opens it, or switches to its tab if it is already open. Then comes
 back in a click, then **Customize**. Close a tab with its **x**, with a middle
 click, or from its menu. Browser has no view tab of its own: the same row
 carries its page tabs, one per open page, so a page you have open reads as a tab
-beside the views. The row is one order: drag any tab, a view or a page, anywhere
+beside the views (with Show pages in their own row on, see Browser below, it has
+one tab instead). The row is one order: drag any tab, a view or a page, anywhere
 in it, and it scrolls sideways once the tabs run out of room. Right-click a tab
 and choose **Pin tab** to shrink it to its icon and keep it at the left of the
 row; a pinned tab has no **x** and ignores a middle click, so it closes only from
-its menu, and **Unpin tab** puts it back.
+its menu, and **Unpin tab** puts it back. Closing the tab you are looking at
+shows the tab next to it in the row, the one to its right or else the one to its
+left, whether that is a view or a page. A page that another page opened (a link
+or an image that opens in a new tab) goes back to that page instead, if it is
+still open and you have not switched tabs since.
 Only the view you are looking at, and the two you came from most recently, stay
 loaded; the rest keep their tab and wake when you click them.
 
@@ -221,7 +226,9 @@ your own project views (Configure view opens that view's editor in Settings >
 Extensions > Store and focuses its name field). **Show in ▸** holds **This Project** and
 **This Space**, which are ticks: unticking one hides the view there and leaves
 it everywhere else (the space row is absent when the project is not in a
-space). **Choose where it's shown…** at the bottom of that submenu opens the
+space). When the view on screen is hidden like this or turned off in Settings,
+the panel moves to the tab beside it, as closing its tab would.
+**Choose where it's shown…** at the bottom of that submenu opens the
 view's full scope editor in Settings > Extensions > Store. **Close tab** removes the
 view from the strip.
 
@@ -247,9 +254,19 @@ view from the strip.
   terminal, Cmd+T always opens a new browser tab, Cmd+Ctrl+Shift+F forks the
   focused session, and Cmd+D splits. Cmd+R renames the focused session,
   Cmd+Shift+A (or Option+Shift+S) sleeps it, and Cmd+Shift+Backspace (or Cmd+W)
-  closes it. On Windows and Linux use Ctrl for Cmd, except that fork is
-  Ctrl+Alt+Shift+F and rename is Ctrl+Shift+R, because Ctrl+R belongs to the
-  terminal. While the VS Code view itself has keyboard focus, Cmd+N and
+  closes it. On Windows and Linux the keys follow Ghostty there and leave the
+  plain Ctrl keys to the terminal (Ctrl+W deletes a word, Ctrl+D ends input):
+  Ctrl+Shift+T opens a terminal, Ctrl+Shift+W closes the focused tab,
+  Ctrl+Shift+O and Ctrl+Shift+E split right and down, Ctrl+Shift+F finds,
+  Ctrl+Shift+C and Ctrl+Shift+V copy and paste in a terminal, Ctrl+Shift+A
+  selects it all, and Ctrl+Shift+N opens a new window. Ghostex's own keys there
+  are Ctrl+Shift+D for a new agent session, Ctrl+Alt+Shift+N for the New Thread
+  picker, Ctrl+Shift+L for a browser tab, Ctrl+Shift+B for the sidebar,
+  Ctrl+Shift+I for notifications, Ctrl+Alt+Shift+P to search sessions,
+  Ctrl+Shift+Y for files, Ctrl+Alt+H for Find Prompts, Ctrl+Alt+/ for Hotkeys,
+  Ctrl+Shift+R to rename and Ctrl+Alt+Shift+F to fork; Alt+Shift+S sleeps the
+  focused session. Every one of these, Paste, Find, Zoom and Close Tab included,
+  can be changed or cleared in Settings > Hotkeys. While the VS Code view itself has keyboard focus, Cmd+N and
   Cmd+Shift+O go to VS Code instead (New File, Go to Symbol).
   Starting a new session always creates a new one; empty sessions stay in the
   sidebar until you close them. An Advanced setting, Close empty sessions when
@@ -297,6 +314,15 @@ view from the strip.
   with its last tab on) when Browser was the last one. **Browser Tab** at the top of the strip's **+** menu opens
   another tab. A tab with no address yet is blank: type or paste an address, or
   pick a running server from the ⋯ menu's Dev servers panel.
+  Turn on Show pages in their own row (Settings > General > Tools > Browser) to
+  show one Browser tab in the strip instead, with the pages as a row of tabs
+  under it, like VS Code's window tabs and Files' tabs: click a tab to show its
+  page, close it with its × or a middle click, right-click it for the same menu,
+  drag it along the row (or onto a page to split it), and use the + after the
+  tabs for a new tab. After clicking a tab, the arrow keys step between the
+  pages, Delete closes the shown one and Enter goes back to the page. Closing the
+  Browser tab hides the Browser and puts its pages to sleep; they come back the
+  next time it opens.
   Right-click a link or image in a page to open it in a new tab, save it
   (Save link as / Save image as ask where to save), copy its address, or copy
   the image itself; any page download also asks where to save.
@@ -311,6 +337,10 @@ view from the strip.
   Web links from terminals, chat, and detected dev servers
   open here or in the system browser depending on Open links in; Shift+click a
   link in the chat to open it in the system browser either way.
+  A page an agent opens for a project that is not on screen (`ghostex browser open`
+  uses the agent's own project) goes to that project's Browser: the project you are
+  looking at stays as it is, a notice names the project, and the page is in front
+  when you switch to it.
   The Browser runs on the web runtime (Chromium), an optional one-time install
   that Ghostex does not need for anything else: until it is installed the
   Browser, the VS Code view, website and extension views, and HTML, drawing and
@@ -345,7 +375,8 @@ view from the strip.
   other permission a site asks for (show notifications, know your location, use the
   clipboard, camera or microphone, and the like) asks "… wants to show notifications."
   with Allow and Block, remembered for that site in that workspace's Browser; a site you
-  allow to notify shows real system notifications, and clicking one brings its page back.
+  allow to notify shows real system notifications, and clicking one brings its page back
+  in its own project, switching to that project when another one is on screen.
   A sign-in window a site opens (Continue with Google, Apple or GitHub) opens as its own
   small window and closes itself when you finish. These
   questions show as a bar at the top of the page that asked, under the Browser's address
@@ -2185,6 +2216,18 @@ resuming the same conversation. When the rules say Switch accounts or Wait for
 reset, Ghostex moves the session by itself and continues the message that
 failed. Turn Auto-switch back on, reconnect the account, or pick it for a
 session when its access works again.
+When a session's login stops working mid-conversation ("Login expired · Please
+run /login"), the chat's sign-in card offers Reconnect beside Switch account.
+For a session on a saved account it opens the same browser sign-in as that
+account's Reconnect in Settings (or skips it when the account's saved login
+has already worked again since the error), and when you finish, the session (and any
+other session on that account showing the same card) restarts on its own
+conversation, so you don't retype anything. The account shows Needs sign-in in
+Settings > Accounts and `ghostex accounts` from the moment a session reports
+the error, and new sessions and automatic switches skip it until it signs in
+again or one of its sessions answers again. A Claude session on its own login
+(not a saved account) gets Reconnect as `/login` typed into Claude, whose
+sign-in steps then show in the chat.
 Reconnecting a Codex account works while that account's sessions keep running.
 When Codex still has to stop first, Settings lists the sessions in the way and
 offers Pause sessions and continue; paused sessions stay in the sidebar and
@@ -2273,9 +2316,12 @@ version, a terminal look Ghostex had been taking from your Ghostty config was
 copied into Ghostex's terminal config once, so nothing changed; the old "Ghostex
 managed terminal settings" section in Ghostty's config was left in place and you
 can delete it. Command-click opens links;
-Cmd+V pastes images as previewable links. On Windows and Linux, Ctrl+V or
-Ctrl+Shift+V pastes from the client computer's clipboard into the focused
-terminal, including a remote terminal. Shift+Insert also pastes, in terminals
+Cmd+V pastes images as previewable links. On Windows and Linux, Ctrl+Shift+V
+pastes from the client computer's clipboard into the focused terminal, including
+a remote terminal, as in Ghostty; in a terminal Ctrl+V goes to the program
+there (an image on the clipboard still pastes as a link), and everywhere else
+(the chat box, text fields, browser pages) Ctrl+V pastes as usual. Change or
+clear the terminal's Paste key in Settings > Hotkeys. Shift+Insert also pastes, in terminals
 and in text fields such as the chat composer and dialogs. A configured hotkey
 using the same chord takes precedence. In an agent's terminal prompt, use
 Prompt Editor in the terminal toolbar, Ctrl+G on macOS, or Ctrl+Shift+G on
@@ -3156,6 +3202,20 @@ sessions, so any client can control agents on any machine.
   machine up to date** switch. A computer whose Ghostex is too old for this
   says so: update it once on that computer, and from then on it can be
   updated from another device.
+  To install or update agent CLIs, agent skills and tools on a remote machine,
+  open Settings > Agents or Settings > Integrations and pick the machine in the
+  **Machine** dropdown at the top (shown once a remote machine is saved). The
+  list then shows that machine's agent CLIs (installed or not, version, update
+  available) or its Ghostex CLI, agent skills and Tools, and Install, Update and
+  Uninstall run there through its own Ghostex. A machine that is not connected
+  shows why and can't be picked; one whose Ghostex is too old says to update it
+  first. On a remote Mac, Integrations also installs and updates Desktop control
+  (Fast Computer & Browser Use and SpaceO; never on Linux or Windows). Their
+  Accessibility and Screen Recording permissions can only be allowed by someone
+  at that Mac, so until then the row says so. Turning agents on, their defaults
+  and resume hooks are set on each computer itself. On the phone, a computer's
+  Edit screen (swipe left on its card in Machines, then Edit) shows the same
+  Agent CLIs and Skills and tools with Install and Update.
 - **Web app**: the desktop's sidebar (with its session, group and project
   actions, the Git menu and Quick Access), chat and terminal running in a
   browser and talking to gxserver; remote machines, Settings and the commit
@@ -3203,20 +3263,34 @@ A Claude cloud session runs on Claude's own computers (Claude Code on the web)
 instead of this computer, so it keeps going when the computer sleeps, and still
 has its row in the sidebar. Pick **Claude (cloud)** in New Thread (its Run on row
 then shows **Claude cloud**; picking that place picks the agent, and any other
-agent dims it), choose the Claude account it runs on, and type the task in its
-terminal; the session starts on claude.ai from the project's GitHub repository on
-a new `claude/…` branch. The account is final for that session: its usage,
+agent dims it) and choose the Claude account it runs on. It opens in Chat View
+(its terminal runs behind it): type the task in the chat box and send it, and the
+session starts on claude.ai from the project's GitHub repository on a new
+`claude/…` branch. On the computer the chat pane then shows the session's own
+claude.ai page, signed in as the session's account, where you read and answer
+Claude; the web page shows its terminal instead. On the phone, tapping the row
+opens the session's claude.ai page, and **Open Terminal** in its long-press menu
+shows the conversation in its terminal. The account is final for that session: its usage,
 follow-ups and Bring to this computer all stay on it. New Thread highlights the
 account of the project's last cloud session first. The row always sits under the
 project of the repository's main folder, even when started from a worktree.
 
 - **The row**: a plain cloud icon after the title; hover it for the account,
-  branch and latest status. Clicking it opens the session's claude.ai page in
-  Ghostex's Browser. While that page is open, the row shows working (orange),
-  needs you (blue) and Done like any session (the page stays open through Browser
-  Auto Sleep while the session runs); otherwise it says what reached
-  GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") with a blue
-  dot and a notification.
+  branch and latest status. Clicking it opens the session, whose chat pane is its
+  claude.ai page; the row's menu has **Open on claude.ai** (the page in Ghostex's
+  Browser) and **Copy > Copy claude.ai Link**. The row shows working (orange), needs you (blue) and Done
+  like any session, read from claude.ai every few seconds whether or not the page
+  is open; when Claude needs you, its status and notification say what it asks
+  for ("Needs you: paste the ticket's title and description"). What reaches
+  GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") shows there
+  too, with a blue dot and a notification.
+- **Its terminal**: shows the conversation (your messages and Claude's replies,
+  including a question it asks with options) and what Claude needs. Type a reply
+  or follow-up and press Enter to send it. A question with options or a
+  permission request can only be answered on the claude.ai page; the terminal
+  says so. A message sent to the session from its chat or with `ghostex agents
+  send` goes to claude.ai the same way, and one sent before the session has its
+  task starts it with that task.
 - **Close keeps it, asleep**: Close on a cloud row that is running on claude.ai
   (from the row, its tab, a project's Close Inactive, or the phone) puts it to
   sleep instead, because the session goes on running there; the row stays with
@@ -3244,9 +3318,9 @@ project of the repository's main folder, even when started from a worktree.
 - **Needs**: Claude Code signed in with claude.ai (Pro, Max, Team or
   Enterprise; not an API key), the repository on GitHub with Claude's GitHub app,
   and a cloud environment set up on claude.ai for that account. Cloud sessions
-  count against your Claude plan's limits. Claude does not yet let Ghostex show a
-  cloud session's live messages in its own terminal or chat; when it does, the
-  row opens Ghostex's terminal instead of the page.
+  count against your Claude plan's limits. The first time a page needs it, sign
+  in to claude.ai as the session's account right in the pane (or ahead of time in
+  Settings > Accounts); Ghostex keeps that sign-in for the account.
 
 CLI: `ghostex create-agent claude-cloud --project-id <id> --prompt "<task>"`,
 `ghostex claude-cloud status <session>`, `ghostex claude-cloud send <session>
@@ -3557,7 +3631,9 @@ then issues, then Linear tickets. Each group folds with the
 chevron on its header and keeps its count; what you fold stays folded in every
 session and after a restart (the phone keeps its own). Click a link to open it; **Open
 session links in** (Settings > General > Browser) opens them in the internal
-browser (the default) or your default browser. Click a link's × and then Remove?
+browser (the default) or your default browser. In the internal browser a link opens in
+its session's project, switching to that project when another one is on screen. Click
+a link's × and then Remove?
 within three seconds to remove it; a removed link never comes back by itself. Click
 the pin beside the × to pin a link (the main issue or PR of the session, say): pinned
 links lead a Pinned group at the top of the list, pinned issues and Linear tickets
@@ -4179,7 +4255,11 @@ session you are looking at (or, with none focused, the active project) is on a
 connected remote machine, the agent starts on that machine instead, in its own
 Ghostex config folder, and reads that machine's version, settings and logs; the
 switch's description names the machine. If that machine is not connected, Start
-Agent says so instead of starting on this computer.
+Agent says so instead of starting on this computer. Start Agent waits until the
+agent has your report, usually a few seconds. If the agent can't start (it isn't
+installed or signed in, or it isn't ready after a minute and a half), the pop-up
+says why in plain words, closes that session and turns the switch off, so you can
+still send your report without the agent.
 
 When a chat message cannot reach the agent because Ghostex cannot see its input
 box, the "Message not sent" card has Copy Report. It copies a report of what

@@ -32,6 +32,13 @@ pub async fn run_session_chat_follower(
     };
     let Some(transcript_agent) = resolve_session_chat_transcript_agent(config.agent.as_deref())
     else {
+        // A Claude cloud session's chat is empty until its first message starts it on claude.ai.
+        let status = if config.agent.as_deref() == Some(crate::claude_cloud::CLAUDE_CLOUD_AGENT_ID)
+        {
+            SessionChatStatus::Empty
+        } else {
+            SessionChatStatus::Unsupported
+        };
         loop {
             let epoch = stream.begin_generation();
             emit_state_frame(
@@ -39,7 +46,7 @@ pub async fn run_session_chat_follower(
                 &config,
                 &stream,
                 epoch,
-                SessionChatStatus::Unsupported,
+                status,
                 None,
                 None,
                 None,

@@ -241,6 +241,9 @@ pub(crate) fn dispatch(
             let result = result.and_then(|_| {
                 let selector = selector.or_else(|| transcript.char_indices().filter(|(_, c)| *c == '{').filter_map(|(index, _)| serde_json::from_str::<Value>(transcript[index..].trim()).ok()).find_map(|value| value.pointer("/account/number").and_then(Value::as_u64).map(|n| n.to_string()))).ok_or_else(|| DomainStateError::bad_request("The helper did not report the saved account. Update the helper and try again."))?;
                 if let Ok(mut job) = job.lock() { job.view["status"] = json!("saving"); }
+                // Registering needs the account read as ready, which a session's expired-login mark would hide.
+                let db = crate::storage::open_gxserver_database(&state.paths).map_err(store::error)?;
+                super::login_expired::signed_in(&state, &db, provider, &selector)?;
                 state.accounts.invalidate();
                 let registered = endpoint::dispatch(&state, json!({"operation":"register","provider":provider,"selector":selector,"shareHistory":true}).as_object().unwrap())?;
                 registered["accounts"].as_array().and_then(|rows| rows.iter().find(|a| a["selector"] == selector && a["provider"] == json!(provider) && a["registered"] == true)).and_then(|a| a["id"].as_str()).map(str::to_string).ok_or_else(|| DomainStateError::bad_request("The connected account could not be registered."))

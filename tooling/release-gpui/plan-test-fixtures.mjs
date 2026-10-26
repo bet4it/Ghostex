@@ -78,6 +78,7 @@ const FIXTURE_FILES = {
     2
   )}\n`,
   'tooling/build-remote-gxserver-linux-release.sh': '#!/usr/bin/env bash\n',
+  'tooling/packaging/appimage/AppRun': '#!/usr/bin/env bash\n',
   'tooling/release-shared.mjs': '// remote package\n',
   'tooling/release-gpui/android.sh': '#!/usr/bin/env bash\n',
   'tooling/release-gpui/code-server-component-identity.mjs': '// identity\n',
@@ -85,6 +86,7 @@ const FIXTURE_FILES = {
   'tooling/release-gpui/create-deterministic-tar.sh': '#!/usr/bin/env bash\n',
   'tooling/release-gpui/fingerprint.mjs': '// fingerprint\n',
   'tooling/release-gpui/install-gxserver-wsl.ps1': '# wsl install\n',
+  'tooling/release-gpui/linux-appimage.sh': '#!/usr/bin/env bash\n',
   'tooling/release-gpui/linux-deb.sh': '#!/usr/bin/env bash\n',
   'tooling/release-gpui/linux-rpm.sh': '#!/usr/bin/env bash\n',
   'tooling/release-gpui/linux-stage.sh': '#!/usr/bin/env bash\n',

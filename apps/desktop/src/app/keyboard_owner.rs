@@ -518,6 +518,13 @@ impl GhostexGpuiApp {
         window: &mut Window,
         cx: &mut gpui::Context<Self>,
     ) {
+        // A Claude cloud session's pane is its claude.ai page, which takes the keys instead.
+        if let Some(surface) = self.claude_cloud_chat_page_surface(session_id) {
+            let focus_handle = surface.read(cx).focus_handle.clone();
+            focus_handle.focus(window, cx);
+            surface.update(cx, |surface, _| surface.focus());
+            return;
+        }
         let Some(view) = self.native_chat_views.get(&session_id).cloned() else {
             return;
         };
@@ -569,6 +576,31 @@ impl GhostexGpuiApp {
                     .iter()
                     .any(|slot_id| slot_id.session_id == session_id)
             }
+        }
+    }
+
+    /// CDXC:FocusRouting 2026-10-25 WHY:
+    /// The Browser's page row keeps its focus handle while the row is gone (its last page closed, the Browser view closed, or `browserPagesInViewRow` turned off), and GPUI then sends the keys to the window's outermost element, past the view picker's keys and the app's actions. Release it here, on the render that no longer shows the row, as hidden terminals are released below; with the Browser still on screen the keys go back to its page.
+    pub(crate) fn sync_browser_page_row_focus(
+        &mut self,
+        window: &mut Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        if !self.browser_page_row_focus_handle.is_focused(window) {
+            return;
+        }
+        let browser_shown = self.active_mode == TitlebarMode::Browser
+            && self
+                .project_editor_shell
+                .is_mode_awake(TitlebarMode::Browser);
+        if browser_shown && self.browser_pages_in_view_row {
+            return;
+        }
+        window.focus(&self.root_action_focus_handle, cx);
+        // A view or panel change asks for its own handoff; turning the row off leaves the Browser
+        // on screen with nothing asked for.
+        if browser_shown {
+            self.request_keyboard_handoff_for_shell_focus(cx);
         }
     }
 

@@ -55,6 +55,10 @@ impl GhostexGpuiApp {
         terminal: a per-session GPUI child plus ordinary placeholder layout children.
         The native chat remains inside its workspace pane's layout frame.
         */
+        // A Claude cloud session's pane is its claude.ai page once it has one (claude_cloud_chat_page.rs).
+        if let Some(page) = self.render_claude_cloud_chat_page(session_id, cx) {
+            return self.render_agents_session_chat_body_frame(pane_id, session_id, page, cx);
+        }
         let content = match self
             .native_chat_views
             .get(&session_id)

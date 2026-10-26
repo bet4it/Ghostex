@@ -36,6 +36,9 @@ pub(crate) async fn restart(
     }
     match params.get("actionId").and_then(Value::as_str) {
         Some(SESSION_CHAT_NOTICE_ACTION_SIGN_IN) => return sign_in(state, params).await,
+        Some(crate::session_chat_notice::SESSION_CHAT_NOTICE_ACTION_RECONNECT) => {
+            return crate::session_chat_account_sign_in::reconnect(state, params).await
+        }
         Some(crate::agent_cli::opencode::ACTION_INSTALL) => {
             return install_opencode2(state, params).await
         }

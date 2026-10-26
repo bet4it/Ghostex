@@ -123,6 +123,9 @@ pub struct GhostexGpuiApp {
     pub(crate) browser_profiles: BrowserProfileModel,
     pub(crate) browser_tabs: BrowserTabModel,
     pub(crate) browser_tabs_project_id: Option<String>,
+    /// The page on screen that another page opened, while it has stayed on screen since; see
+    /// `forget_browser_tab_opener_once_hidden`.
+    pub(crate) browser_tab_opener: Option<BrowserTabOpener>,
     pub(crate) parked_browser_tabs_by_project: HashMap<String, BrowserTabModel>,
     /*
     CDXC:Browser 2026-08-26:
@@ -133,6 +136,15 @@ pub struct GhostexGpuiApp {
     just left and reloaded its pages from scratch on the way back.
     */
     pub(crate) parked_browser_runtimes_by_project: HashMap<String, ParkedBrowserRuntime>,
+    /// Per project, the tab of the last page opened for it while it was not on screen, shown when the
+    /// project next is (`land_pending_parked_browser_open`). Runtime only: after a launch every page
+    /// waits for a click (CDXC:Browser 2026-09-19).
+    pub(crate) pending_parked_browser_opens: HashMap<String, BrowserTabId>,
+    /// The tabs (by project) opened while their project was not on screen whose page CEF could not
+    /// make at the time (CEF or the workspace profile still starting), made by
+    /// `start_waiting_parked_browser_pages` once it can, whichever tab is in front by then. Kept
+    /// apart from `pending_parked_browser_opens`, which only names the tab to show. Runtime only.
+    pub(crate) waiting_parked_browser_pages: HashSet<(String, BrowserTabId)>,
     pub(crate) browser_tabs_project_epoch: u64,
     /*
     CDXC:Browser 2026-08-26:
@@ -324,6 +336,12 @@ pub struct GhostexGpuiApp {
     /// the panel shows; an empty list and `TitlebarMode::Agents` are the same statement, that the
     /// panel is closed. Swapped with the rest of the project's view state on a project switch.
     pub(crate) open_views: Vec<TitlebarMode>,
+    /// A restored project and its saved view, when the restore could not show that view: the scope
+    /// it was judged by may still have been the previous project's, since a session row can swap the
+    /// workspace before the project context and the sidebar HUD arrive. A launch picks up one a quit
+    /// left unsettled (`GpuiShellLayoutState::unsettled_project_view_restore`).
+    /// `finish_project_view_restore` settles it once both describe this project.
+    pub(crate) pending_project_view_restore: Option<PendingProjectViewRestore>,
     /// Whether the open view has the whole workarea, with the sessions column folded away. Only ever
     /// true while a view is open; `agents_workspace_visible()` is the one reader that matters.
     pub(crate) view_panel_maximized: bool,
@@ -337,6 +355,9 @@ pub struct GhostexGpuiApp {
     /// Where a tab being dragged along the view panel's strip would land, as an index into the
     /// drawn row.
     pub(crate) view_strip_drop_index: Option<usize>,
+    /// The same for a page being dragged along the Browser's page row
+    /// (`render/browser_page_tabs.rs`).
+    pub(crate) browser_page_row_drop_index: Option<usize>,
     /// The drawn order of the strip's tabs and which are pinned. See `GpuiViewStripLayout`.
     pub(crate) view_strip_layout: GpuiViewStripLayout,
     /// The active project's extra Code windows (`app/workarea/code_windows.rs`). Swapped with the
@@ -351,6 +372,9 @@ pub struct GhostexGpuiApp {
     /// `docsOpenFilesAsTabs`: Files draws its open files as a tab row above the document
     /// (`native_docs/open_file_tabs.rs`) instead of the files sidebar's Open Files list.
     pub(crate) docs_open_files_as_tabs: bool,
+    /// `browserPagesInViewRow`: the strip shows one Browser tab and the Browser draws its pages
+    /// in a row of their own (`render/browser_page_tabs.rs`).
+    pub(crate) browser_pages_in_view_row: bool,
     /// The view the active project last had open, so closing the panel and reopening it comes back
     /// to the same view. Swapped with the rest of the project's view state on a project switch.
     pub(crate) last_open_view_mode: Option<TitlebarMode>,
@@ -763,6 +787,12 @@ pub struct GhostexGpuiApp {
     pub(crate) view_tab_scroll_handle: ScrollHandle,
     /// The Code view's window tab row (`render/code_window_tabs.rs`).
     pub(crate) code_window_tab_scroll_handle: ScrollHandle,
+    /// The Browser's page row, and the project, page and place it last scrolled to, so it scrolls
+    /// again only when the shown page or its place changes (`render/browser_page_tabs.rs`).
+    pub(crate) browser_page_tab_scroll_handle: ScrollHandle,
+    pub(crate) browser_page_tab_revealed: Option<(Option<String>, BrowserTabId, usize)>,
+    /// The Browser's page row takes the keyboard when a page tab is clicked, as Files' tab row does.
+    pub(crate) browser_page_row_focus_handle: FocusHandle,
     pub(crate) command_tab_scroll_handles: HashMap<CommandPaneGroupId, ScrollHandle>,
     pub(crate) command_collapsed_tab_scroll_handle: ScrollHandle,
     pub(crate) workspace_split_layout_metrics: HashMap<WorkspaceSplitId, SplitResizeMetrics>,

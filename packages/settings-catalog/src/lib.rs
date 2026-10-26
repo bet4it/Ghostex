@@ -18,6 +18,7 @@ mod data;
 pub mod file_opening;
 mod general;
 pub mod help;
+pub mod hotkey_chords;
 mod hotkey_definitions;
 pub mod hotkey_label;
 pub mod hotkeys;
@@ -28,10 +29,11 @@ mod pages;
 pub mod platform_text;
 pub mod rows;
 
+pub use hotkey_chords::{hotkey_keystroke, platform_hotkey};
 pub use hotkey_label::hotkey_label;
 pub use hotkeys::{
-    default_hotkeys, hotkey_definition, hotkey_definitions, HotkeyDefinition,
-    VIEW_SCOPED_HOTKEY_IDS,
+    default_hotkeys, hotkey_definition, hotkey_definitions, hotkey_is_terminal_only,
+    HotkeyDefinition, VIEW_SCOPED_HOTKEY_IDS, WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
 };
 pub use json::{Json, ToJson, J};
 pub use layout::{general_group, general_navigation, GeneralGroup, NavItem, GENERAL_GROUPS};

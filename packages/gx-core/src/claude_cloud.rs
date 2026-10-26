@@ -41,12 +41,13 @@ pub fn is_claude_cloud_run_location(run_location: Option<&str>) -> bool {
     run_location.map(str::trim) == Some(CLAUDE_CLOUD_RUN_LOCATION)
 }
 
-/// The claude.ai page a session's row opens: set once a Claude cloud session exists on claude.ai
-/// and until it is brought to this computer. `None` for every other session, and for a cloud
-/// session still waiting for its task or starting, whose terminal shows that.
+/// The claude.ai page of a Claude cloud session: set once the session exists on claude.ai and
+/// until it is brought to this computer. `None` for every other session, and for a cloud session
+/// still waiting for its task or starting. The desktop shows it in the session's chat pane; a
+/// client that cannot embed claude.ai (the web build) opens it in a browser tab on a row click.
 ///
-/// CDXC:ClaudeCloud 2026-10-23 DECISION:
-/// User: clicking a cloud session's row opens "Claude's page for the session inside Ghostex", the claude.ai page in Ghostex's Browser, until Claude enables attaching to a cloud session from a terminal; then it opens Ghostex's own terminal and chat. Every client asks this one rule (row click, focus, notifications), so no entry point lands on the terminal by itself.
+/// CDXC:ClaudeCloud 2026-10-26 DECISION:
+/// User: "so it should open terminal in bg but show me chat view where i can type the first message to send. once i send it i wanna see the actual browser appear on the chat pane! please implement it this way (we need to link a sidebar thread with an actual link to the cloud conversation that was started". A cloud session opens in Chat View with its terminal running behind it; the first message starts it, and from then on the desktop's chat pane is the session's claude.ai page (app/claude_cloud_chat_page.rs), signed in as the session's account. The row keeps the link (`url` in its record): Open on claude.ai and Copy claude.ai Link use it. Supersedes the 2026-10-23 decision that a row click opened the page in Ghostex's Browser.
 pub fn session_claude_cloud_page(core: &Core, session: &SessionKey) -> Option<String> {
     let row = core.presentation().session(session)?;
     let cloud = row.claude_cloud.as_ref()?;
@@ -214,6 +215,43 @@ mod tests {
         core.handle_raw_frame(MachineId::Local, &snapshot.to_string(), 0)
             .expect("the frame parses");
         core
+    }
+
+    #[test]
+    fn a_cloud_session_keeps_chat_view_where_its_page_can_show() {
+        let core = core(&[
+            ("D", "running", Some("draft")),
+            ("R", "running", Some("running")),
+            ("M", "sleeping", Some("moved")),
+            ("L", "running", None),
+        ]);
+        let key = |id: &str| SessionKey::local("P1", id);
+        // The web build and the phone: chat takes the first message, the terminal shows the rest.
+        assert!(!crate::session_chat_view_unavailable(&core, &key("D")));
+        assert!(crate::session_chat_view_unavailable(&core, &key("R")));
+        assert!(crate::session_chat_view_unavailable(&core, &key("M")));
+        // The desktop shows the claude.ai page in the chat pane.
+        for id in ["D", "R", "M", "L"] {
+            assert!(
+                !crate::session_chat_view_unavailable_showing_cloud_pages(&core, &key(id)),
+                "{id}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_cloud_session_opens_in_chat_whatever_the_default_view() {
+        let settings = crate::PreferredInterfaceSettings {
+            default_interface: "terminal".to_string(),
+            overrides: vec![],
+        };
+        assert_eq!(settings.resolve(Some("claude-cloud")), Some("chat"));
+        assert_eq!(settings.resolve(Some("claude")), Some("terminal"));
+        let chosen = crate::PreferredInterfaceSettings {
+            default_interface: "chat".to_string(),
+            overrides: vec![("claude-cloud".to_string(), "terminal".to_string())],
+        };
+        assert_eq!(chosen.resolve(Some("claude-cloud")), Some("terminal"));
     }
 
     fn sidebar_id(session_id: &str) -> String {

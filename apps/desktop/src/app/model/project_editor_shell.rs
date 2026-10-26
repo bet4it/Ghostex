@@ -155,6 +155,81 @@ pub(crate) struct GpuiProjectViewState {
     pub(crate) code_windows: CodeWindows,
 }
 
+impl GpuiProjectViewState {
+    /// A project with no saved view: the panel closed and no tabs, as the project switch treats it
+    /// (`apply_project_view_state_for_active_project`).
+    pub(crate) fn closed(workarea_split_ratio: f32) -> Self {
+        Self {
+            active_mode: TitlebarMode::Agents,
+            open_views: Vec::new(),
+            view_strip_layout: GpuiViewStripLayout::default(),
+            last_view_mode: None,
+            workarea_split_ratio,
+            active_view_awake: false,
+            code_windows: CodeWindows::default(),
+        }
+    }
+
+    /// What opening a Browser page does to the project on screen (`change_active_mode_with_pane_state`),
+    /// done to the saved view of a project that is not: its panel comes back on Browser.
+    pub(crate) fn show_browser(&mut self) {
+        if !self.open_views.contains(&TitlebarMode::Browser) {
+            self.open_views.push(TitlebarMode::Browser);
+        }
+        self.active_mode = TitlebarMode::Browser;
+        self.last_view_mode = Some(TitlebarMode::Browser);
+    }
+
+    /// What `append_view_strip_tab` does for a tab that just opened on screen, done to this saved
+    /// strip (`tabs` is its Browser): the row the page is drawn in is written back into the stored
+    /// order as it would be drawn with every tab the project has, so tabs it had not placed keep
+    /// their places and every other tab, the dragged Browser tab included, keeps its slot; the new
+    /// tab goes last.
+    pub(crate) fn append_browser_tab(&mut self, tab_id: BrowserTabId, tabs: &BrowserTabModel) {
+        let pages_in_row =
+            shared_settings::shared_sidebar_settings_snapshot().browser_pages_in_view_row();
+        self.append_browser_tab_to_row(tab_id, tabs, pages_in_row);
+    }
+
+    fn append_browser_tab_to_row(
+        &mut self,
+        tab_id: BrowserTabId,
+        tabs: &BrowserTabModel,
+        pages_in_row: bool,
+    ) {
+        let views = self
+            .open_views
+            .iter()
+            .filter(|_| !pages_in_row)
+            .filter(|mode| !matches!(mode, TitlebarMode::Agents | TitlebarMode::Browser))
+            .map(|mode| ViewStripTabKey::View(*mode));
+        let pages = tabs
+            .tab_ids_by_pane()
+            .into_iter()
+            .map(ViewStripTabKey::Browser);
+        let layout = &mut self.view_strip_layout;
+        let drawn = layout.in_drawn_order(views.chain(pages).collect(), false, |key| *key);
+        let open_views = &self.open_views;
+        layout.write_projection(&drawn, |key| match key {
+            ViewStripTabKey::View(mode) => open_views.contains(mode),
+            ViewStripTabKey::Browser(tab_id) => tabs.tab(*tab_id).is_some(),
+        });
+        let key = ViewStripTabKey::Browser(tab_id);
+        layout.order.retain(|existing| *existing != key);
+        layout.order.push(key);
+    }
+}
+
+/// A project's saved view that its restore could not show yet (`finish_project_view_restore`).
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PendingProjectViewRestore {
+    pub(crate) project_id: String,
+    pub(crate) saved_mode: TitlebarMode,
+    /// Picked up by a launch: the view it settles on sleeps until clicked, as every view does after
+    /// a launch (CDXC:Browser 2026-09-19).
+    pub(crate) at_launch: bool,
+}
+
 pub(crate) struct ProjectEditorShellModel {
     /// CDXC:Workarea 2026-09-20 WHY:
     /// The share of the workarea the Agents column keeps while a view is open. It is the live value
@@ -633,5 +708,59 @@ pub(crate) fn workarea_split_ratio_for_span(ratio: f32, content_span: f32) -> f3
         ratio.clamp(agents_min_ratio, agents_max_ratio)
     } else {
         agents_min_ratio
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn two_pages() -> (BrowserTabModel, BrowserTabId, BrowserTabId) {
+        let profile = BrowserProfileId::default_profile();
+        let mut tabs = BrowserTabModel::shell_address_only_with_profile(profile);
+        let mut open = |url: &str| {
+            tabs.open_loaded_popup_tab(
+                url.to_string(),
+                profile,
+                cef::BrowserPopupPlacement::Selected,
+            )
+            .expect("page opens")
+        };
+        let first = open("https://one.example");
+        let second = open("https://two.example");
+        (tabs, first, second)
+    }
+
+    /// A page opened for a project off screen keeps the Browser tab where it was dragged, with its
+    /// pages in a row of their own or in the strip.
+    #[test]
+    fn a_background_page_keeps_the_dragged_browser_tab() {
+        let (tabs, first, second) = two_pages();
+        for pages_in_row in [true, false] {
+            let mut saved = GpuiProjectViewState::closed(WORKAREA_SPLIT_DEFAULT_RATIO);
+            saved.open_views = vec![
+                TitlebarMode::Manage,
+                TitlebarMode::Browser,
+                TitlebarMode::Kanban,
+            ];
+            saved.view_strip_layout.order = vec![
+                ViewStripTabKey::View(TitlebarMode::Browser),
+                ViewStripTabKey::View(TitlebarMode::Manage),
+                ViewStripTabKey::Browser(first),
+                ViewStripTabKey::View(TitlebarMode::Kanban),
+            ];
+            saved.append_browser_tab_to_row(second, &tabs, pages_in_row);
+            assert_eq!(
+                saved.view_strip_layout.order,
+                vec![
+                    ViewStripTabKey::View(TitlebarMode::Browser),
+                    ViewStripTabKey::View(TitlebarMode::Manage),
+                    ViewStripTabKey::Browser(first),
+                    ViewStripTabKey::View(TitlebarMode::Kanban),
+                    ViewStripTabKey::Browser(second),
+                ],
+                "pages in their own row: {pages_in_row}"
+            );
+        }
     }
 }

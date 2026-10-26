@@ -401,6 +401,9 @@ pub fn endpoint_for(path: &str) -> Option<EndpointDescriptor> {
         | "/api/switchSessionAgent"
         | "/api/agentCliMaintenance"
         | "/api/managedTools"
+        // CDXC:RemoteMachines 2026-10-26 WHY: remote-allowed like managedTools; a client looking at a
+        // machine asks that machine which skills it has, and installs only skills gxserver lists.
+        | "/api/machineIntegrations"
         /*
         CDXC:AgentBox 2026-10-01 WHY:
         Remote-allowed like managedTools beside it: the boxes and the agentbox CLI belong to the machine that owns the project, so a client looking at a remote machine asks that machine. Setup commands come back as text gxserver chose, never text the caller supplied.

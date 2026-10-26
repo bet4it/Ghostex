@@ -428,10 +428,20 @@ pub fn detect_session_chat_terminal_state(
     }
     if let Some(notice) = notice.as_mut() {
         crate::session_chat_codex_lock::enrich_notice(repository, project_id, session_id, notice);
+        crate::session_chat_account_sign_in::enrich_notice(
+            repository, project_id, session_id, notice,
+        );
     }
     if let (Some(notice), Some(styled)) = (notice.as_mut(), styled_screen.as_deref()) {
         crate::session_chat_claude_panel::enrich_claude_panel_notice(
             repository, project_id, session_id, notice, styled,
+        );
+    }
+    if let (Some(notice), Some(capture)) = (notice.as_mut(), screen) {
+        crate::session_chat_claude_plan::enrich_claude_plan_notice(
+            notice,
+            &capture.text,
+            claude_session_path.as_deref(),
         );
     }
     if let Some(notice) = notice.as_mut().filter(|notice| {

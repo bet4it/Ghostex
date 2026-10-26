@@ -222,6 +222,15 @@ impl GhostexGpuiApp {
                 })
                 .detach();
             }
+            SettingsModalCommand::RemoteGxserverRpc {
+                machine_id,
+                path,
+                params,
+                timeout,
+                reply,
+            } => {
+                self.run_settings_remote_gxserver_rpc(machine_id, path, params, timeout, reply, cx);
+            }
             SettingsModalCommand::CopyToClipboard(text) => {
                 gpui_copy_to_clipboard(gpui::ClipboardItem::new_string(text), cx);
             }

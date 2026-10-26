@@ -1628,6 +1628,36 @@ impl TerminalView {
             }
         }
 
+        // CDXC:Hotkeys 2026-10-26 WHY:
+        // Ghostty's copy keys on Windows and Linux are Ctrl+Shift+C and Ctrl+Insert (CDXC:Hotkeys 2026-10-26 DECISION in packages/settings-catalog/src/hotkey_definitions.rs). Like Ghostty's `performable` binding they copy only a selection; without one the key goes on to the program.
+        if !cfg!(target_os = "macos")
+            && self.selection.is_some()
+            && modifiers.control
+            && !modifiers.platform
+            && !modifiers.alt
+            && !modifiers.function
+            && ((modifiers.shift && keystroke.key == "c")
+                || (!modifiers.shift && keystroke.key == "insert"))
+        {
+            self.copy_selection(cx);
+            cx.stop_propagation();
+            return;
+        }
+        // Ghostty's `ctrl+shift+a=select_all` on Windows and Linux, the Cmd+A above elsewhere.
+        if !cfg!(target_os = "macos")
+            && modifiers.control
+            && modifiers.shift
+            && !modifiers.platform
+            && !modifiers.alt
+            && !modifiers.function
+            && keystroke.key == "a"
+        {
+            self.select_all(cx);
+            self.select_all_release_pending = true;
+            cx.stop_propagation();
+            return;
+        }
+
         // Clipboard shortcuts are app-owned; they never reach the PTY.
         if modifiers.platform && !modifiers.control && !modifiers.alt && !modifiers.function {
             match keystroke.key.as_str() {
@@ -3194,9 +3224,7 @@ pub(crate) fn terminal_overlay_tooltip(label: &str, hotkey_action_id: &str) -> S
     }
 }
 
-/// Focus mode is bound in `main.rs` from a fixed chord instead of through the
-/// configurable hotkey map, so the bar's Maximize control names it with this
-/// pseudo action id and the label resolver answers with that same chord.
+/// Focus mode's hotkey id, which the bar's Maximize control names in its tooltip.
 pub(crate) const TERMINAL_OVERLAY_FOCUS_MODE_HOTKEY_ACTION_ID: &str = "toggleAgentsFocusMode";
 
 /// The effective (persisted-or-default) chord for an action, formatted for
@@ -3229,8 +3257,6 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
         "toggleChatView" => "alt+g",
         "stashPrompt" => "alt+s",
         "stashedPrompts" => "cmd+alt+s",
-        // Focus mode is bound in main.rs from a fixed chord rather than through
-        // the configurable hotkey map, so its label is fixed too.
         TERMINAL_OVERLAY_FOCUS_MODE_HOTKEY_ACTION_ID => "cmd+ctrl+f",
         "attachFileOrFolder" => "cmd+alt+p",
         "exportTranscript" => "cmd+alt+e",
@@ -3269,28 +3295,14 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
     )
 }
 
-/// Mirrors the same-named cases of `gpui_platform_hotkey_for_action` in
-/// apps/desktop/src/app/hotkeys.rs, for the action ids this file labels.
+/// The chord a saved key runs on for this platform (`gpui_platform_hotkey_for_action` in
+/// apps/desktop/src/app/hotkeys.rs), from the hotkey catalog both read.
 fn terminal_overlay_platform_hotkey<'a>(action_id: &str, key: &'a str) -> &'a str {
-    if cfg!(target_os = "macos") {
-        return key;
-    }
-    let defaults = match action_id {
-        "delayedSend" => Some(("ctrl+shift+s", "cmd+alt+s")),
-        "forkSession" => Some(("cmd+ctrl+shift+f", "cmd+alt+shift+f")),
-        "renameActiveSession" => Some(("cmd+r", "cmd+shift+r")),
-        "promptEditor" => Some(("ctrl+g", "cmd+shift+g")),
-        "stashedPrompts" => Some(("cmd+alt+s", "cmd+shift+s")),
-        _ => None,
-    };
-    match defaults {
-        Some((mac_default, windows_linux_default))
-            if key.trim().eq_ignore_ascii_case(mac_default) =>
-        {
-            windows_linux_default
-        }
-        _ => key,
-    }
+    ghostex_settings_catalog::platform_hotkey(
+        action_id,
+        key,
+        ghostex_settings_catalog::Platform::current(),
+    )
 }
 
 fn terminal_scroll_button_glyph(edge: TerminalScrollEdge, light_theme: bool) -> impl IntoElement {

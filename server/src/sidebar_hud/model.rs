@@ -292,6 +292,15 @@ pub(super) const DEFAULT_SIDEBAR_AGENTS: &[DefaultSidebarAgent] = &[
     },
 ];
 
+/// The display name of a built-in agent (`Codex`, `Factory Droid`), for clients that list agents
+/// by id, such as the phone's Agent CLIs of a machine.
+pub(crate) fn default_agent_name(agent_id: &str) -> Option<&'static str> {
+    DEFAULT_SIDEBAR_AGENTS
+        .iter()
+        .find(|agent| agent.agent_id == agent_id)
+        .map(|agent| agent.name)
+}
+
 pub(super) const DEFAULT_SIDEBAR_COMMANDS: &[DefaultSidebarCommand] = &[
     DefaultSidebarCommand {
         command_id: "dev",

@@ -105,11 +105,10 @@ impl GhostexGpuiApp {
         cx: &mut gpui::Context<Self>,
     ) {
         cx.activate(true);
-        if let Some(url) = session_id
+        if let Some(page) = session_id
             .strip_prefix(crate::app::browser_page_notifications::BROWSER_PAGE_NOTIFICATION_PREFIX)
         {
-            let url = url.to_string();
-            self.open_browser_page_from_notification(&url, window, cx);
+            self.open_browser_page_from_notification(page, window, cx);
             return;
         }
         if let Some(account_id) = session_id

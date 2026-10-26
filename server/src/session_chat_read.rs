@@ -871,7 +871,14 @@ pub(crate) async fn handle_read_session_chat_http(
         result.insert("messages".to_string(), json!([]));
         result.insert("hasMore".to_string(), json!(false));
         result.insert("beforeOffset".to_string(), json!(0));
-        result.insert("status".to_string(), json!("unsupported"));
+        // A Claude cloud session's chat has no transcript here: it takes the first message, which
+        // starts the session on claude.ai (CDXC:ClaudeCloud in packages/gx-core/src/claude_cloud.rs).
+        let status = if agent.as_deref() == Some(crate::claude_cloud::CLAUDE_CLOUD_AGENT_ID) {
+            "empty"
+        } else {
+            "unsupported"
+        };
+        result.insert("status".to_string(), json!(status));
         return routed_json(
             Some(endpoint_path),
             StatusCode::OK,

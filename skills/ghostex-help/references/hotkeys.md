@@ -19,26 +19,26 @@ Default bindings are listed for macOS (`cmd`) with the Windows/Linux default whe
 | Dictate | `ctrl+alt+d` | `cmd+alt+shift+d` | Start dictating into the chat box of the chat session you are in; press again to stop and type what you said. | `toggleDictation` |
 | Read Last Reply Aloud | unassigned |  | Read the agent's newest reply in the chat you are looking at aloud, from the start. | `readAloudLastReply` |
 | Stop Reading | unassigned |  | Stop Read aloud, whichever reply it is reading. | `readAloudStop` |
-| New Agent Session | `cmd+shift+o` |  | Start your last-used agent in the active project, in your default interface. | `createAgentSession` |
+| New Agent Session | `cmd+shift+o` | `cmd+shift+d` | Start your last-used agent in the active project, in your default interface. | `createAgentSession` |
 | New Terminal | `cmd+shift+t` |  | Create a terminal session. | `createSession` |
 | Open Quick Access: Commands | `cmd+shift+p` |  | Open Ghostex Quick Access on Commands. | `openCommandPalette` |
-| Open Quick Access: Recent Sessions | `cmd+p` |  | Open Ghostex Quick Access on Recent Sessions. | `openSessionSearchPalette` |
+| Open Quick Access: Recent Sessions | `cmd+p` | `cmd+alt+shift+p` | Open Ghostex Quick Access on Recent Sessions. | `openSessionSearchPalette` |
 | Open Quick Access: Recent Projects | `cmd+alt+shift+o` |  | Open Ghostex Quick Access on Recent Projects. | `openProjectSearchPalette` |
-| Open Quick Access: Files | `cmd+o` |  | Open Ghostex Quick Access on Files to find a file in your projects and open it. | `openQuickAccessFiles` |
-| New Thread in Active Project | `cmd+n` |  | Pick an agent, Browser, or Terminal to start in the active project. | `openNewThreadPalette` |
+| Open Quick Access: Files | `cmd+o` | `cmd+shift+y` | Open Ghostex Quick Access on Files to find a file in your projects and open it. | `openQuickAccessFiles` |
+| New Thread in Active Project | `cmd+n` | `cmd+alt+shift+n` | Pick an agent, Browser, or Terminal to start in the active project. | `openNewThreadPalette` |
 | Open Commands Panel | `cmd+j` | `f12` | Open the project command terminal panel (F12 always works too). When the pane is already focused, hide it; press again to show it. | `openCommandsPanel` |
 | Open Commands Panel (Second Key) | `shift+escape` |  | A second key that opens or hides the Commands panel, like Open Commands Panel. | `openCommandsPanelSecondKey` |
 | Open Settings | `cmd+,` |  | Open app settings. | `openSettings` |
 | Open Extension Store | unassigned |  | Open the Store page in Settings > Extensions to manage built-in features and installed extensions. | `openExtensions` |
 | Ask Ghostex Help | unassigned |  | Open the Ghostex Help menu: sample questions an agent can answer and settings it can change for you. | `openGhostexHelp` |
 | Open File | unassigned |  | Open the Files view with its search box ready: type a file name, or paste the path of any file on this computer, and press Enter. | `openFileInFiles` |
-| Hotkeys | `cmd+/` |  | Open app hotkeys. | `openHotkeys` |
-| Toggle Sidebar | `cmd+b` |  | Collapse or expand the sidebar. | `toggleSidebarCollapsed` |
+| Hotkeys | `cmd+/` | `cmd+alt+/` | Open app hotkeys. | `openHotkeys` |
+| Toggle Sidebar | `cmd+b` | `cmd+shift+b` | Collapse or expand the sidebar. | `toggleSidebarCollapsed` |
 | Toggle View Panel | `cmd+alt+b` |  | Open or close the view panel beside your sessions. | `toggleViewPanel` |
 | Expand Side Panel | `cmd+ctrl+e` |  | Expand the side panel over the Agents Panel, or bring the Agents Panel back. | `expandViewPanel` |
 | Expand Side Panel Fully | `cmd+ctrl+shift+e` |  | Expand the side panel over the Agents Panel and hide the sidebar, or bring both back. | `expandViewPanelFully` |
 | Rename Active Session | `cmd+r` | `cmd+shift+r` | Rename the focused session. | `renameActiveSession` |
-| Open Browser Pane | `cmd+t` |  | Open a browser tab beside the focused tab. | `openBrowserPane` |
+| Open Browser Pane | `cmd+t` | `cmd+shift+l` | Open a browser tab beside the focused tab. | `openBrowserPane` |
 | Switch to Agents | unassigned |  | Switch to Agents view. | `switchAgentsView` |
 | Switch to VS Code | unassigned |  | Switch to VS Code view. | `switchSourceView` |
 | Switch to Browser | unassigned |  | Switch to Browser view. | `switchGitHubView` |
@@ -66,11 +66,11 @@ Default bindings are listed for macOS (`cmd`) with the Windows/Linux default whe
 | Session Note | `cmd+alt+n` |  | Open the note attached to the focused agent conversation. | `sessionNote` |
 | Stash Prompt | `alt+s` |  | Stash the current prompt in the focused agent terminal. | `stashPrompt` |
 | Saved Prompts | `cmd+alt+s` | `cmd+shift+s` | Open saved prompts for the focused agent session. | `stashedPrompts` |
-| Handoff / Export | `cmd+alt+e` |  | Export the focused agent session's transcript and hand it off to another agent. | `exportTranscript` |
+| Handoff / Export | `cmd+alt+e` | `cmd+alt+x` | Export the focused agent session's transcript and hand it off to another agent. | `exportTranscript` |
 | Toggle Agent Actions | `cmd+alt+a` |  | Show or hide the focused terminal's Agent Actions buttons. | `toggleAgentActions` |
 | Toggle Chat View | `alt+g` |  | Toggle between the terminal and chat view for the focused agent session. | `toggleChatView` |
-| Find Prompts | `cmd+shift+f` |  | Search every prompt you have sent to an agent, then resume or fork it. | `openFindPrompts` |
-| Search in Files | `cmd+shift+f` |  | While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys open Find Prompts. | `searchProjectFiles` |
+| Find Prompts | `cmd+shift+f` | `cmd+alt+h` | Search every prompt you have sent to an agent, then resume or fork it. | `openFindPrompts` |
+| Search in Files | `cmd+shift+f` |  | While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys keep their other use. | `searchProjectFiles` |
 | Scroll Terminal to Top | unassigned |  | Scroll the focused terminal to the top. | `scrollTerminalToTop` |
 | Scroll Terminal to Bottom | unassigned |  | Scroll the focused terminal to the bottom. | `scrollTerminalToBottom` |
 | Split Right | `alt+shift+d` |  | Move the focused session into a pane to the right. | `splitSessionRight` |
@@ -84,7 +84,7 @@ Default bindings are listed for macOS (`cmd`) with the Windows/Linux default whe
 | Next Group | unassigned |  | Focus the next group. | `focusNextGroup` |
 | Back | `cmd+[` | `cmd+alt+shift+[` | Go back to the previously active session or project. | `navigateHistoryBack` |
 | Forward | `cmd+]` | `cmd+alt+shift+]` | Go forward again after going back. | `navigateHistoryForward` |
-| Open Notifications | `cmd+i` |  | Open the Notifications panel under the bell in the sidebar's top row. | `openNotifications` |
+| Open Notifications | `cmd+i` | `cmd+shift+i` | Open the Notifications panel under the bell in the sidebar's top row. | `openNotifications` |
 | Jump to Latest Unread Notification | `cmd+shift+u` |  | Jump to the session of the latest unread notification and mark it read. | `jumpToLatestUnreadNotification` |
 | Mark as Oldest Unread and Jump to Next | `cmd+ctrl+u` |  | Push the current session to the back of the unread queue and jump to the next unread notification. | `deferNotificationAndJumpNext` |
 | Previous Session | `ctrl+shift+tab` | `cmd+shift+tab` | Select the previous session shown in the sidebar. | `focusPreviousSession` |
@@ -127,5 +127,15 @@ Default bindings are listed for macOS (`cmd`) with the Windows/Linux default whe
 | Start Action 3 | `ctrl+shift+3` | `cmd+shift+3` | Start action 3 from the Actions list. | `runActionSlot3` |
 | Start Action 4 | `ctrl+shift+4` | `cmd+shift+4` | Start action 4 from the Actions list. | `runActionSlot4` |
 | Start Action 5 | `ctrl+shift+5` | `cmd+shift+5` | Start action 5 from the Actions list. | `runActionSlot5` |
-| Split Sideways | `cmd+d` |  | Create a terminal beside the focused pane. | `splitMore` |
-| Split Downwards | `cmd+shift+d` |  | Create a terminal below the focused pane. | `splitMoreDown` |
+| Split Sideways | `cmd+d` | `cmd+shift+o` | Create a terminal beside the focused pane. | `splitMore` |
+| Split Downwards | `cmd+shift+d` | `cmd+shift+e` | Create a terminal below the focused pane. | `splitMoreDown` |
+| Paste | `cmd+v` | `cmd+shift+v` | Paste the clipboard into the focused terminal. On Windows and Linux this key works only in a terminal, and Ctrl+V pastes everywhere else. | `pasteIntoTerminal` |
+| Find | `cmd+f` | `cmd+shift+f` | Find text in the focused terminal, browser page, chat or file. On Windows and Linux, Ctrl+F also finds anywhere but in a terminal. | `findInFocusedView` |
+| Find Next | `cmd+g` | `f3` | Go to the next match of Find in a browser page. | `findNextInBrowser` |
+| Find Previous | `cmd+shift+g` | `shift+f3` | Go to the previous match of Find in a browser page. | `findPreviousInBrowser` |
+| Zoom In | `cmd+=` |  | Make the focused terminal, browser page or picture bigger. | `zoomInFocusedView` |
+| Zoom Out | `cmd+-` |  | Make the focused terminal, browser page or picture smaller. | `zoomOutFocusedView` |
+| Reset Zoom | `cmd+0` |  | Return the focused terminal, browser page or picture to its normal size. | `resetFocusedViewZoom` |
+| Close Tab | `cmd+w` | `cmd+shift+w` | Close the focused terminal tab, browser tab or view tab. | `closeFocusedSurface` |
+| New Window | `cmd+shift+n` |  | Open another Ghostex window. | `openNewWindow` |
+| Focus Mode | `cmd+ctrl+f` |  | Show only the focused pane of the Agents view, or bring the other panes back. | `toggleAgentsFocusMode` |

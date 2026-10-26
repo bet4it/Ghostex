@@ -10,6 +10,9 @@ const RELEASE_FEED_URL: &str =
     "https://github.com/maddada/Ghostex/releases/latest/download/releases.win-x64-stable.json";
 const RELEASE_PAGE_URL_PREFIX: &str = "https://github.com/maddada/Ghostex/releases/tag/v";
 const PACKAGED_INSTALL_ROOT: &str = "/opt/ghostex";
+/// The payload stamp the AppImage's launcher writes beside the copy it starts.
+/// SEE-ALSO: tooling/packaging/appimage/AppRun.
+const APPIMAGE_INSTALL_STAMP: &str = ".ghostex-appimage";
 const FEED_MAX_BYTES: u64 = 4 * 1024 * 1024;
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -33,8 +36,17 @@ impl LinuxUpdate {
 }
 
 /// Every Linux package (deb, rpm, tarball, AUR) installs under `/opt/ghostex`; a cargo build does not and runs without update checks, like a Windows build without its Velopack manifest.
+/// CDXC:Release 2026-10-26 WHY:
+/// The AppImage runs from the copy its launcher keeps in the user's data folder, marked by its payload stamp, so it gets the same update notice: the dialog's download page lists the new AppImage, and running that one replaces the copy.
 pub(crate) fn is_packaged_install() -> bool {
-    std::env::current_exe().is_ok_and(|exe| exe.starts_with(Path::new(PACKAGED_INSTALL_ROOT)))
+    std::env::current_exe().is_ok_and(|exe| is_packaged_executable(&exe))
+}
+
+fn is_packaged_executable(exe: &Path) -> bool {
+    exe.starts_with(Path::new(PACKAGED_INSTALL_ROOT))
+        || exe
+            .parent()
+            .is_some_and(|directory| directory.join(APPIMAGE_INSTALL_STAMP).is_file())
 }
 
 /// The newest stable release when it is newer than this build. Blocking: call it off the main thread.
@@ -104,4 +116,33 @@ fn parse_version(version: &str) -> Option<(u64, u64, u64)> {
         parts.next()?.parse().ok()?,
     );
     parts.next().is_none().then_some(parsed)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn packages_and_the_appimage_copy_check_for_updates_but_a_cargo_build_does_not() {
+        assert!(is_packaged_executable(Path::new(
+            "/opt/ghostex/ghostex-gpui-runtime"
+        )));
+
+        let root =
+            std::env::temp_dir().join(format!("ghostex-linux-updater-{}", std::process::id()));
+        let appimage_copy = root.join("appimage");
+        std::fs::create_dir_all(&appimage_copy).unwrap();
+        let runtime = appimage_copy.join("ghostex-gpui-runtime");
+        assert!(!is_packaged_executable(&runtime));
+        std::fs::write(
+            appimage_copy.join(APPIMAGE_INSTALL_STAMP),
+            "10.37.0-0123456789abcdef\n",
+        )
+        .unwrap();
+        assert!(is_packaged_executable(&runtime));
+        assert!(!is_packaged_executable(Path::new(
+            "/home/me/Ghostex/apps/desktop/target/release/ghostex-gpui"
+        )));
+        std::fs::remove_dir_all(&root).unwrap();
+    }
 }

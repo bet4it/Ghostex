@@ -102,6 +102,8 @@ pub(super) fn plan(
                 shared_history: true,
                 disabled: None,
                 user_disabled: false,
+                login_expired_at: None,
+                login_confirmed_at: None,
             });
         }
     }
@@ -275,6 +277,8 @@ mod tests {
             shared_history: true,
             disabled: None,
             user_disabled: false,
+            login_expired_at: None,
+            login_confirmed_at: None,
         }
     }
 
@@ -292,6 +296,8 @@ mod tests {
             shared_history: true,
             disabled: None,
             user_disabled: false,
+            login_expired_at: None,
+            login_confirmed_at: None,
         }
     }
 

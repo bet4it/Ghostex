@@ -19,6 +19,12 @@ impl GhostexGpuiApp {
         if mode == TitlebarMode::Source {
             self.stop_source_code_server_runtime(cx);
         } else if mode == TitlebarMode::Browser {
+            // Pages of this project still waiting to be made are not made later: the sleep wins
+            // (`waiting_parked_browser_pages`).
+            if let Some(project_id) = self.browser_tabs_project_id.as_deref() {
+                self.waiting_parked_browser_pages
+                    .retain(|(waiting, _)| waiting != project_id);
+            }
             let tab_ids = self.browser_surfaces.keys().copied().collect::<Vec<_>>();
             for tab_id in tab_ids {
                 self.remove_browser_surface(tab_id, cx);

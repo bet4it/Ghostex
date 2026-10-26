@@ -213,13 +213,6 @@ impl GhostexGpuiApp {
         }
         self.gx_store_persist_remembered_sessions(cx);
         self.gx_store_publish_workspace_focus(cx);
-        // A running Claude cloud session opens its claude.ai page in the Browser, whatever asked
-        // for the focus (CDXC:ClaudeCloud in packages/gx-core/src/claude_cloud.rs).
-        if let Some(url) = ghostex_gx_core::session_claude_cloud_page(&self.gx_store.core, &session)
-        {
-            self.open_claude_cloud_page(&session, url, cx);
-            return;
-        }
         self.gx_store_request_workspace_focus(
             GpuiSidebarWorkspaceTerminalFocusMessage {
                 force_remount: false,
@@ -325,6 +318,23 @@ impl GhostexGpuiApp {
         if matches!(route, ProjectWindowRoute::Switched) {
             self.settle_routed_window_workspace(cx);
         }
+        true
+    }
+
+    /// Puts project `project_id` (a workspace project id) on screen without choosing, waking or
+    /// creating a session: its remembered view comes back, as after a click on its header. For an
+    /// open that shows something of the project's own, such as a Browser tab. Returns whether the
+    /// id named a project.
+    pub(crate) fn gx_store_focus_project(
+        &mut self,
+        project_id: &str,
+        cx: &mut gpui::Context<Self>,
+    ) -> bool {
+        let Some(project) = ProjectKey::parse_workspace_project_id(project_id.trim()) else {
+            return false;
+        };
+        self.gx_store_focus_intent(Intent::FocusProject { project }, cx);
+        self.gx_store_publish_workspace_focus(cx);
         true
     }
 
@@ -443,7 +453,10 @@ impl GhostexGpuiApp {
         session: &SessionKey,
     ) -> Option<GpuiPreferredAgentInterface> {
         let row = self.gx_store.core.presentation().session(session)?;
-        if ghostex_gx_core::session_chat_view_unavailable(&self.gx_store.core, session) {
+        if ghostex_gx_core::session_chat_view_unavailable_showing_cloud_pages(
+            &self.gx_store.core,
+            session,
+        ) {
             return Some(GpuiPreferredAgentInterface::Terminal);
         }
         let settings = self.gx_store_preferred_interface_settings();

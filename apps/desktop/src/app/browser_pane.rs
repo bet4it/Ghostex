@@ -420,6 +420,9 @@ impl GhostexGpuiApp {
         {
             return false;
         }
+        // Focusing a pane selects its page, and a selection is announced like every other one
+        // (`forget_browser_tab_opener_once_hidden` listens for it).
+        cx.notify();
         let Some(input) = self.browser_address_inputs.get(&pane_id).cloned() else {
             return false;
         };
@@ -602,6 +605,21 @@ impl GhostexGpuiApp {
         profile_id: BrowserProfileId,
         cx: &mut gpui::Context<Self>,
     ) -> Option<Entity<CefSurface>> {
+        self.ensure_browser_surface_for_tab_in_profile(tab_id, url, profile_id, None, cx)
+    }
+
+    /// `background_profile` is the CEF profile of a page made for a project that is not on screen
+    /// (`start_parked_browser_page`): the page opens in it and starts hidden, whatever the strip
+    /// on screen shows.
+    pub(crate) fn ensure_browser_surface_for_tab_in_profile(
+        &mut self,
+        tab_id: BrowserTabId,
+        url: String,
+        profile_id: BrowserProfileId,
+        background_profile: Option<String>,
+        cx: &mut gpui::Context<Self>,
+    ) -> Option<Entity<CefSurface>> {
+        let background = background_profile.is_some();
         if let Some(surface) = self.browser_surfaces.get(&tab_id) {
             return Some(surface.clone());
         }
@@ -639,9 +657,12 @@ impl GhostexGpuiApp {
         } else {
             // A Claude cloud session's claude.ai page opens in its account's own profile
             // (CDXC:ClaudeCloud in app/claude_cloud_page.rs).
-            let profile = self
-                .claude_cloud_tab_profile(tab_id, &url)
-                .unwrap_or_else(|| self.browser_tab_cef_profile(profile_id));
+            let profile = match background_profile {
+                Some(profile) => profile,
+                None => self
+                    .claude_cloud_tab_profile(tab_id, &url)
+                    .unwrap_or_else(|| self.browser_tab_cef_profile(profile_id)),
+            };
             if !self.prepare_workspace_browser_context(&profile, cx) {
                 return None;
             }
@@ -655,15 +676,16 @@ impl GhostexGpuiApp {
             .browser_tabs
             .tab(tab_id)
             .and_then(|tab| tab.device_view.user_agent());
-        let initially_visible = BrowserRuntimeSurfacePolicy::for_tab(
-            self.browser_runtime_lifecycle_input(),
-            self.browser_tabs.tab(tab_id).map(|tab| tab.state),
-            self.browser_tabs
-                .rendered_active_loaded_tab_ids()
-                .contains(&tab_id),
-            true,
-        )
-        .shows_cef_child_view();
+        let initially_visible = !background
+            && BrowserRuntimeSurfacePolicy::for_tab(
+                self.browser_runtime_lifecycle_input(),
+                self.browser_tabs.tab(tab_id).map(|tab| tab.state),
+                self.browser_tabs
+                    .rendered_active_loaded_tab_ids()
+                    .contains(&tab_id),
+                true,
+            )
+            .shows_cef_child_view();
         /*
         CDXC:Browser 2026-09-19 WHY:
         GPUI paints this colour under the CEF child view, and it is what the
@@ -709,7 +731,10 @@ impl GhostexGpuiApp {
             }
         };
         self.browser_surfaces.insert(tab_id, surface.clone());
-        self.relay_browser_page_notifications(&surface, page_profile, cx);
+        if let Some(tab) = self.browser_tabs.tab(tab_id) {
+            let target = tab.notification_target;
+            self.relay_browser_page_notifications(&surface, page_profile, target, cx);
+        }
         support_logs::append_for_scenario(
             support_logs::GpuiSupportLog::SidebarRefresh,
             "native.sidebar.refresh",
@@ -752,14 +777,21 @@ impl GhostexGpuiApp {
                         let _ = app.update_in(&mut async_cx, |this, window, cx| {
                             match this.browser_runtime_owner_for_key(runtime_key) {
                                 Some(BrowserRuntimeOwner::Live) => {
-                                    this.open_browser_popup_tab(
+                                    // A page of `source_tab` opened it, so closing it goes back
+                                    // there (`forget_browser_tab_opener_once_hidden`).
+                                    if let Some(tab) = this.open_browser_popup_tab(
                                         requested_url,
                                         remote_machine_id,
                                         placement,
                                         source_tab,
                                         window,
                                         cx,
-                                    );
+                                    ) && let Some(opener) =
+                                        source_tab.filter(|opener| *opener != tab)
+                                    {
+                                        this.browser_tab_opener =
+                                            Some(BrowserTabOpener { tab, opener });
+                                    }
                                 }
                                 Some(BrowserRuntimeOwner::Parked(project_id)) => {
                                     this.open_parked_browser_popup_tab(
@@ -1073,6 +1105,12 @@ impl GhostexGpuiApp {
     pub(crate) fn sleep_browser_tab(&mut self, tab_id: BrowserTabId, cx: &mut gpui::Context<Self>) {
         if find_browser_leaf_id_for_tab(&self.browser_tabs.root, tab_id).is_none() {
             return;
+        }
+        // A page opened while its project was off screen and still waiting to be made is not made
+        // later: the sleep wins (`waiting_parked_browser_pages`).
+        if let Some(project_id) = self.browser_tabs_project_id.clone() {
+            self.waiting_parked_browser_pages
+                .remove(&(project_id, tab_id));
         }
         self.remove_browser_surface(tab_id, cx);
         self.browser_find_states.remove(&tab_id);

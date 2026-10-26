@@ -319,6 +319,20 @@ fn discover_row(home: &Path, provider: Provider, row: &Value) -> Option<Discover
             )
         };
         account.usage_error = claude_usage_notice(&status, usage.is_object(), last_good_age);
+        // A session reported this login expired, and no reading of the saved login since says it works.
+        if account.status == "ready"
+            && super::store::login_expired(provider, &account.selector).is_some_and(|marked| {
+                !super::login_expired::read_after(
+                    &status,
+                    row["usage"].is_object(),
+                    row["usageFetchedAt"].as_str(),
+                    &marked,
+                )
+            })
+        {
+            account.status = "loginRequired".into();
+            account.usage_error = Some(super::login_expired::NOTICE.into());
+        }
         account.usage_stale = !row["usage"].is_object() && usage.is_object();
         if let Some(w) = window("fiveHour", "5h", &usage["fiveHour"], "pct", None) {
             account.usage.push(w);

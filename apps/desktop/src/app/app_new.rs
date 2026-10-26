@@ -123,6 +123,7 @@ impl GhostexGpuiApp {
         let pending_command_gxserver_cleanup =
             shell_layout_state.pending_command_gxserver_cleanup.clone();
         let browser_url = shell_layout_state.browser_tabs.active_address_value();
+        let pending_project_view_restore = shell_layout_state.unsettled_project_view_restore();
         let project_editor_auto_sleep_policy = ProjectEditorAutoSleepPolicySnapshot::read_current();
         let gpui_reduce_motion_enabled = gpui_macos_reduce_motion_enabled();
         // GPUI's own flag is what `cx.reduce_motion()` answers (the panel slides, the composer), and
@@ -193,8 +194,11 @@ impl GhostexGpuiApp {
                 browser_profiles: shell_layout_state.browser_profiles,
                 browser_tabs: shell_layout_state.browser_tabs,
                 browser_tabs_project_id: shell_layout_state.browser_tabs_project_id,
+                browser_tab_opener: None,
                 parked_browser_tabs_by_project: shell_layout_state.parked_browser_tabs_by_project,
                 parked_browser_runtimes_by_project: HashMap::new(),
+                pending_parked_browser_opens: HashMap::new(),
+                waiting_parked_browser_pages: HashSet::new(),
                 browser_tabs_project_epoch: 0,
                 browser_tabs_runtime_key: 0,
                 pending_export_transcript_reveal_path: None,
@@ -260,10 +264,12 @@ impl GhostexGpuiApp {
                 remote_attach_requests: Default::default(),
                 project_view_states_by_project: shell_layout_state.project_view_states_by_project,
                 open_views: shell_layout_state.open_views,
+                pending_project_view_restore,
                 view_panel_maximized: shell_layout_state.view_panel_maximized,
                 view_panel_picker_open: shell_layout_state.view_panel_picker_open,
                 view_picker_scroll: ScrollHandle::new(),
                 view_strip_drop_index: None,
+                browser_page_row_drop_index: None,
                 view_strip_layout: shell_layout_state.view_strip_layout,
                 code_windows: CodeWindows::default(),
                 code_windows_setting_on:
@@ -272,6 +278,7 @@ impl GhostexGpuiApp {
                 code_window_handoff: None,
                 next_code_window_handoff_generation: 0,
                 docs_open_files_as_tabs: shared_settings_snapshot.docs_open_files_as_tabs(),
+                browser_pages_in_view_row: shared_settings_snapshot.browser_pages_in_view_row(),
                 last_open_view_mode: shell_layout_state.last_open_view_mode,
                 view_pane_layouts: shell_layout_state.view_pane_layouts,
                 sidebar_visibility_memory,
@@ -411,6 +418,9 @@ impl GhostexGpuiApp {
                 browser_tab_scroll_handles: HashMap::new(),
                 view_tab_scroll_handle: ScrollHandle::new(),
                 code_window_tab_scroll_handle: ScrollHandle::new(),
+                browser_page_tab_scroll_handle: ScrollHandle::new(),
+                browser_page_tab_revealed: None,
+                browser_page_row_focus_handle: cx.focus_handle(),
                 command_tab_scroll_handles: HashMap::new(),
                 command_collapsed_tab_scroll_handle: ScrollHandle::new(),
                 workspace_split_layout_metrics: HashMap::new(),
@@ -589,6 +599,7 @@ impl GhostexGpuiApp {
             this.ensure_claude_cloud_page_sweep(cx);
             this.start_sidebar_hover_reveal_polling(window, cx);
             this.start_command_action_status_polling(cx);
+            this.forget_browser_tab_opener_once_hidden(cx);
             this.start_command_pane_auto_minimize_polling(window, cx);
             this.start_prompt_editor_daemon_polling(cx);
             this.start_gpui_remote_gxserver_watchdog(cx);

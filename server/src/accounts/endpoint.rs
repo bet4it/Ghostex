@@ -280,6 +280,8 @@ pub(crate) fn dispatch(
                     shared_history: true,
                     disabled: None,
                     user_disabled: false,
+                    login_expired_at: None,
+                    login_confirmed_at: None,
                 });
             }
             store::write(&db, &registry)?;

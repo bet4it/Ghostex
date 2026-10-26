@@ -76,7 +76,23 @@ impl NativeChatView {
                 self.terminal_dialog_input = None;
                 return Some(self.side_question_card(notice, p, window, cx));
             }
-            let (body, actions) = self.render_terminal_dialog(&notice["dialog"], p, window, cx);
+            let (mut body, actions) = self.render_terminal_dialog(&notice["dialog"], p, window, cx);
+            // "Ready to code?" with "Tell Claude what to change" highlighted: the plan the
+            // feedback is about stays readable above the field.
+            if notice["plan"].is_object() {
+                let plan = &notice["plan"];
+                body.insert(
+                    0,
+                    self.side_answer_body(
+                        format!("ready-to-code-plan:{key}"),
+                        text(plan, "markdown"),
+                        &plan["references"],
+                        Some(window.viewport_size().height.as_f32() * 0.55),
+                        p,
+                        cx,
+                    ),
+                );
+            }
             let copy_title = text(&notice["dialog"]["presentation"]["copy"], "title");
             let panel_title = text(&notice["dialog"]["presentation"], "title");
             return Some(self.tone_card(
@@ -110,6 +126,19 @@ impl NativeChatView {
         let approval = notice["approval"].is_object();
         if approval {
             body.extend(self.permission_details(&notice["approval"], collapsed, &key, p, cx));
+        }
+        // The plan "Ready to code?" asks to approve, whole: Claude's pane shows only a screenful of
+        // it (`plan` in the chat core's questions/document.rs).
+        if !collapsed && notice["plan"].is_object() {
+            let plan = &notice["plan"];
+            body.push(self.side_answer_body(
+                format!("ready-to-code-plan:{key}"),
+                text(plan, "markdown"),
+                &plan["references"],
+                Some(window.viewport_size().height.as_f32() * 0.55),
+                p,
+                cx,
+            ));
         }
         if !collapsed && !panel && !approval && notice["detail"].is_string() {
             body.push(

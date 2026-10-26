@@ -69,6 +69,10 @@ impl ClaudeSlot {
         format!("{}:{}", self.email.to_lowercase(), self.organization)
     }
 
+    pub(crate) fn organization(&self) -> &str {
+        &self.organization
+    }
+
     /// Whether the default login's `~/.claude.json` names this slot's account, which is when `cswap run` starts plain `claude` on it.
     pub(crate) fn names_default_login(&self, home: &Path) -> bool {
         default_login_matches(home, &self.email, &self.organization)
@@ -95,7 +99,7 @@ impl ClaudeSlot {
 
     /// CDXC:AgentProviders 2026-09-24 WHY:
     /// cswap owns Claude logins, so Ghostex only reads access tokens and never refreshes them: refreshing rotates the refresh token and would strand the copy cswap and Claude Code keep. The newest generation lives where Claude Code last ran as the account (the default login for cswap's active slot, else the slot's session profile), and cswap's vault copy is the last resort. Expired or unusable tokens are skipped; cswap's own usage polling keeps at least one fresh.
-    fn tokens(&self, home: &Path) -> Vec<String> {
+    pub(crate) fn tokens(&self, home: &Path) -> Vec<String> {
         let mut sources = Vec::new();
         if self.active && default_login_matches(home, &self.email, &self.organization) {
             sources.push(keychain("Claude Code-credentials"));
@@ -118,37 +122,58 @@ impl ClaudeSlot {
             "claude-swap",
             &format!("account-{}-{}", self.slot, self.email),
         ));
-        let now = chrono::Utc::now().timestamp_millis();
-        let mut tokens: Vec<String> = Vec::new();
-        for text in sources.into_iter().flatten() {
-            let Ok(value) = serde_json::from_str::<Value>(&text) else {
-                continue;
-            };
-            let oauth = &value["claudeAiOauth"];
-            let Some(token) = oauth["accessToken"]
-                .as_str()
-                .filter(|t| !t.trim().is_empty())
-            else {
-                continue;
-            };
-            if oauth["expiresAt"]
-                .as_i64()
-                .is_some_and(|at| at <= now + 60_000)
-            {
-                continue;
-            }
-            if oauth["scopes"]
-                .as_array()
-                .is_some_and(|scopes| !scopes.iter().any(|s| s == "user:profile"))
-            {
-                continue;
-            }
-            if !tokens.iter().any(|t| t == token) {
-                tokens.push(token.trim().to_string());
-            }
-        }
-        tokens
+        usable_tokens(sources)
     }
+}
+
+/// The access tokens and organization of the default Claude login (`~/.claude`), for a Claude
+/// cloud session that runs on the current CLI login rather than a saved account.
+pub(crate) fn default_login_tokens(home: &Path) -> Option<(Vec<String>, String)> {
+    let config: Value =
+        serde_json::from_slice(&std::fs::read(home.join(".claude.json")).ok()?).ok()?;
+    let organization = config["oauthAccount"]["organizationUuid"]
+        .as_str()
+        .filter(|value| !value.is_empty())?
+        .to_string();
+    let tokens = usable_tokens(vec![
+        keychain("Claude Code-credentials"),
+        file(&home.join(".claude/.credentials.json")),
+    ]);
+    Some((tokens, organization))
+}
+
+/// The unexpired access tokens of credential JSON texts, without duplicates.
+fn usable_tokens(sources: Vec<Option<String>>) -> Vec<String> {
+    let now = chrono::Utc::now().timestamp_millis();
+    let mut tokens: Vec<String> = Vec::new();
+    for text in sources.into_iter().flatten() {
+        let Ok(value) = serde_json::from_str::<Value>(&text) else {
+            continue;
+        };
+        let oauth = &value["claudeAiOauth"];
+        let Some(token) = oauth["accessToken"]
+            .as_str()
+            .filter(|t| !t.trim().is_empty())
+        else {
+            continue;
+        };
+        if oauth["expiresAt"]
+            .as_i64()
+            .is_some_and(|at| at <= now + 60_000)
+        {
+            continue;
+        }
+        if oauth["scopes"]
+            .as_array()
+            .is_some_and(|scopes| !scopes.iter().any(|s| s == "user:profile"))
+        {
+            continue;
+        }
+        if !tokens.iter().any(|t| t == token) {
+            tokens.push(token.trim().to_string());
+        }
+    }
+    tokens
 }
 
 fn default_login_matches(home: &Path, email: &str, organization: &str) -> bool {

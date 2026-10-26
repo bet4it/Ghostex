@@ -23,9 +23,9 @@ marked **(unverified)** were inferred and not confirmed from that evidence.
    untouched, and the appcast is written by CI.
 2. `bun run release:actions -- X.Y.Z` dispatches `.github/workflows/release-gpui.yml`
    on `main`. Every build, signing, notarization and publish step runs on
-   GitHub runners (macOS DMG + notarization + Sparkle, Linux deb/rpm/tar,
+   GitHub runners (macOS DMG + notarization + Sparkle, Linux deb/rpm/tar/AppImage,
    Windows x64/arm64 Velopack, Android APK, Linux ARM64
-   deb/rpm/tar on `ubuntu-24.04-arm`, gxserver Linux and WSL runtimes).
+   deb/rpm/tar/AppImage on `ubuntu-24.04-arm`, gxserver Linux and WSL runtimes).
 3. Each platform has its own publish stage. The first stage to finish creates
    tag `vX.Y.Z` (at the dispatched commit) and the GitHub release. Its body
    opens with a download block of at most 3 lines (macOS + Windows, Linux,
@@ -232,7 +232,7 @@ turns it back on for every later release; `--windows-signing required`
 test-signs one dispatch, only on the user's instruction (`docs/code-signing.md`).
 
 Scope flags, only on the user's instruction: `--skip-macos --skip-sparkle`,
-`--skip-linux` (both architectures), `--skip-linux-x64`, `--skip-linux-arm64`,
+`--skip-linux` (both architectures), `--skip-linux-x64`, `--skip-linux-arm64`, `--skip-linux-appimage`, `--skip-linux-appimage-arm64`,
 `--skip-windows`, `--skip-android`, `--only-macos`, `--only-linux-arm64`
 (implies `--skip-sparkle`), `--prerelease` (needs `--skip-sparkle`),
 `--force-all` or `--force a,b` (rebuild even when the inputs are unchanged).
@@ -420,17 +420,17 @@ while any other exit `0` means only that a job changed state.
 gh release view vX.Y.Z --repo maddada/Ghostex --json isDraft,isPrerelease,assets --jq '.isDraft,.isPrerelease,(.assets[].name)'
 ```
 
-Expect about 25 assets: `ghostex-X.Y.Z-arm64.dmg`, `ghostex_X.Y.Z_amd64.deb`,
+Expect about 27 assets: `ghostex-X.Y.Z-arm64.dmg`, `ghostex_X.Y.Z_amd64.deb`,
 `ghostex-X.Y.Z-1.x86_64.rpm`, `ghostex-X.Y.Z-linux-x64.tar.zst`,
 `ghostex_X.Y.Z_arm64.deb`, `ghostex-X.Y.Z-1.aarch64.rpm`,
-`ghostex-X.Y.Z-linux-arm64.tar.zst`,
+`ghostex-X.Y.Z-linux-arm64.tar.zst`, `ghostex-X.Y.Z-linux-{x64,arm64}.AppImage`,
 `ghostex-X.Y.Z-windows-{x64,arm64}.exe`, the Velopack
 files, `ghostex-android.apk`, `gxserver-linux-{x64,arm64}.tar.gz`,
 `gxserver-wsl-windows-{x64,arm64}.zip` and `release-provenance-X.Y.Z.json`.
 
 The body must start with the download block, and every customer asset
-(DMG, both Windows installers, the x64 and ARM64 deb, rpm and
-tarball, APK) must be linked there; `release:verify` checks both. Checksums, Velopack files,
+(DMG, both Windows installers, the x64 and ARM64 deb, rpm,
+tarball and AppImage, APK) must be linked there; `release:verify` checks both. Checksums, Velopack files,
 gxserver runtimes and provenance stay as unlisted assets.
 
 From Windows (the normal case), skip the macOS-only DMG and Homebrew checks.
