@@ -17,8 +17,12 @@ pub(crate) const FEEDBACK_MODAL_WIDTH: f32 = 600.0;
 pub(crate) const FEEDBACK_MODAL_INITIAL_HEIGHT: f32 = 600.0;
 
 /// Five images of 5 MiB in base64 can take minutes to upload on a slow line; gxserver gives the
-/// relay 170 seconds. Starting the feedback agent sends the same images.
+/// relay 170 seconds. Starting the feedback agent sends the same images, and gxserver answers it
+/// once the agent has its brief, within 90 seconds.
 const SEND_TIMEOUT: Duration = Duration::from_secs(180);
+
+/// gxserver's answer when the feedback agent could not take the report (server/src/feedback/brief_wait.rs).
+const FEEDBACK_AGENT_NOT_READY: &str = "feedbackAgentNotReady";
 
 /// What the pop-up asks its host to do. The pop-up removes its own window before sending it.
 pub(crate) enum FeedbackModalCommand {
@@ -483,7 +487,14 @@ impl GpuiFeedbackModalWindow {
                                 .to_string(),
                         ),
                     },
-                    Err(error) => this.show_failure(error, local),
+                    // gxserver closed the agent that could not take the report: the report goes
+                    // on without it (CDXC:Feedback 2026-10-26 in server/src/feedback/brief_wait.rs).
+                    Err(error) => {
+                        if error.code.as_deref() == Some(FEEDBACK_AGENT_NOT_READY) {
+                            this.collect_with_agent = false;
+                        }
+                        this.show_failure(error, local)
+                    }
                 }
                 cx.notify();
             });

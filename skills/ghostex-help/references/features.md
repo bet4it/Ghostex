@@ -4202,7 +4202,11 @@ session you are looking at (or, with none focused, the active project) is on a
 connected remote machine, the agent starts on that machine instead, in its own
 Ghostex config folder, and reads that machine's version, settings and logs; the
 switch's description names the machine. If that machine is not connected, Start
-Agent says so instead of starting on this computer.
+Agent says so instead of starting on this computer. Start Agent waits until the
+agent has your report, usually a few seconds. If the agent can't start (it isn't
+installed or signed in, or it isn't ready after a minute and a half), the pop-up
+says why in plain words, closes that session and turns the switch off, so you can
+still send your report without the agent.
 
 When a chat message cannot reach the agent because Ghostex cannot see its input
 box, the "Message not sent" card has Copy Report. It copies a report of what
