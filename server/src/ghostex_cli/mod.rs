@@ -4,7 +4,6 @@ pub mod actions;
 mod agent_cli;
 pub mod agent_sync;
 mod agentbox_cli;
-mod claude_cloud_cli;
 mod agents;
 pub mod app_update;
 pub mod args;
@@ -13,6 +12,7 @@ pub mod automations;
 pub mod board;
 pub mod browser_mcp;
 mod built_in_extensions;
+mod claude_cloud_cli;
 mod connectors;
 mod connectors_executor;
 mod connectors_mcp;
@@ -797,12 +797,9 @@ fn run_command(name: &str, args: &[String]) -> CliResult<()> {
             plain,
             args,
         ),
-        "read-session-details" => run_bridge_action(
-            "readSessionDetails",
-            Parser::SessionSelector,
-            plain,
-            args,
-        ),
+        "read-session-details" => {
+            run_bridge_action("readSessionDetails", Parser::SessionSelector, plain, args)
+        }
         "send-session-chat-message" => run_message_bridge_action(
             "sendSessionChatMessage",
             Parser::SendText,
