@@ -201,12 +201,12 @@ impl GhostexGpuiApp {
         }
     }
 
-    /// The tab that takes over when `mode` leaves the panel: the nearest one to its right that this
+    /// The view that takes over when `mode` leaves the panel: the nearest one to its right that this
     /// project can show, else the nearest to its left, else nothing. `mode` itself may be a view
     /// this project can no longer show.
     ///
     /// CDXC:Workarea 2026-10-26 WHY:
-    /// The neighbours are read from the strip's drawn order, not from the open-views list: only a drag rewrites that list's order, so after a pin and an unpin closing a tab could jump past the one drawn beside it.
+    /// Hiding a view and restoring an unavailable saved view use `leaving_view_successor`; this mode-only fallback handles a leaving view with no drawn anchor. It reads drawn view order because only a drag rewrites `open_views`, so pinning and unpinning can leave that list in a different order.
     pub(crate) fn view_tab_successor(&self, mode: TitlebarMode) -> Option<TitlebarMode> {
         let tabs = self.open_views_in_view_strip_order();
         let index = tabs.iter().position(|tab| *tab == mode)?;
@@ -236,6 +236,43 @@ impl GhostexGpuiApp {
                 self.close_view_panel(cx)
             }
             None => self.open_view_picker(cx),
+        }
+    }
+
+    /// Shows `successor` (`leaving_view_successor`) in place of a view that left the panel without a
+    /// `Window`, or follows the last-tab rule with none. A page is selected in its pane before the
+    /// Browser is shown, so the Browser comes back on it instead of first waking the page it was last
+    /// on, and its pane takes the focus as a click on the page gives it. `asleep` shows the successor
+    /// the way a launch restores a view (`show_view_tab_asleep`). A Browser successor's address field
+    /// is left to the caller, as in `show_view_tab_successor`.
+    pub(crate) fn show_leaving_view_successor(
+        &mut self,
+        successor: Option<ViewStripEntry>,
+        asleep: bool,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        let (mode, pane_id) = match successor {
+            Some(ViewStripEntry::View(mode)) => (mode, None),
+            Some(ViewStripEntry::Browser(tab)) => {
+                // The page's pane is looked up again, as `show_view_strip_entry` does.
+                let Some(pane_id) =
+                    find_browser_leaf_id_for_tab(&self.browser_tabs.root, tab.tab_id)
+                else {
+                    return self.show_view_tab_successor(None, cx);
+                };
+                self.browser_tabs.select_tab_in_pane(pane_id, tab.tab_id);
+                (TitlebarMode::Browser, Some(pane_id))
+            }
+            None => return self.show_view_tab_successor(None, cx),
+        };
+        if asleep {
+            self.show_view_tab_asleep(mode, cx);
+        } else if self.activate_mode(mode, cx)
+            && let Some(pane_id) = pane_id
+        {
+            self.focus_shell_target(ShellFocusTarget::BrowserPane(pane_id), cx);
+            self.persist_shell_layout_state();
+            cx.notify();
         }
     }
 

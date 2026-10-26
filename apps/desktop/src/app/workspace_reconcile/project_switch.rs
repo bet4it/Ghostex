@@ -11,6 +11,7 @@ use gpui::Window;
 use crate::app::consts::*;
 use crate::app::helpers::*;
 use crate::app::model::*;
+use crate::app::view_strip_order::ViewStripEntry;
 use crate::*;
 
 impl GhostexGpuiApp {
@@ -124,14 +125,11 @@ impl GhostexGpuiApp {
             return;
         }
         let successor = if self.titlebar_mode_available(saved) {
-            Some(saved)
+            Some(ViewStripEntry::View(saved))
         } else {
-            self.view_tab_successor(saved)
+            self.leaving_view_successor(saved)
         };
-        match successor {
-            Some(mode) if at_launch => self.show_view_tab_asleep(mode, cx),
-            successor => self.show_view_tab_successor(successor, cx),
-        }
+        self.show_leaving_view_successor(successor, at_launch, cx);
         if self.active_mode == TitlebarMode::Browser {
             self.defer_in_main_window(cx, |app, window, cx| {
                 app.sync_browser_address_input_if_shown(window, cx);
