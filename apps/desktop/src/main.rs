@@ -315,22 +315,7 @@ fn main() {
         */
         let shell_key_bindings = vec![
             KeyBinding::new("f12", OpenCommandPane, None),
-            KeyBinding::new(
-                if cfg!(target_os = "macos") {
-                    "cmd-y"
-                } else {
-                    "ctrl-h"
-                },
-                OpenBrowserHistory,
-                Some(BROWSER_KEY_CONTEXT),
-            ),
             KeyBinding::new("f5", ReloadFocusedBrowser, Some(BROWSER_KEY_CONTEXT)),
-            gpui_key_binding_from_shared_hotkey(
-                "cmd+r",
-                ReloadFocusedBrowser,
-                Some(BROWSER_KEY_CONTEXT),
-                cx,
-            ),
             KeyBinding::new(
                 "escape",
                 TitlebarDropdownCancel,
@@ -347,7 +332,6 @@ fn main() {
                 gpui::NoAction {},
                 Some(terminal_element::TERMINAL_KEY_CONTEXT),
             ),
-            KeyBinding::new(SLEEP_FOCUSED_SESSION_DEFAULT_KEY, SleepFocusedSession, None),
         ];
         #[cfg(target_os = "macos")]
         let shell_key_bindings = {

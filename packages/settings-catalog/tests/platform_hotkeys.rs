@@ -1,23 +1,29 @@
-//! Pins what every default hotkey binds to on each platform.
+//! Pins what every hotkey binds to, on each platform, in each section of Settings > Hotkeys.
 //!
-//! macOS must keep exactly the bindings it had before issue #315 moved the Windows and Linux
-//! defaults off the plain Ctrl keys a terminal needs (CDXC:Hotkeys 2026-10-26 DECISION in
-//! src/hotkey_definitions.rs): the chord of every hotkey, and the app action each formerly
-//! hard-coded key runs (apps/desktop/src/app/shell_hotkeys.rs, read from source because the
-//! desktop crate is too heavy to build for a test). Windows and Linux must follow Ghostty's
-//! Linux defaults (.dependencies/ghostty/src/config/Config.zig, `Keybinds.init`).
+//! Every hotkey that can act from a terminal has two bindings: the normal one, which applies
+//! everywhere but in a terminal, and the Terminal focused one, which applies only while a terminal
+//! has the keyboard (CDXC:Hotkeys 2026-10-27 DECISION in src/hotkey_definitions.rs). macOS must
+//! keep exactly the bindings it had: the chord of every hotkey in both sections, and the app action
+//! each formerly hard-coded key runs (apps/desktop/src/app/shell_hotkeys.rs, read from source
+//! because the desktop crate is too heavy to build for a test). On Windows and Linux the normal
+//! bindings are the ones the app always had, and the Terminal focused ones follow Ghostty's Linux
+//! defaults (.dependencies/ghostty/src/config/Config.zig, `Keybinds.init`).
 
 use std::collections::BTreeMap;
 
 use ghostex_settings_catalog::{
-    hotkey_definitions, hotkey_is_terminal_only, hotkey_keystroke, modules, platform_hotkey,
-    Platform, VIEW_SCOPED_HOTKEY_IDS, WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
+    hotkey_definition, hotkey_definitions, hotkey_has_normal_binding, hotkey_has_terminal_binding,
+    hotkey_keystroke, modules, platform_hotkey, terminal_hotkey, Platform,
+    TERMINAL_ONLY_HOTKEY_IDS, VIEW_SCOPED_HOTKEY_IDS,
 };
 
-/// The GPUI keystroke each default binds on `platform` (`""` when it has none there).
-fn default_keystrokes(platform: Platform) -> BTreeMap<&'static str, String> {
+const WINDOWS_AND_LINUX: [Platform; 2] = [Platform::Windows, Platform::Linux];
+
+/// The GPUI keystroke of each normal binding's default on `platform` (`""` when it has none).
+fn normal_keystrokes(platform: Platform) -> BTreeMap<&'static str, String> {
     hotkey_definitions()
         .iter()
+        .filter(|definition| hotkey_has_normal_binding(definition.id))
         .map(|definition| {
             let key = platform_hotkey(definition.id, definition.default_key, platform);
             (
@@ -28,9 +34,30 @@ fn default_keystrokes(platform: Platform) -> BTreeMap<&'static str, String> {
         .collect()
 }
 
+/// The GPUI keystroke of each Terminal focused binding's default on `platform`.
+fn terminal_keystrokes(platform: Platform) -> BTreeMap<&'static str, String> {
+    hotkey_definitions()
+        .iter()
+        .filter_map(|definition| {
+            let key = terminal_hotkey(definition.id, None, platform)?;
+            Some((
+                definition.id,
+                hotkey_keystroke(&key, platform).unwrap_or_default(),
+            ))
+        })
+        .collect()
+}
+
+fn pinned(entries: &[(&'static str, &str)]) -> BTreeMap<&'static str, String> {
+    entries
+        .iter()
+        .map(|(id, keystroke)| (*id, keystroke.to_string()))
+        .collect()
+}
+
 #[test]
-fn macos_hotkeys_keep_their_chords() {
-    let pinned: BTreeMap<&str, String> = [
+fn macos_normal_bindings_keep_their_chords() {
+    let mut expected = pinned(&[
         ("scrollChatToBottom", "ctrl-shift-down"),
         ("focusChatComposer", ""),
         ("copyLastChatCodeBlock", "cmd-shift-;"),
@@ -154,7 +181,7 @@ fn macos_hotkeys_keep_their_chords() {
         ("runActionSlot5", "ctrl-shift-5"),
         ("splitMore", "cmd-d"),
         ("splitMoreDown", "cmd-shift-d"),
-        // Hard-coded in apps/desktop/src/main.rs until 2026-10-26, at these chords.
+        // Hard-coded in apps/desktop/src/main.rs and the terminal until 2026-10-27, at these chords.
         ("pasteIntoTerminal", "cmd-v"),
         ("findInFocusedView", "cmd-f"),
         ("findNextInBrowser", "cmd-g"),
@@ -165,21 +192,190 @@ fn macos_hotkeys_keep_their_chords() {
         ("closeFocusedSurface", "cmd-w"),
         ("openNewWindow", "cmd-shift-n"),
         ("toggleAgentsFocusMode", "cmd-ctrl-f"),
-    ]
-    .into_iter()
-    .map(|(id, keystroke)| (id, keystroke.to_string()))
-    .collect();
-    assert_eq!(default_keystrokes(Platform::MacOs), pinned);
+        ("terminalCopy", "cmd-c"),
+        ("terminalSelectAll", "cmd-a"),
+        ("openBrowserHistory", "cmd-y"),
+        ("reloadBrowserPage", "cmd-r"),
+        ("sleepFocusedSessionSecondKey", "alt-shift-s"),
+        // New on 2026-10-27; one key in and out of the terminal.
+        ("unfocusTerminal", "cmd-shift-m"),
+        ("focusLastTerminal", "cmd-shift-m"),
+    ]);
+    // Only the Terminal focused section has these.
+    for id in TERMINAL_ONLY_HOTKEY_IDS {
+        expected.remove(id);
+    }
+    assert_eq!(normal_keystrokes(Platform::MacOs), expected);
+}
+
+/// On macOS the Terminal focused section starts as a copy of the normal one, so a terminal
+/// answers the same keys it always did.
+#[test]
+fn macos_terminal_focused_bindings_equal_the_normal_ones() {
+    let normal = normal_keystrokes(Platform::MacOs);
+    let terminal = terminal_keystrokes(Platform::MacOs);
+    for (id, keystroke) in &terminal {
+        if let Some(normal) = normal.get(id) {
+            assert_eq!(keystroke, normal, "{id}");
+        }
+    }
+    assert_eq!(terminal["terminalCopy"], "cmd-c");
+    assert_eq!(terminal["terminalSelectAll"], "cmd-a");
+    assert_eq!(terminal["unfocusTerminal"], "cmd-shift-m");
+}
+
+/// The normal Windows and Linux bindings are the ones the app had before issue #315: the catalog's
+/// chords of 2026-10-25 and the literal keys apps/desktop/src/main.rs bound then.
+#[test]
+fn windows_and_linux_normal_bindings_are_the_ones_the_app_always_had() {
+    let expected = pinned(&[
+        ("scrollChatToBottom", "ctrl-shift-down"),
+        ("focusChatComposer", ""),
+        ("copyLastChatCodeBlock", "ctrl-shift-;"),
+        ("copyLastChatReply", ""),
+        ("toggleChatSummaryMode", "ctrl-alt-shift-s"),
+        ("toggleChatComposerMaximized", "ctrl-alt-shift-m"),
+        ("toggleChatFilesLinks", "ctrl-alt-shift-l"),
+        ("toggleVoiceAgent", "ctrl-alt-shift-v"),
+        ("voiceCallAboutSession", ""),
+        ("holdToTalk", ""),
+        ("toggleDictation", "ctrl-alt-shift-d"),
+        ("readAloudLastReply", ""),
+        ("readAloudStop", ""),
+        ("createAgentSession", "ctrl-shift-o"),
+        ("createSession", "ctrl-shift-t"),
+        ("openCommandPalette", "ctrl-shift-p"),
+        ("openSessionSearchPalette", "ctrl-p"),
+        ("openProjectSearchPalette", "ctrl-alt-shift-o"),
+        ("openQuickAccessFiles", "ctrl-o"),
+        ("openNewThreadPalette", "ctrl-n"),
+        ("openCommandsPanel", "f12"),
+        ("openCommandsPanelSecondKey", "shift-escape"),
+        ("openSettings", "ctrl-,"),
+        ("openExtensions", ""),
+        ("openGhostexHelp", ""),
+        ("openFileInFiles", ""),
+        ("openHotkeys", "ctrl-/"),
+        ("toggleSidebarCollapsed", "ctrl-b"),
+        ("toggleViewPanel", "ctrl-alt-b"),
+        ("expandViewPanel", "ctrl-alt-e"),
+        ("expandViewPanelFully", "ctrl-alt-shift-e"),
+        ("renameActiveSession", "ctrl-shift-r"),
+        ("openBrowserPane", "ctrl-t"),
+        ("switchAgentsView", ""),
+        ("switchSourceView", ""),
+        ("switchGitHubView", ""),
+        ("switchKanbanView", ""),
+        ("switchManageView", ""),
+        ("switchAutomateView", ""),
+        ("switchChangesView", ""),
+        ("switchTerminalView", ""),
+        ("switchTitlebarView1", "alt-1"),
+        ("switchTitlebarView2", "alt-2"),
+        ("switchTitlebarView3", "alt-3"),
+        ("switchTitlebarView4", "alt-4"),
+        ("switchTitlebarView5", "alt-5"),
+        ("switchTitlebarView6", "alt-6"),
+        ("switchTitlebarView7", "alt-7"),
+        ("switchTitlebarView8", "alt-8"),
+        ("switchTitlebarView9", "alt-9"),
+        ("rotatePanesClockwise", "ctrl-alt-l"),
+        ("mergeAllTabs", "ctrl-alt-m"),
+        ("delayedSend", "ctrl-alt-s"),
+        ("closeAfterDone", ""),
+        ("openModelPicker", "alt-p"),
+        ("promptEditor", "ctrl-shift-g"),
+        ("attachFileOrFolder", "ctrl-alt-p"),
+        ("sessionNote", "ctrl-alt-n"),
+        ("stashPrompt", "alt-s"),
+        ("stashedPrompts", "ctrl-shift-s"),
+        ("exportTranscript", "ctrl-alt-e"),
+        ("toggleAgentActions", "ctrl-alt-a"),
+        ("toggleChatView", "alt-g"),
+        ("openFindPrompts", "ctrl-shift-f"),
+        ("searchProjectFiles", "ctrl-shift-f"),
+        ("scrollTerminalToTop", ""),
+        ("scrollTerminalToBottom", ""),
+        ("splitSessionRight", "alt-shift-d"),
+        ("forkSession", "ctrl-alt-shift-f"),
+        ("reloadSession", ""),
+        ("sleepFocusedSession", "ctrl-shift-a"),
+        ("wakeFocusedSession", ""),
+        ("closeFocusedSession", "ctrl-shift-backspace"),
+        ("popOutPane", "ctrl-alt-o"),
+        ("focusPreviousGroup", ""),
+        ("focusNextGroup", ""),
+        ("navigateHistoryBack", "ctrl-alt-shift-["),
+        ("navigateHistoryForward", "ctrl-alt-shift-]"),
+        ("openNotifications", "ctrl-i"),
+        ("jumpToLatestUnreadNotification", "ctrl-shift-u"),
+        ("deferNotificationAndJumpNext", "ctrl-alt-u"),
+        ("focusPreviousSession", "ctrl-shift-tab"),
+        ("focusNextSession", "ctrl-tab"),
+        ("focusPreviousPaneTab", "ctrl-alt-["),
+        ("focusNextPaneTab", "ctrl-alt-]"),
+        ("focusUp", "ctrl-alt-up"),
+        ("focusRight", "ctrl-alt-right"),
+        ("focusDown", "ctrl-alt-down"),
+        ("focusLeft", "ctrl-alt-left"),
+        ("jumpToProject1", "ctrl-alt-1"),
+        ("jumpToProject2", "ctrl-alt-2"),
+        ("jumpToProject3", "ctrl-alt-3"),
+        ("jumpToProject4", "ctrl-alt-4"),
+        ("jumpToProject5", "ctrl-alt-5"),
+        ("jumpToProject6", "ctrl-alt-6"),
+        ("jumpToProject7", "ctrl-alt-7"),
+        ("jumpToProject8", "ctrl-alt-8"),
+        ("jumpToProject9", "ctrl-alt-9"),
+        ("goToSpace1", "ctrl-alt-shift-1"),
+        ("goToSpace2", "ctrl-alt-shift-2"),
+        ("goToSpace3", "ctrl-alt-shift-3"),
+        ("goToSpace4", "ctrl-alt-shift-4"),
+        ("goToSpace5", "ctrl-alt-shift-5"),
+        ("goToSpace6", "ctrl-alt-shift-6"),
+        ("goToSpace7", "ctrl-alt-shift-7"),
+        ("goToSpace8", "ctrl-alt-shift-8"),
+        ("goToSpace9", "ctrl-alt-shift-9"),
+        ("focusSessionSlot1", "ctrl-1"),
+        ("focusSessionSlot2", "ctrl-2"),
+        ("focusSessionSlot3", "ctrl-3"),
+        ("focusSessionSlot4", "ctrl-4"),
+        ("focusSessionSlot5", "ctrl-5"),
+        ("focusSessionSlot6", "ctrl-6"),
+        ("focusSessionSlot7", "ctrl-7"),
+        ("focusSessionSlot8", "ctrl-8"),
+        ("focusSessionSlot9", "ctrl-9"),
+        ("runActionSlot1", "ctrl-shift-1"),
+        ("runActionSlot2", "ctrl-shift-2"),
+        ("runActionSlot3", "ctrl-shift-3"),
+        ("runActionSlot4", "ctrl-shift-4"),
+        ("runActionSlot5", "ctrl-shift-5"),
+        ("splitMore", "ctrl-d"),
+        ("splitMoreDown", "ctrl-shift-d"),
+        ("pasteIntoTerminal", "ctrl-v"),
+        ("findInFocusedView", "ctrl-f"),
+        ("findNextInBrowser", "ctrl-g"),
+        ("findPreviousInBrowser", "ctrl-shift-g"),
+        ("zoomInFocusedView", "ctrl-="),
+        ("zoomOutFocusedView", "ctrl--"),
+        ("resetFocusedViewZoom", "ctrl-0"),
+        ("closeFocusedSurface", "ctrl-w"),
+        ("openNewWindow", "ctrl-shift-n"),
+        ("toggleAgentsFocusMode", "ctrl-alt-f"),
+        ("openBrowserHistory", "ctrl-h"),
+        ("reloadBrowserPage", "ctrl-r"),
+        ("sleepFocusedSessionSecondKey", "alt-shift-s"),
+        ("focusLastTerminal", "ctrl-shift-m"),
+    ]);
+    for platform in WINDOWS_AND_LINUX {
+        assert_eq!(normal_keystrokes(platform), expected, "{platform:?}");
+    }
 }
 
 /// `SHELL_HOTKEY_ACTIONS` in apps/desktop/src/app/shell_hotkeys.rs: hotkey id to the app action
 /// it binds.
 fn desktop_shell_actions() -> Vec<(String, String)> {
-    let source = std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../apps/desktop/src/app/shell_hotkeys.rs"
-    ))
-    .expect("apps/desktop/src/app/shell_hotkeys.rs");
+    let source = shell_hotkeys_source();
     let start = source
         .find("const SHELL_HOTKEY_ACTIONS")
         .expect("SHELL_HOTKEY_ACTIONS");
@@ -196,10 +392,24 @@ fn desktop_shell_actions() -> Vec<(String, String)> {
         .collect()
 }
 
+fn shell_hotkeys_source() -> String {
+    desktop_source("app/shell_hotkeys.rs")
+}
+
+fn desktop_source(path: &str) -> String {
+    let path = format!(
+        "{}/../../apps/desktop/src/{path}",
+        env!("CARGO_MANIFEST_DIR")
+    );
+    std::fs::read_to_string(&path).unwrap_or_else(|_| panic!("{path}"))
+}
+
 #[test]
 fn macos_hotkeys_keep_their_app_actions() {
-    // The keys apps/desktop/src/main.rs bound to these actions before 2026-10-26.
+    // The keys apps/desktop/src/main.rs and the terminal bound to these actions before 2026-10-27.
     let expected = [
+        ("openBrowserHistory", "OpenBrowserHistory"),
+        ("reloadBrowserPage", "ReloadFocusedBrowser"),
         ("pasteIntoTerminal", "PasteIntoFocusedTerminal"),
         ("findInFocusedView", "FindInFocusedTerminal"),
         ("findNextInBrowser", "FindNextInFocusedBrowser"),
@@ -210,6 +420,7 @@ fn macos_hotkeys_keep_their_app_actions() {
         ("closeFocusedSurface", "CloseFocusedSurface"),
         ("toggleSidebarCollapsed", "ToggleGpuiSidebarCollapsed"),
         ("toggleViewPanel", "ToggleViewPanel"),
+        ("sleepFocusedSessionSecondKey", "SleepFocusedSession"),
         ("createSession", "NewTerminalTab"),
         ("openNewWindow", "NewGhostexGpuiWindow"),
         ("splitMore", "SplitFocusedTerminalRight"),
@@ -221,6 +432,11 @@ fn macos_hotkeys_keep_their_app_actions() {
         ("focusRight", "FocusWorkspaceRight"),
         ("focusUp", "FocusWorkspaceUp"),
         ("focusDown", "FocusWorkspaceDown"),
+        ("terminalCopy", "terminal_element::TerminalCopyHotkey"),
+        (
+            "terminalSelectAll",
+            "terminal_element::TerminalSelectAllHotkey",
+        ),
     ]
     .map(|(id, action)| (id.to_string(), action.to_string()));
     assert_eq!(desktop_shell_actions(), expected);
@@ -240,14 +456,36 @@ fn macos_hotkeys_keep_their_app_actions() {
     }
 }
 
-const WINDOWS_AND_LINUX: [Platform; 2] = [Platform::Windows, Platform::Linux];
+/// The desktop binds a normal binding with `!GhostexGpuiTerminal` and a Terminal focused one with
+/// `GhostexGpuiTerminal`, the context the focused terminal element sets, so the first never fires
+/// in a terminal and the second only there.
+#[test]
+fn the_desktop_binds_each_section_in_or_out_of_the_terminal() {
+    assert!(desktop_source("terminal_element.rs")
+        .contains("pub(crate) const TERMINAL_KEY_CONTEXT: &str = \"GhostexGpuiTerminal\";"));
+    let hotkeys = desktop_source("app/hotkeys.rs");
+    assert!(hotkeys.contains(
+        "pub(crate) const GPUI_OUTSIDE_TERMINAL_KEY_CONTEXT: &str = \"!GhostexGpuiTerminal\";"
+    ));
+    for source in [hotkeys.as_str(), shell_hotkeys_source().as_str()] {
+        assert!(source.contains("gpui_terminal_hotkey_key_in("));
+        assert!(source.contains("Some(terminal_element::TERMINAL_KEY_CONTEXT)"));
+        assert!(source.contains("gpui_normal_hotkey_context("));
+    }
+    assert!(
+        !shell_hotkeys_source().contains("\"ctrl-shift-v\""),
+        "a fixed Ctrl+Shift+V would keep pasting after Paste is rebound"
+    );
+}
 
 #[test]
-fn windows_and_linux_use_ghosttys_linux_keys() {
+fn windows_and_linux_terminal_focused_bindings_use_ghosttys_linux_keys() {
     for platform in WINDOWS_AND_LINUX {
-        let keystrokes = default_keystrokes(platform);
+        let keystrokes = terminal_keystrokes(platform);
         for (id, ghostty) in [
+            ("terminalCopy", "ctrl-shift-c"),
             ("pasteIntoTerminal", "ctrl-shift-v"),
+            ("terminalSelectAll", "ctrl-shift-a"),
             ("findInFocusedView", "ctrl-shift-f"),
             ("closeFocusedSurface", "ctrl-shift-w"),
             ("createSession", "ctrl-shift-t"),
@@ -272,9 +510,9 @@ fn windows_and_linux_use_ghosttys_linux_keys() {
 }
 
 #[test]
-fn windows_and_linux_ghostex_only_keys() {
+fn windows_and_linux_terminal_focused_ghostex_keys() {
     for platform in WINDOWS_AND_LINUX {
-        let keystrokes = default_keystrokes(platform);
+        let keystrokes = terminal_keystrokes(platform);
         for (id, keystroke) in [
             ("createAgentSession", "ctrl-shift-d"),
             ("openSessionSearchPalette", "ctrl-alt-shift-p"),
@@ -286,26 +524,25 @@ fn windows_and_linux_ghostex_only_keys() {
             ("openFindPrompts", "ctrl-alt-h"),
             ("openNotifications", "ctrl-shift-i"),
             ("exportTranscript", "ctrl-alt-x"),
-            ("findNextInBrowser", "f3"),
-            ("findPreviousInBrowser", "shift-f3"),
             ("sleepFocusedSession", ""),
             ("toggleAgentsFocusMode", "ctrl-alt-f"),
+            ("unfocusTerminal", "ctrl-shift-m"),
         ] {
             assert_eq!(keystrokes[id], keystroke, "{id} on {platform:?}");
         }
     }
 }
 
-/// CDXC:Hotkeys 2026-10-26 WHY:
-/// Ctrl with a letter or `[ ] \ / @ ^ _ space` sends a control character the terminal and its programs read (Ctrl+W deletes a word, Ctrl+D ends input, Ctrl+I is Tab). The only plain Ctrl keys a default may take on Windows and Linux are Ghostty's own (Settings, zoom, next tab) and the numbered session slots.
+/// CDXC:Hotkeys 2026-10-27 WHY:
+/// Ctrl with a letter or `[ ] \ / @ ^ _ space` sends a control character the terminal and its programs read (Ctrl+W deletes a word, Ctrl+D ends input, Ctrl+I is Tab). The only plain Ctrl keys a Terminal focused default may take on Windows and Linux are Ghostty's own (Settings, zoom, next tab) and the numbered session slots the user kept.
 #[test]
-fn windows_and_linux_leave_plain_ctrl_keys_to_the_terminal() {
+fn windows_and_linux_terminal_focused_bindings_leave_plain_ctrl_keys_to_the_terminal() {
     let allowed = [
         "ctrl-,", "ctrl-=", "ctrl--", "ctrl-0", "ctrl-tab", "ctrl-1", "ctrl-2", "ctrl-3", "ctrl-4",
         "ctrl-5", "ctrl-6", "ctrl-7", "ctrl-8", "ctrl-9",
     ];
     for platform in WINDOWS_AND_LINUX {
-        for (id, keystroke) in default_keystrokes(platform) {
+        for (id, keystroke) in terminal_keystrokes(platform) {
             let Some(key) = keystroke.strip_prefix("ctrl-") else {
                 continue;
             };
@@ -318,8 +555,8 @@ fn windows_and_linux_leave_plain_ctrl_keys_to_the_terminal() {
 }
 
 /// The chat box's Delete Line and the Files editor's Strikethrough, Highlight and Redo on Windows
-/// and Linux (`native_chat/keyboard.rs`, zorite-editor): an app-wide default on one of these would
-/// win over the text field.
+/// and Linux (`native_chat/keyboard.rs`, zorite-editor): a default on one of these would win over
+/// the text field.
 #[test]
 fn windows_and_linux_leave_text_editing_keys_alone() {
     let editing = [
@@ -329,7 +566,10 @@ fn windows_and_linux_leave_text_editing_keys_alone() {
         "ctrl-shift-z",
     ];
     for platform in WINDOWS_AND_LINUX {
-        for (id, keystroke) in default_keystrokes(platform) {
+        for (id, keystroke) in normal_keystrokes(platform)
+            .into_iter()
+            .chain(terminal_keystrokes(platform))
+        {
             assert!(
                 !editing.contains(&keystroke.as_str()),
                 "{id} takes {keystroke} on {platform:?}"
@@ -338,90 +578,129 @@ fn windows_and_linux_leave_text_editing_keys_alone() {
     }
 }
 
+/// Conflicts are checked within one section only. The normal section on Windows and Linux keeps
+/// the one clash it always had (Expand View Panel and Export Transcript on Ctrl+Alt+E, which the
+/// user chose to keep as it was); the Terminal focused section has none.
 #[test]
-fn windows_and_linux_defaults_do_not_share_a_chord() {
-    for platform in WINDOWS_AND_LINUX {
+fn no_two_defaults_share_a_chord_within_a_section() {
+    let duplicates = |keystrokes: BTreeMap<&'static str, String>| {
         let mut by_keystroke: BTreeMap<String, Vec<&str>> = BTreeMap::new();
-        for (id, keystroke) in default_keystrokes(platform) {
+        for (id, keystroke) in keystrokes {
             if !keystroke.is_empty() && !VIEW_SCOPED_HOTKEY_IDS.contains(&id) {
                 by_keystroke.entry(keystroke).or_default().push(id);
             }
         }
         by_keystroke.retain(|_, ids| ids.len() > 1);
-        assert!(by_keystroke.is_empty(), "{platform:?}: {by_keystroke:?}");
+        by_keystroke
+    };
+    for platform in WINDOWS_AND_LINUX {
+        let normal = duplicates(normal_keystrokes(platform));
+        let known: BTreeMap<String, Vec<&str>> = [(
+            "ctrl-alt-e".to_string(),
+            vec!["expandViewPanel", "exportTranscript"],
+        )]
+        .into_iter()
+        .collect();
+        assert_eq!(normal, known, "{platform:?}");
+        assert!(
+            duplicates(terminal_keystrokes(platform)).is_empty(),
+            "{platform:?}"
+        );
     }
+    assert!(duplicates(normal_keystrokes(Platform::MacOs)).is_empty());
+    assert!(duplicates(terminal_keystrokes(Platform::MacOs)).is_empty());
+}
+
+/// The same keys may be set in both sections: Unfocus Terminal and Focus Last Terminal share one
+/// by default, so it goes out of a terminal and back in.
+#[test]
+fn the_same_chord_may_be_set_in_both_sections() {
+    for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
+        assert_eq!(
+            terminal_keystrokes(platform)["unfocusTerminal"],
+            normal_keystrokes(platform)["focusLastTerminal"],
+            "{platform:?}"
+        );
+    }
+    assert!(!hotkey_has_normal_binding("unfocusTerminal"));
+    assert!(!hotkey_has_terminal_binding(
+        hotkey_definition("focusLastTerminal").expect("focusLastTerminal")
+    ));
 }
 
 #[test]
-fn a_saved_mac_default_moves_to_the_windows_and_linux_default() {
+fn saved_bindings_migrate_safely() {
+    // Normal: a saved macOS default moves to the Windows and Linux default where there is one;
+    // anything else the user chose stays.
+    assert_eq!(
+        platform_hotkey("renameActiveSession", "cmd+r", Platform::Linux),
+        "cmd+shift+r"
+    );
     assert_eq!(
         platform_hotkey("splitMore", "cmd+d", Platform::Linux),
-        "cmd+shift+o"
-    );
-    assert_eq!(
-        platform_hotkey("closeFocusedSurface", "cmd+w", Platform::Windows),
-        "cmd+shift+w"
-    );
-    assert_eq!(
-        platform_hotkey("splitMore", "cmd+d", Platform::MacOs),
         "cmd+d"
     );
-    // A chord the user picked stays theirs.
     assert_eq!(
         platform_hotkey("splitMore", "cmd+alt+d", Platform::Linux),
         "cmd+alt+d"
     );
+    // Terminal focused: nothing saved is the default, a saved macOS default moves to the Windows and
+    // Linux one, a cleared one stays cleared and a chosen one stays.
+    assert_eq!(
+        terminal_hotkey("splitMore", None, Platform::Linux).as_deref(),
+        Some("cmd+shift+o")
+    );
+    assert_eq!(
+        terminal_hotkey("splitMore", Some("cmd+d"), Platform::Linux).as_deref(),
+        Some("cmd+shift+o")
+    );
+    assert_eq!(
+        terminal_hotkey("splitMore", Some("cmd+d"), Platform::MacOs).as_deref(),
+        Some("cmd+d")
+    );
+    assert_eq!(
+        terminal_hotkey("splitMore", Some(""), Platform::Linux).as_deref(),
+        Some("")
+    );
+    assert_eq!(
+        terminal_hotkey("splitMore", Some("cmd+alt+9"), Platform::Linux).as_deref(),
+        Some("cmd+alt+9")
+    );
+    // A hotkey without a Terminal focused binding has none to resolve.
+    assert_eq!(
+        terminal_hotkey("focusLastTerminal", None, Platform::Linux),
+        None
+    );
+    assert_eq!(
+        terminal_hotkey("scrollChatToBottom", None, Platform::MacOs),
+        None
+    );
 }
 
-/// CDXC:Clipboard 2026-10-26 DECISION in src/hotkeys.rs: Paste is bound only in a terminal on
-/// Windows and Linux, so Ctrl+V pastes as usual everywhere else, and it is one rebindable key, not
-/// a second fixed Ctrl+Shift+V beside it. macOS keeps Cmd+V app-wide.
+/// Paste on Windows and Linux: Ctrl+Shift+V only while a terminal has the keyboard, Ctrl+V
+/// everywhere else (CDXC:Clipboard 2026-10-27 DECISION in src/hotkeys.rs). macOS keeps Cmd+V in
+/// both sections.
 #[test]
-fn paste_is_a_terminal_only_key_on_windows_and_linux() {
-    assert_eq!(
-        WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
-        ["pasteIntoTerminal"]
-    );
+fn paste_is_ctrl_shift_v_in_a_terminal_and_ctrl_v_elsewhere_on_windows_and_linux() {
     for platform in WINDOWS_AND_LINUX {
-        assert!(hotkey_is_terminal_only("pasteIntoTerminal", platform));
+        assert_eq!(normal_keystrokes(platform)["pasteIntoTerminal"], "ctrl-v");
         assert_eq!(
-            default_keystrokes(platform)["pasteIntoTerminal"],
+            terminal_keystrokes(platform)["pasteIntoTerminal"],
             "ctrl-shift-v"
         );
     }
-    assert!(!hotkey_is_terminal_only(
-        "pasteIntoTerminal",
-        Platform::MacOs
-    ));
-    for definition in hotkey_definitions() {
-        if definition.id != "pasteIntoTerminal" {
-            for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
-                assert!(
-                    !hotkey_is_terminal_only(definition.id, platform),
-                    "{}",
-                    definition.id
-                );
-            }
-        }
-    }
-    let source = shell_hotkeys_source();
-    assert!(source.contains("hotkey_is_terminal_only("));
-    assert!(
-        !source.contains("\"ctrl-shift-v\""),
-        "a fixed Ctrl+Shift+V would keep pasting after Paste is rebound"
+    assert_eq!(
+        normal_keystrokes(Platform::MacOs)["pasteIntoTerminal"],
+        "cmd-v"
+    );
+    assert_eq!(
+        terminal_keystrokes(Platform::MacOs)["pasteIntoTerminal"],
+        "cmd-v"
     );
 }
 
-fn shell_hotkeys_source() -> String {
-    std::fs::read_to_string(concat!(
-        env!("CARGO_MANIFEST_DIR"),
-        "/../../apps/desktop/src/app/shell_hotkeys.rs"
-    ))
-    .expect("apps/desktop/src/app/shell_hotkeys.rs")
-}
-
-/// Settings > Hotkeys: section id to the hotkey ids it lists.
-fn settings_sections() -> Vec<(String, Vec<String>)> {
+/// Settings > Hotkeys: `(section id, terminal, ids)`.
+fn settings_sections() -> Vec<(String, bool, Vec<String>)> {
     let sections = modules::exports(modules::module::SETTINGS_TYPES, Platform::Linux)
         .into_iter()
         .find(|(name, _)| *name == "HOTKEY_SETTINGS_SECTIONS")
@@ -439,24 +718,42 @@ fn settings_sections() -> Vec<(String, Vec<String>)> {
                 .iter()
                 .map(|id| id.as_str().expect("id").to_string())
                 .collect();
-            (section["id"].as_str().expect("id").to_string(), ids)
+            (
+                section["id"].as_str().expect("id").to_string(),
+                section["terminal"].as_bool() == Some(true),
+                ids,
+            )
         })
         .collect()
 }
 
+/// Every binding has a row: the normal ones in the normal sections, the Terminal focused ones in
+/// the Terminal focused section, the last one.
 #[test]
-fn every_hotkey_can_be_changed_in_settings() {
-    let listed: Vec<String> = settings_sections()
-        .into_iter()
-        .flat_map(|(_, ids)| ids)
+fn settings_lists_every_binding_in_its_section() {
+    let sections = settings_sections();
+    let (id, terminal, terminal_ids) = sections.last().expect("sections").clone();
+    assert_eq!((id.as_str(), terminal), ("terminalFocused", true));
+    let normal_ids: Vec<String> = sections[..sections.len() - 1]
+        .iter()
+        .inspect(|(_, terminal, _)| assert!(!terminal))
+        .flat_map(|(_, _, ids)| ids.clone())
         .collect();
     for definition in hotkey_definitions() {
-        assert!(
-            listed.iter().any(|id| id == definition.id),
-            "{} is missing from Settings > Hotkeys",
+        assert_eq!(
+            normal_ids.iter().any(|id| id == definition.id),
+            hotkey_has_normal_binding(definition.id),
+            "{} in the normal sections",
+            definition.id
+        );
+        assert_eq!(
+            terminal_ids.iter().any(|id| id == definition.id),
+            hotkey_has_terminal_binding(definition),
+            "{} in Terminal focused",
             definition.id
         );
     }
+    assert_eq!(terminal_ids[0], "terminalCopy");
 }
 
 /// The user kept Ctrl+1-9 for the session slots on Windows and Linux, rebindable there (Cmd+1-9 on
@@ -466,15 +763,17 @@ fn session_slots_are_ctrl_digits_on_windows_and_linux_and_can_be_rebound() {
     let slots: Vec<String> = (1..=9)
         .map(|slot| format!("focusSessionSlot{slot}"))
         .collect();
-    let (_, section) = settings_sections()
+    let (_, _, section) = settings_sections()
         .into_iter()
-        .find(|(id, _)| id == "sessionSlots")
+        .find(|(id, _, _)| id == "sessionSlots")
         .expect("Session Slots section");
     assert_eq!(section, slots);
     for platform in WINDOWS_AND_LINUX {
-        let keystrokes = default_keystrokes(platform);
+        let normal = normal_keystrokes(platform);
+        let terminal = terminal_keystrokes(platform);
         for (index, slot) in slots.iter().enumerate() {
-            assert_eq!(keystrokes[slot.as_str()], format!("ctrl-{}", index + 1));
+            assert_eq!(normal[slot.as_str()], format!("ctrl-{}", index + 1));
+            assert_eq!(terminal[slot.as_str()], format!("ctrl-{}", index + 1));
             // A chord the user records stays theirs instead of moving back to Ctrl+N.
             let custom = format!("alt+shift+{}", index + 1);
             let key = platform_hotkey(slot, &custom, platform);

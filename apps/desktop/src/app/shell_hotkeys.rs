@@ -1,9 +1,11 @@
 //! The Settings > Hotkeys rows that run an app action directly (paste, find, zoom, close, new
-//! window, Focus mode, and the shell's own copy of the sidebar, view panel, new tab, split and
-//! pane-focus keys), bound at the chord Settings gives them and bound again after every save.
+//! window, Focus mode, terminal copy and select all, browser history and reload, and the shell's
+//! own copy of the sidebar, view panel, new tab, split and pane-focus keys), bound at the chords
+//! Settings gives them and bound again after every save: the normal binding outside a terminal,
+//! the Terminal focused one inside it.
 //!
-//! CDXC:Hotkeys 2026-10-26 WHY:
-//! These keys were literal bindings in main.rs, so Settings could neither move nor clear them and, on Windows and Linux, Ctrl+W, Ctrl+D, Ctrl+F, Ctrl+T and Ctrl+V never reached the terminal (issue #315). They stay bound to their own actions rather than `RunConfiguredGhostexHotkey`, at the same chords, so macOS behaves exactly as before; only the chord now comes from the hotkey catalog and the saved settings (CDXC:Hotkeys 2026-10-26 DECISION in packages/settings-catalog/src/hotkey_definitions.rs).
+//! CDXC:Hotkeys 2026-10-27 WHY:
+//! These keys were literal bindings in main.rs and the terminal, so Settings could neither move nor clear them and, on Windows and Linux, Ctrl+W, Ctrl+D, Ctrl+F, Ctrl+T and Ctrl+V never reached the terminal (issue #315). They stay bound to their own actions rather than `RunConfiguredGhostexHotkey`, at the same chords by default, so macOS behaves exactly as before; only the chords now come from the hotkey catalog and the saved settings (CDXC:Hotkeys 2026-10-27 DECISION in packages/settings-catalog/src/hotkey_definitions.rs).
 //! SEE-ALSO: packages/settings-catalog/tests/platform_hotkeys.rs reads `SHELL_HOTKEY_ACTIONS` from this file to pin which action each row runs.
 
 use crate::*;
@@ -12,6 +14,8 @@ use crate::*;
 /// rows exist only for this; the others are catalog hotkeys whose `RunConfiguredGhostexHotkey`
 /// binding wins at the same chord, with the action here as its fallback.
 const SHELL_HOTKEY_ACTIONS: &[(&str, fn() -> Box<dyn Action>)] = &[
+    ("openBrowserHistory", || Box::new(OpenBrowserHistory)),
+    ("reloadBrowserPage", || Box::new(ReloadFocusedBrowser)),
     ("pasteIntoTerminal", || Box::new(PasteIntoFocusedTerminal)),
     ("findInFocusedView", || Box::new(FindInFocusedTerminal)),
     ("findNextInBrowser", || Box::new(FindNextInFocusedBrowser)),
@@ -26,6 +30,9 @@ const SHELL_HOTKEY_ACTIONS: &[(&str, fn() -> Box<dyn Action>)] = &[
         Box::new(ToggleGpuiSidebarCollapsed)
     }),
     ("toggleViewPanel", || Box::new(ToggleViewPanel)),
+    ("sleepFocusedSessionSecondKey", || {
+        Box::new(SleepFocusedSession)
+    }),
     ("createSession", || Box::new(NewTerminalTab)),
     ("openNewWindow", || Box::new(NewGhostexGpuiWindow)),
     ("splitMore", || Box::new(SplitFocusedTerminalRight)),
@@ -37,11 +44,13 @@ const SHELL_HOTKEY_ACTIONS: &[(&str, fn() -> Box<dyn Action>)] = &[
     ("focusRight", || Box::new(FocusWorkspaceRight)),
     ("focusUp", || Box::new(FocusWorkspaceUp)),
     ("focusDown", || Box::new(FocusWorkspaceDown)),
+    ("terminalCopy", || {
+        Box::new(terminal_element::TerminalCopyHotkey)
+    }),
+    ("terminalSelectAll", || {
+        Box::new(terminal_element::TerminalSelectAllHotkey)
+    }),
 ];
-
-/// Surfaces that are not terminals, where Ctrl+F also runs Find on Windows and Linux (the chat,
-/// browser pages and other web views). The Files view answers Ctrl+F itself (`native_docs`).
-const NON_TERMINAL_FIND_CONTEXTS: &[&str] = &["NativeChat", BROWSER_KEY_CONTEXT, CEF_KEY_CONTEXT];
 
 fn key_binding(
     keystroke: &str,
@@ -64,23 +73,27 @@ fn key_binding(
 fn shell_hotkey_bindings(
     snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
 ) -> Vec<(String, fn() -> Box<dyn Action>, Option<&'static str>)> {
-    let keystroke = |action_id: &str| {
-        gpui_configured_hotkey_key_in(snapshot, action_id)
-            .and_then(|key| gpui_keystroke_from_shared_hotkey(&key))
-    };
+    let keystroke =
+        |key: Option<String>| key.and_then(|key| gpui_keystroke_from_shared_hotkey(&key));
     let mut bindings = Vec::new();
     for (action_id, action) in SHELL_HOTKEY_ACTIONS {
-        // Paste is a terminal key on Windows and Linux (CDXC:Clipboard 2026-10-26 DECISION in
-        // packages/settings-catalog/src/hotkeys.rs).
-        let context = ghostex_settings_catalog::hotkey_is_terminal_only(
-            action_id,
-            ghostex_settings_catalog::Platform::current(),
-        )
-        .then_some(terminal_element::TERMINAL_KEY_CONTEXT);
-        if let Some(keystroke) = keystroke(action_id) {
-            bindings.push((keystroke, *action, context));
+        let normal = keystroke(gpui_normal_hotkey_key_in(snapshot, action_id));
+        if let Some(normal) = &normal {
+            bindings.push((
+                normal.clone(),
+                *action,
+                Some(gpui_normal_hotkey_context(action_id)),
+            ));
         }
-        // Ghostty's `shift+insert=paste_from_clipboard`.
+        let terminal = keystroke(gpui_terminal_hotkey_key_in(snapshot, action_id));
+        if let Some(terminal) = &terminal {
+            bindings.push((
+                terminal.clone(),
+                *action,
+                Some(terminal_element::TERMINAL_KEY_CONTEXT),
+            ));
+        }
+        // Ghostty's `shift+insert=paste_from_clipboard`, a fixed second key beside Paste.
         if *action_id == "pasteIntoTerminal" {
             bindings.push((
                 "shift-insert".to_string(),
@@ -88,23 +101,27 @@ fn shell_hotkey_bindings(
                 Some(terminal_element::TERMINAL_KEY_CONTEXT),
             ));
         }
-        // Zoom In's second key, the `+` the same key types with Shift, while Zoom In is bound.
-        if *action_id == "zoomInFocusedView" && keystroke(action_id).is_some() {
+        // Zoom In's second key, the `+` the same key types with Shift, in each section where Zoom
+        // In is bound.
+        if *action_id == "zoomInFocusedView" {
             let plus = if cfg!(target_os = "macos") {
                 "cmd-+"
             } else {
                 "ctrl-+"
             };
-            bindings.push((plus.to_string(), *action, None));
-        }
-        // CDXC:Hotkeys 2026-10-26 WHY:
-        // Find is Ctrl+Shift+F on Windows and Linux, Ghostty's key, so Ctrl+F reaches the terminal; the chat, browser pages and the Files view (which answers it itself) are not terminals and keep Ctrl+F too, as their help text and the Files DECISION of 2026-09-12 promise.
-        if *action_id == "findInFocusedView"
-            && !cfg!(target_os = "macos")
-            && keystroke(action_id).is_some_and(|keystroke| keystroke != "ctrl-f")
-        {
-            for context in NON_TERMINAL_FIND_CONTEXTS {
-                bindings.push(("ctrl-f".to_string(), *action, Some(*context)));
+            if normal.is_some() {
+                bindings.push((
+                    plus.to_string(),
+                    *action,
+                    Some(gpui_normal_hotkey_context(action_id)),
+                ));
+            }
+            if terminal.is_some() {
+                bindings.push((
+                    plus.to_string(),
+                    *action,
+                    Some(terminal_element::TERMINAL_KEY_CONTEXT),
+                ));
             }
         }
     }

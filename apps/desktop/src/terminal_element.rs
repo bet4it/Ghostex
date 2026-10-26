@@ -98,7 +98,12 @@ use crate::terminal_wheel;
 
 gpui::actions!(
     ghostex_terminal,
-    [TerminalContextMenuCopy, TerminalContextMenuPaste]
+    [
+        TerminalContextMenuCopy,
+        TerminalContextMenuPaste,
+        TerminalCopyHotkey,
+        TerminalSelectAllHotkey
+    ]
 );
 
 /// The host's Edit menu actions the terminal answers. The host owns the menu,
@@ -1578,25 +1583,6 @@ impl TerminalView {
         scrollback in every program; without kitty flags the other keys send
         nothing, as in Ghostty.
         */
-        /*
-        CDXC:Terminal 2026-10-23 DECISION:
-        Cmd+A always selects the terminal, as in Ghostty, even in full-screen
-        editors like fresh or gte; Ctrl+A selects their text (user: "Always
-        select the terminal").
-        */
-        if cfg!(target_os = "macos")
-            && modifiers.platform
-            && !modifiers.control
-            && !modifiers.alt
-            && !modifiers.function
-            && !modifiers.shift
-            && keystroke.key == "a"
-        {
-            self.select_all(cx);
-            self.select_all_release_pending = true;
-            cx.stop_propagation();
-            return;
-        }
         if cfg!(target_os = "macos")
             && modifiers.platform
             && !modifiers.control
@@ -1628,38 +1614,32 @@ impl TerminalView {
             }
         }
 
-        // CDXC:Hotkeys 2026-10-26 WHY:
-        // Ghostty's copy keys on Windows and Linux are Ctrl+Shift+C and Ctrl+Insert (CDXC:Hotkeys 2026-10-26 DECISION in packages/settings-catalog/src/hotkey_definitions.rs). Like Ghostty's `performable` binding they copy only a selection; without one the key goes on to the program.
+        // Ghostty's `ctrl+insert=copy_to_clipboard` on Windows and Linux, a fixed second key beside
+        // the Copy hotkey (`TerminalCopyHotkey`) as Shift+Insert is beside Paste.
         if !cfg!(target_os = "macos")
             && self.selection.is_some()
             && modifiers.control
+            && !modifiers.shift
             && !modifiers.platform
             && !modifiers.alt
             && !modifiers.function
-            && ((modifiers.shift && keystroke.key == "c")
-                || (!modifiers.shift && keystroke.key == "insert"))
+            && keystroke.key == "insert"
         {
             self.copy_selection(cx);
             cx.stop_propagation();
             return;
         }
-        // Ghostty's `ctrl+shift+a=select_all` on Windows and Linux, the Cmd+A above elsewhere.
+
+        // Clipboard shortcuts are app-owned; they never reach the PTY. On macOS Cmd+C and Cmd+V
+        // are the Copy and Paste hotkeys (Settings > Hotkeys > Terminal focused), so a key moved
+        // or cleared there must not keep copying and pasting here; Windows and Linux keep Super+C
+        // and Super+V.
         if !cfg!(target_os = "macos")
-            && modifiers.control
-            && modifiers.shift
-            && !modifiers.platform
+            && modifiers.platform
+            && !modifiers.control
             && !modifiers.alt
             && !modifiers.function
-            && keystroke.key == "a"
         {
-            self.select_all(cx);
-            self.select_all_release_pending = true;
-            cx.stop_propagation();
-            return;
-        }
-
-        // Clipboard shortcuts are app-owned; they never reach the PTY.
-        if modifiers.platform && !modifiers.control && !modifiers.alt && !modifiers.function {
             match keystroke.key.as_str() {
                 "c" if self.selection.is_some() => {
                     self.copy_selection(cx);
@@ -3245,8 +3225,7 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
     */
     let default_key = match action_id {
         "renameActiveSession" => "cmd+r",
-        // `SLEEP_FOCUSED_SESSION_DEFAULT_KEY`, in the shared "+" chord syntax
-        // this resolver reads (that constant is in gpui keystroke syntax).
+        // The default of its second key (`sleepFocusedSessionSecondKey`), which the bar names.
         "sleepFocusedSession" => "alt+shift+s",
         "delayedSend" => "ctrl+shift+s",
         "closeAfterDone" => "",
@@ -3622,6 +3601,50 @@ impl TerminalElement {
             window,
         );
         on_view_action(TypeId::of::<TerminalContextMenuPaste>(), paste, window);
+        // The Copy hotkey copies a selection; without one the key goes on to the program, like
+        // Ghostty's `performable` copy binding.
+        {
+            let entity = entity.clone();
+            window.on_action(
+                TypeId::of::<TerminalCopyHotkey>(),
+                move |_action, phase, _window, cx| {
+                    if phase != DispatchPhase::Bubble {
+                        return;
+                    }
+                    let copied = entity.update(cx, |view, cx| {
+                        view.selection.is_some() && {
+                            view.copy_selection(cx);
+                            true
+                        }
+                    });
+                    if !copied {
+                        cx.propagate();
+                    }
+                },
+            );
+        }
+        /*
+        CDXC:Terminal 2026-10-23 DECISION:
+        Cmd+A always selects the terminal, as in Ghostty, even in full-screen
+        editors like fresh or gte; Ctrl+A selects their text (user: "Always
+        select the terminal"). Cmd+A (Ctrl+Shift+A on Windows and Linux) is now the Select All
+        hotkey's default, which Settings > Hotkeys can change (CDXC:Hotkeys 2026-10-27 DECISION in
+        packages/settings-catalog/src/hotkey_definitions.rs).
+        */
+        {
+            let entity = entity.clone();
+            window.on_action(
+                TypeId::of::<TerminalSelectAllHotkey>(),
+                move |_action, phase, _window, cx| {
+                    if phase == DispatchPhase::Bubble {
+                        entity.update(cx, |view, cx| {
+                            view.select_all(cx);
+                            view.select_all_release_pending = true;
+                        });
+                    }
+                },
+            );
+        }
         // GPUI enables a menu item only while a handler for its action sits on the focus
         // path, so Copy is registered only while there is a selection to copy.
         let (edit_menu_actions, has_selection) = {

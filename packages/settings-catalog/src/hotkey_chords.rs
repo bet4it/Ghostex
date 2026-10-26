@@ -111,3 +111,33 @@ pub fn hotkey_keystroke(key: &str, platform: Platform) -> Option<String> {
     modifiers.push(&key_token);
     Some(modifiers.join("-"))
 }
+
+/// The chord a hotkey's Terminal focused binding runs on, from its saved value in
+/// `terminalHotkeys`: the platform's Terminal focused default when nothing (or a retired default)
+/// is saved, a saved macOS default moved to the Windows and Linux one there, an explicit blank
+/// kept as unassigned, and anything else as saved. `None` when the hotkey has no such binding.
+pub fn terminal_hotkey(id: &str, saved: Option<&str>, platform: Platform) -> Option<String> {
+    let definition = hotkey_definition(id)?;
+    if !crate::hotkeys::hotkey_has_terminal_binding(definition) {
+        return None;
+    }
+    let default_key = crate::hotkeys::terminal_default_key(definition, platform);
+    let Some(saved) = saved else {
+        return Some(default_key.to_string());
+    };
+    let saved = saved.trim();
+    if saved.is_empty() {
+        return Some(String::new());
+    }
+    let mac_default_elsewhere =
+        platform != Platform::MacOs && saved.eq_ignore_ascii_case(definition.default_key);
+    if mac_default_elsewhere
+        || definition
+            .retired_default_keys
+            .iter()
+            .any(|retired| saved.eq_ignore_ascii_case(retired))
+    {
+        return Some(default_key.to_string());
+    }
+    Some(saved.to_string())
+}

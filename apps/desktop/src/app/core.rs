@@ -932,6 +932,8 @@ pub struct GhostexGpuiApp {
     /// listeners, and never focused. A menu row whose opener's focus is no longer drawn dispatches
     /// from here (see `GpuiContextMenu::popup_menu_item`).
     pub(crate) root_action_focus_handle: FocusHandle,
+    /// The terminal that last had the keyboard, for Focus Last Terminal.
+    pub(crate) last_keyboard_terminal: Option<GpuiEngineTerminalEventTarget>,
     pub(crate) titlebar_dropdown_previous_focus_handle: Option<FocusHandle>,
     pub(crate) titlebar_popup_menu: Option<GpuiTitlebarPopupState>,
     pub(crate) context_menu: Option<crate::app::context_menu::GpuiContextMenu>,

@@ -11995,7 +11995,8 @@
       "title": "Scroll Chat to Bottom",
       "description": "Scroll chat to the bottom, including while typing in the composer.",
       "defaultKey": "ctrl+shift+down",
-      "windowsLinuxDefaultKey": "cmd+shift+down"
+      "windowsLinuxDefaultKey": "cmd+shift+down",
+      "noTerminalBinding": true
     },
     {
       "id": "focusChatComposer",
@@ -12004,19 +12005,22 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "shift+escape"
-      ]
+      ],
+      "noTerminalBinding": true
     },
     {
       "id": "copyLastChatCodeBlock",
       "title": "Copy Last Code Block",
       "description": "Copy the last code block the agent wrote in the chat session you are in.",
-      "defaultKey": "cmd+shift+;"
+      "defaultKey": "cmd+shift+;",
+      "noTerminalBinding": true
     },
     {
       "id": "copyLastChatReply",
       "title": "Copy Last Reply",
       "description": "Copy the agent's last reply in the chat session you are in.",
-      "defaultKey": "cmd+shift+c"
+      "defaultKey": "cmd+shift+c",
+      "noTerminalBinding": true
     },
     {
       "id": "toggleChatSummaryMode",
@@ -12026,69 +12030,80 @@
       "windowsLinuxDefaultKey": "cmd+alt+shift+s",
       "retiredDefaultKeys": [
         "cmd+ctrl+s"
-      ]
+      ],
+      "noTerminalBinding": true
     },
     {
       "id": "toggleChatComposerMaximized",
       "title": "Maximize Chat Box",
       "description": "Maximize the chat box of the chat session you are in, or restore it.",
       "defaultKey": "ctrl+alt+m",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+m"
+      "windowsLinuxDefaultKey": "cmd+alt+shift+m",
+      "noTerminalBinding": true
     },
     {
       "id": "toggleChatFilesLinks",
       "title": "Files and Links",
       "description": "Show or hide the files and links mentioned in the chat session you are in.",
       "defaultKey": "ctrl+alt+l",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+l"
+      "windowsLinuxDefaultKey": "cmd+alt+shift+l",
+      "noTerminalBinding": true
     },
     {
       "id": "toggleVoiceAgent",
       "title": "Toggle Voice Agent",
       "description": "Start a spoken conversation with the voice agent, or end the one that is running.",
       "defaultKey": "ctrl+alt+v",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+v"
+      "windowsLinuxDefaultKey": "cmd+alt+shift+v",
+      "terminalDefaultKey": "ctrl+alt+v",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+v"
     },
     {
       "id": "voiceCallAboutSession",
       "title": "Voice Call About This Session",
       "description": "Start a voice call about the session you are looking at, or move the open call to it.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "holdToTalk",
       "title": "Hold to Talk",
       "description": "During a voice call, hold to talk to the voice agent and let go to send; in a muted Regular call, hold to unmute. Works even while you're typing.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "toggleDictation",
       "title": "Dictate",
       "description": "Start dictating into the chat box of the chat session you are in; press again to stop and type what you said.",
       "defaultKey": "ctrl+alt+d",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+d"
+      "windowsLinuxDefaultKey": "cmd+alt+shift+d",
+      "noTerminalBinding": true
     },
     {
       "id": "readAloudLastReply",
       "title": "Read Last Reply Aloud",
       "description": "Read the agent's newest reply in the chat you are looking at aloud, from the start.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "noTerminalBinding": true
     },
     {
       "id": "readAloudStop",
       "title": "Stop Reading",
       "description": "Stop Read aloud, whichever reply it is reading.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "createAgentSession",
       "title": "New Agent Session",
       "description": "Start your last-used agent in the active project, in your default interface.",
       "defaultKey": "cmd+shift+o",
-      "windowsLinuxDefaultKey": "cmd+shift+d",
       "retiredDefaultKeys": [
         "cmd+t"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+shift+o",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+d"
     },
     {
       "id": "createSession",
@@ -12098,7 +12113,8 @@
       "retiredDefaultKeys": [
         "cmd+n",
         "cmd+t"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+shift+t"
     },
     {
       "id": "openCommandPalette",
@@ -12107,38 +12123,43 @@
       "defaultKey": "cmd+shift+p",
       "retiredDefaultKeys": [
         "cmd+k"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+shift+p"
     },
     {
       "id": "openSessionSearchPalette",
       "title": "Open Quick Access: Recent Sessions",
       "description": "Open Ghostex Quick Access on Recent Sessions.",
       "defaultKey": "cmd+p",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+p"
+      "terminalDefaultKey": "cmd+p",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+p"
     },
     {
       "id": "openProjectSearchPalette",
       "title": "Open Quick Access: Recent Projects",
       "description": "Open Ghostex Quick Access on Recent Projects.",
-      "defaultKey": "cmd+alt+shift+o"
+      "defaultKey": "cmd+alt+shift+o",
+      "terminalDefaultKey": "cmd+alt+shift+o"
     },
     {
       "id": "openQuickAccessFiles",
       "title": "Open Quick Access: Files",
       "description": "Open Ghostex Quick Access on Files to find a file in your projects and open it.",
       "defaultKey": "cmd+o",
-      "windowsLinuxDefaultKey": "cmd+shift+y"
+      "terminalDefaultKey": "cmd+o",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+y"
     },
     {
       "id": "openNewThreadPalette",
       "title": "New Thread in Active Project",
       "description": "Pick an agent, Browser, or Terminal to start in the active project.",
       "defaultKey": "cmd+n",
-      "windowsLinuxDefaultKey": "cmd+alt+shift+n",
       "retiredDefaultKeys": [
         "cmd+shift+t",
         "cmd+alt+t"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+n",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+n"
     },
     {
       "id": "openCommandsPanel",
@@ -12148,90 +12169,105 @@
       "windowsLinuxDefaultKey": "f12",
       "retiredDefaultKeys": [
         "f12"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+j",
+      "windowsLinuxTerminalDefaultKey": "f12"
     },
     {
       "id": "openCommandsPanelSecondKey",
       "title": "Open Commands Panel (Second Key)",
       "description": "A second key that opens or hides the Commands panel, like Open Commands Panel.",
-      "defaultKey": "shift+escape"
+      "defaultKey": "shift+escape",
+      "terminalDefaultKey": "shift+escape"
     },
     {
       "id": "openSettings",
       "title": "Open Settings",
       "description": "Open app settings.",
-      "defaultKey": "cmd+,"
+      "defaultKey": "cmd+,",
+      "terminalDefaultKey": "cmd+,"
     },
     {
       "id": "openExtensions",
       "title": "Open Extension Store",
       "description": "Open the Store page in Settings > Extensions to manage built-in features and installed extensions.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "openGhostexHelp",
       "title": "Ask Ghostex Help",
       "description": "Open the Ghostex Help menu: sample questions an agent can answer and settings it can change for you.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "openFileInFiles",
       "title": "Open File",
       "description": "Open the Files view with its search box ready: type a file name, or paste the path of any file on this computer, and press Enter.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "openHotkeys",
       "title": "Hotkeys",
       "description": "Open app hotkeys.",
       "defaultKey": "cmd+/",
-      "windowsLinuxDefaultKey": "cmd+alt+/",
       "retiredDefaultKeys": [
         "cmd+."
-      ]
+      ],
+      "terminalDefaultKey": "cmd+/",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+/"
     },
     {
       "id": "toggleSidebarCollapsed",
       "title": "Toggle Sidebar",
       "description": "Collapse or expand the sidebar.",
       "defaultKey": "cmd+b",
-      "windowsLinuxDefaultKey": "cmd+shift+b"
+      "terminalDefaultKey": "cmd+b",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+b"
     },
     {
       "id": "toggleViewPanel",
       "title": "Toggle View Panel",
       "description": "Open or close the view panel beside your sessions.",
-      "defaultKey": "cmd+alt+b"
+      "defaultKey": "cmd+alt+b",
+      "terminalDefaultKey": "cmd+alt+b"
     },
     {
       "id": "expandViewPanel",
       "title": "Expand Side Panel",
       "description": "Expand the side panel over the Agents Panel, or bring the Agents Panel back.",
-      "defaultKey": "cmd+ctrl+e"
+      "defaultKey": "cmd+ctrl+e",
+      "terminalDefaultKey": "cmd+ctrl+e"
     },
     {
       "id": "expandViewPanelFully",
       "title": "Expand Side Panel Fully",
       "description": "Expand the side panel over the Agents Panel and hide the sidebar, or bring both back.",
-      "defaultKey": "cmd+ctrl+shift+e"
+      "defaultKey": "cmd+ctrl+shift+e",
+      "terminalDefaultKey": "cmd+ctrl+shift+e"
     },
     {
       "id": "renameActiveSession",
       "title": "Rename Active Session",
       "description": "Rename the focused session.",
       "defaultKey": "cmd+r",
-      "windowsLinuxDefaultKey": "cmd+shift+r"
+      "windowsLinuxDefaultKey": "cmd+shift+r",
+      "terminalDefaultKey": "cmd+r",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+r"
     },
     {
       "id": "openBrowserPane",
       "title": "Open Browser Pane",
       "description": "Open a browser tab beside the focused tab.",
       "defaultKey": "cmd+t",
-      "windowsLinuxDefaultKey": "cmd+shift+l",
       "retiredDefaultKeys": [
         "ctrl+shift+b",
         "cmd+n"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+t",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+l"
     },
     {
       "id": "switchAgentsView",
@@ -12240,7 +12276,8 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "alt+1"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchSourceView",
@@ -12249,7 +12286,8 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "alt+2"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchGitHubView",
@@ -12258,7 +12296,8 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "alt+3"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchKanbanView",
@@ -12267,7 +12306,8 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "alt+4"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchManageView",
@@ -12276,137 +12316,163 @@
       "defaultKey": "",
       "retiredDefaultKeys": [
         "alt+5"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchAutomateView",
       "title": "Switch to Automate",
       "description": "Switch to Automate view.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchChangesView",
       "title": "Switch to Changes",
       "description": "Switch to Changes view.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchTerminalView",
       "title": "Switch to Terminal",
       "description": "Switch to Terminal view.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "switchTitlebarView1",
       "title": "Switch to View Tab 1",
       "description": "Open tab 1 in the view panel's tab strip.",
-      "defaultKey": "alt+1"
+      "defaultKey": "alt+1",
+      "terminalDefaultKey": "alt+1"
     },
     {
       "id": "switchTitlebarView2",
       "title": "Switch to View Tab 2",
       "description": "Open tab 2 in the view panel's tab strip.",
-      "defaultKey": "alt+2"
+      "defaultKey": "alt+2",
+      "terminalDefaultKey": "alt+2"
     },
     {
       "id": "switchTitlebarView3",
       "title": "Switch to View Tab 3",
       "description": "Open tab 3 in the view panel's tab strip.",
-      "defaultKey": "alt+3"
+      "defaultKey": "alt+3",
+      "terminalDefaultKey": "alt+3"
     },
     {
       "id": "switchTitlebarView4",
       "title": "Switch to View Tab 4",
       "description": "Open tab 4 in the view panel's tab strip.",
-      "defaultKey": "alt+4"
+      "defaultKey": "alt+4",
+      "terminalDefaultKey": "alt+4"
     },
     {
       "id": "switchTitlebarView5",
       "title": "Switch to View Tab 5",
       "description": "Open tab 5 in the view panel's tab strip.",
-      "defaultKey": "alt+5"
+      "defaultKey": "alt+5",
+      "terminalDefaultKey": "alt+5"
     },
     {
       "id": "switchTitlebarView6",
       "title": "Switch to View Tab 6",
       "description": "Open tab 6 in the view panel's tab strip.",
-      "defaultKey": "alt+6"
+      "defaultKey": "alt+6",
+      "terminalDefaultKey": "alt+6"
     },
     {
       "id": "switchTitlebarView7",
       "title": "Switch to View Tab 7",
       "description": "Open tab 7 in the view panel's tab strip.",
-      "defaultKey": "alt+7"
+      "defaultKey": "alt+7",
+      "terminalDefaultKey": "alt+7"
     },
     {
       "id": "switchTitlebarView8",
       "title": "Switch to View Tab 8",
       "description": "Open tab 8 in the view panel's tab strip.",
-      "defaultKey": "alt+8"
+      "defaultKey": "alt+8",
+      "terminalDefaultKey": "alt+8"
     },
     {
       "id": "switchTitlebarView9",
       "title": "Switch to View Tab 9",
       "description": "Open tab 9 in the view panel's tab strip.",
-      "defaultKey": "alt+9"
+      "defaultKey": "alt+9",
+      "terminalDefaultKey": "alt+9"
     },
     {
       "id": "rotatePanesClockwise",
       "title": "Rotate Panes Clockwise",
       "description": "Rotate panes clockwise in the focused group.",
       "defaultKey": "ctrl+shift+l",
-      "windowsLinuxDefaultKey": "cmd+alt+l"
+      "windowsLinuxDefaultKey": "cmd+alt+l",
+      "terminalDefaultKey": "ctrl+shift+l",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+l"
     },
     {
       "id": "mergeAllTabs",
       "title": "Merge All Tabs",
       "description": "Merge the focused group's panes into one tabbed pane.",
       "defaultKey": "ctrl+shift+m",
-      "windowsLinuxDefaultKey": "cmd+alt+m"
+      "windowsLinuxDefaultKey": "cmd+alt+m",
+      "terminalDefaultKey": "ctrl+shift+m",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+m"
     },
     {
       "id": "delayedSend",
       "title": "Delayed Actions",
       "description": "Open delayed actions for the focused terminal session.",
       "defaultKey": "ctrl+shift+s",
-      "windowsLinuxDefaultKey": "cmd+alt+s"
+      "windowsLinuxDefaultKey": "cmd+alt+s",
+      "terminalDefaultKey": "ctrl+shift+s",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+s"
     },
     {
       "id": "closeAfterDone",
       "title": "Close After Done",
       "description": "Toggle Close After Done for the focused terminal session.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "openModelPicker",
       "title": "Model & Effort Picker",
       "description": "Open the model picker: arrows choose a model and its reasoning, Enter saves it as the default, Option+Enter uses it in this session only.",
-      "defaultKey": "alt+p"
+      "defaultKey": "alt+p",
+      "terminalDefaultKey": "alt+p"
     },
     {
       "id": "promptEditor",
       "title": "Prompt Editor",
       "description": "Open the prompt editor for the focused terminal, or maximize the chat box of the chat you are in (press again to restore it).",
       "defaultKey": "ctrl+g",
-      "windowsLinuxDefaultKey": "cmd+shift+g"
+      "windowsLinuxDefaultKey": "cmd+shift+g",
+      "terminalDefaultKey": "ctrl+g",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+g"
     },
     {
       "id": "attachFileOrFolder",
       "title": "Attach File or Folder",
       "description": "Attach a file or folder to the focused terminal.",
-      "defaultKey": "cmd+alt+p"
+      "defaultKey": "cmd+alt+p",
+      "terminalDefaultKey": "cmd+alt+p"
     },
     {
       "id": "sessionNote",
       "title": "Session Note",
       "description": "Open the note attached to the focused agent conversation.",
-      "defaultKey": "cmd+alt+n"
+      "defaultKey": "cmd+alt+n",
+      "terminalDefaultKey": "cmd+alt+n"
     },
     {
       "id": "stashPrompt",
       "title": "Stash Prompt",
       "description": "Stash the current prompt in the focused agent terminal.",
-      "defaultKey": "alt+s"
+      "defaultKey": "alt+s",
+      "terminalDefaultKey": "alt+s"
     },
     {
       "id": "stashedPrompts",
@@ -12416,20 +12482,24 @@
       "windowsLinuxDefaultKey": "cmd+shift+s",
       "retiredDefaultKeys": [
         "alt+shift+s"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+alt+s",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+s"
     },
     {
       "id": "exportTranscript",
       "title": "Handoff / Export",
       "description": "Export the focused agent session's transcript and hand it off to another agent.",
       "defaultKey": "cmd+alt+e",
-      "windowsLinuxDefaultKey": "cmd+alt+x"
+      "terminalDefaultKey": "cmd+alt+e",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+x"
     },
     {
       "id": "toggleAgentActions",
       "title": "Toggle Agent Actions",
       "description": "Show or hide the focused terminal's Agent Actions buttons.",
-      "defaultKey": "cmd+alt+a"
+      "defaultKey": "cmd+alt+a",
+      "terminalDefaultKey": "cmd+alt+a"
     },
     {
       "id": "toggleChatView",
@@ -12441,41 +12511,47 @@
         "cmd+alt+j",
         "ctrl+shift+g",
         "cmd+alt+g"
-      ]
+      ],
+      "terminalDefaultKey": "alt+g"
     },
     {
       "id": "openFindPrompts",
       "title": "Find Prompts",
       "description": "Search every prompt you have sent to an agent, then resume or fork it.",
       "defaultKey": "cmd+shift+f",
-      "windowsLinuxDefaultKey": "cmd+alt+h",
       "retiredDefaultKeys": [
         "alt+f"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+shift+f",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+h"
     },
     {
       "id": "searchProjectFiles",
       "title": "Search in Files",
-      "description": "While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys keep their other use.",
-      "defaultKey": "cmd+shift+f"
+      "description": "While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys open Find Prompts.",
+      "defaultKey": "cmd+shift+f",
+      "noTerminalBinding": true
     },
     {
       "id": "scrollTerminalToTop",
       "title": "Scroll Terminal to Top",
       "description": "Scroll the focused terminal to the top.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "scrollTerminalToBottom",
       "title": "Scroll Terminal to Bottom",
       "description": "Scroll the focused terminal to the bottom.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "splitSessionRight",
       "title": "Split Right",
       "description": "Move the focused session into a pane to the right.",
-      "defaultKey": "alt+shift+d"
+      "defaultKey": "alt+shift+d",
+      "terminalDefaultKey": "alt+shift+d"
     },
     {
       "id": "forkSession",
@@ -12486,7 +12562,9 @@
       "retiredDefaultKeys": [
         "ctrl+shift+f",
         "cmd+alt+f"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+ctrl+shift+f",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+f"
     },
     {
       "id": "reloadSession",
@@ -12496,7 +12574,8 @@
       "retiredDefaultKeys": [
         "ctrl+shift+r",
         "cmd+alt+r"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "sleepFocusedSession",
@@ -12505,26 +12584,32 @@
       "defaultKey": "cmd+shift+a",
       "retiredDefaultKeys": [
         "alt+shift+s"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+shift+a",
+      "windowsLinuxTerminalDefaultKey": ""
     },
     {
       "id": "wakeFocusedSession",
       "title": "Wake Focused Session",
       "description": "Wake the focused sleeping terminal session.",
-      "defaultKey": ""
+      "defaultKey": "",
+      "terminalDefaultKey": ""
     },
     {
       "id": "closeFocusedSession",
       "title": "Close Focused Session",
       "description": "Close the focused pane or session.",
-      "defaultKey": "cmd+shift+backspace"
+      "defaultKey": "cmd+shift+backspace",
+      "terminalDefaultKey": "cmd+shift+backspace"
     },
     {
       "id": "popOutPane",
       "title": "Pop Out Pane",
       "description": "Pop out or restore the focused pane.",
       "defaultKey": "ctrl+shift+o",
-      "windowsLinuxDefaultKey": "cmd+alt+o"
+      "windowsLinuxDefaultKey": "cmd+alt+o",
+      "terminalDefaultKey": "ctrl+shift+o",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+o"
     },
     {
       "id": "focusPreviousGroup",
@@ -12534,7 +12619,8 @@
       "retiredDefaultKeys": [
         "cmd+shift+[",
         "cmd+["
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "focusNextGroup",
@@ -12544,7 +12630,8 @@
       "retiredDefaultKeys": [
         "cmd+shift+]",
         "cmd+]"
-      ]
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "navigateHistoryBack",
@@ -12554,7 +12641,9 @@
       "windowsLinuxDefaultKey": "cmd+alt+shift+[",
       "retiredDefaultKeys": [
         "cmd+alt+["
-      ]
+      ],
+      "terminalDefaultKey": "cmd+[",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+["
     },
     {
       "id": "navigateHistoryForward",
@@ -12564,26 +12653,31 @@
       "windowsLinuxDefaultKey": "cmd+alt+shift+]",
       "retiredDefaultKeys": [
         "cmd+alt+]"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+]",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+shift+]"
     },
     {
       "id": "openNotifications",
       "title": "Open Notifications",
       "description": "Open the Notifications panel under the bell in the sidebar's top row.",
       "defaultKey": "cmd+i",
-      "windowsLinuxDefaultKey": "cmd+shift+i"
+      "terminalDefaultKey": "cmd+i",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+i"
     },
     {
       "id": "jumpToLatestUnreadNotification",
       "title": "Jump to Latest Unread Notification",
       "description": "Jump to the session of the latest unread notification and mark it read.",
-      "defaultKey": "cmd+shift+u"
+      "defaultKey": "cmd+shift+u",
+      "terminalDefaultKey": "cmd+shift+u"
     },
     {
       "id": "deferNotificationAndJumpNext",
       "title": "Mark as Oldest Unread and Jump to Next",
       "description": "Push the current session to the back of the unread queue and jump to the next unread notification.",
-      "defaultKey": "cmd+ctrl+u"
+      "defaultKey": "cmd+ctrl+u",
+      "terminalDefaultKey": "cmd+ctrl+u"
     },
     {
       "id": "focusPreviousSession",
@@ -12594,7 +12688,9 @@
       "retiredDefaultKeys": [
         "cmd+[",
         "cmd+shift+tab"
-      ]
+      ],
+      "terminalDefaultKey": "ctrl+shift+tab",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+tab"
     },
     {
       "id": "focusNextSession",
@@ -12605,19 +12701,23 @@
       "retiredDefaultKeys": [
         "cmd+]",
         "cmd+tab"
-      ]
+      ],
+      "terminalDefaultKey": "ctrl+tab",
+      "windowsLinuxTerminalDefaultKey": "cmd+tab"
     },
     {
       "id": "focusPreviousPaneTab",
       "title": "Previous Tab in Pane",
       "description": "Select the previous tab in the focused split pane.",
-      "defaultKey": "cmd+alt+["
+      "defaultKey": "cmd+alt+[",
+      "terminalDefaultKey": "cmd+alt+["
     },
     {
       "id": "focusNextPaneTab",
       "title": "Next Tab in Pane",
       "description": "Select the next tab in the focused split pane.",
-      "defaultKey": "cmd+alt+]"
+      "defaultKey": "cmd+alt+]",
+      "terminalDefaultKey": "cmd+alt+]"
     },
     {
       "id": "focusUp",
@@ -12626,7 +12726,8 @@
       "defaultKey": "cmd+alt+up",
       "retiredDefaultKeys": [
         "cmd+up"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+alt+up"
     },
     {
       "id": "focusRight",
@@ -12635,7 +12736,8 @@
       "defaultKey": "cmd+alt+right",
       "retiredDefaultKeys": [
         "cmd+right"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+alt+right"
     },
     {
       "id": "focusDown",
@@ -12644,7 +12746,8 @@
       "defaultKey": "cmd+alt+down",
       "retiredDefaultKeys": [
         "cmd+down"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+alt+down"
     },
     {
       "id": "focusLeft",
@@ -12653,292 +12756,406 @@
       "defaultKey": "cmd+alt+left",
       "retiredDefaultKeys": [
         "cmd+left"
-      ]
+      ],
+      "terminalDefaultKey": "cmd+alt+left"
     },
     {
       "id": "jumpToProject1",
       "title": "Jump to Project 1",
       "description": "Jump to project 1 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+1",
-      "windowsLinuxDefaultKey": "cmd+alt+1"
+      "windowsLinuxDefaultKey": "cmd+alt+1",
+      "terminalDefaultKey": "cmd+ctrl+1",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+1"
     },
     {
       "id": "jumpToProject2",
       "title": "Jump to Project 2",
       "description": "Jump to project 2 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+2",
-      "windowsLinuxDefaultKey": "cmd+alt+2"
+      "windowsLinuxDefaultKey": "cmd+alt+2",
+      "terminalDefaultKey": "cmd+ctrl+2",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+2"
     },
     {
       "id": "jumpToProject3",
       "title": "Jump to Project 3",
       "description": "Jump to project 3 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+3",
-      "windowsLinuxDefaultKey": "cmd+alt+3"
+      "windowsLinuxDefaultKey": "cmd+alt+3",
+      "terminalDefaultKey": "cmd+ctrl+3",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+3"
     },
     {
       "id": "jumpToProject4",
       "title": "Jump to Project 4",
       "description": "Jump to project 4 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+4",
-      "windowsLinuxDefaultKey": "cmd+alt+4"
+      "windowsLinuxDefaultKey": "cmd+alt+4",
+      "terminalDefaultKey": "cmd+ctrl+4",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+4"
     },
     {
       "id": "jumpToProject5",
       "title": "Jump to Project 5",
       "description": "Jump to project 5 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+5",
-      "windowsLinuxDefaultKey": "cmd+alt+5"
+      "windowsLinuxDefaultKey": "cmd+alt+5",
+      "terminalDefaultKey": "cmd+ctrl+5",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+5"
     },
     {
       "id": "jumpToProject6",
       "title": "Jump to Project 6",
       "description": "Jump to project 6 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+6",
-      "windowsLinuxDefaultKey": "cmd+alt+6"
+      "windowsLinuxDefaultKey": "cmd+alt+6",
+      "terminalDefaultKey": "cmd+ctrl+6",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+6"
     },
     {
       "id": "jumpToProject7",
       "title": "Jump to Project 7",
       "description": "Jump to project 7 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+7",
-      "windowsLinuxDefaultKey": "cmd+alt+7"
+      "windowsLinuxDefaultKey": "cmd+alt+7",
+      "terminalDefaultKey": "cmd+ctrl+7",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+7"
     },
     {
       "id": "jumpToProject8",
       "title": "Jump to Project 8",
       "description": "Jump to project 8 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+8",
-      "windowsLinuxDefaultKey": "cmd+alt+8"
+      "windowsLinuxDefaultKey": "cmd+alt+8",
+      "terminalDefaultKey": "cmd+ctrl+8",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+8"
     },
     {
       "id": "jumpToProject9",
       "title": "Jump to Project 9",
       "description": "Jump to project 9 as shown in the sidebar.",
       "defaultKey": "cmd+ctrl+9",
-      "windowsLinuxDefaultKey": "cmd+alt+9"
+      "windowsLinuxDefaultKey": "cmd+alt+9",
+      "terminalDefaultKey": "cmd+ctrl+9",
+      "windowsLinuxTerminalDefaultKey": "cmd+alt+9"
     },
     {
       "id": "goToSpace1",
       "title": "Go to Space 1",
       "description": "Switch to Space 1 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+1"
+      "defaultKey": "cmd+alt+shift+1",
+      "terminalDefaultKey": "cmd+alt+shift+1"
     },
     {
       "id": "goToSpace2",
       "title": "Go to Space 2",
       "description": "Switch to Space 2 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+2"
+      "defaultKey": "cmd+alt+shift+2",
+      "terminalDefaultKey": "cmd+alt+shift+2"
     },
     {
       "id": "goToSpace3",
       "title": "Go to Space 3",
       "description": "Switch to Space 3 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+3"
+      "defaultKey": "cmd+alt+shift+3",
+      "terminalDefaultKey": "cmd+alt+shift+3"
     },
     {
       "id": "goToSpace4",
       "title": "Go to Space 4",
       "description": "Switch to Space 4 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+4"
+      "defaultKey": "cmd+alt+shift+4",
+      "terminalDefaultKey": "cmd+alt+shift+4"
     },
     {
       "id": "goToSpace5",
       "title": "Go to Space 5",
       "description": "Switch to Space 5 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+5"
+      "defaultKey": "cmd+alt+shift+5",
+      "terminalDefaultKey": "cmd+alt+shift+5"
     },
     {
       "id": "goToSpace6",
       "title": "Go to Space 6",
       "description": "Switch to Space 6 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+6"
+      "defaultKey": "cmd+alt+shift+6",
+      "terminalDefaultKey": "cmd+alt+shift+6"
     },
     {
       "id": "goToSpace7",
       "title": "Go to Space 7",
       "description": "Switch to Space 7 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+7"
+      "defaultKey": "cmd+alt+shift+7",
+      "terminalDefaultKey": "cmd+alt+shift+7"
     },
     {
       "id": "goToSpace8",
       "title": "Go to Space 8",
       "description": "Switch to Space 8 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+8"
+      "defaultKey": "cmd+alt+shift+8",
+      "terminalDefaultKey": "cmd+alt+shift+8"
     },
     {
       "id": "goToSpace9",
       "title": "Go to Space 9",
       "description": "Switch to Space 9 as shown in the sidebar.",
-      "defaultKey": "cmd+alt+shift+9"
+      "defaultKey": "cmd+alt+shift+9",
+      "terminalDefaultKey": "cmd+alt+shift+9"
     },
     {
       "id": "focusSessionSlot1",
       "title": "Focus Session 1",
       "description": "Focus session slot 1.",
-      "defaultKey": "cmd+1"
+      "defaultKey": "cmd+1",
+      "terminalDefaultKey": "cmd+1"
     },
     {
       "id": "focusSessionSlot2",
       "title": "Focus Session 2",
       "description": "Focus session slot 2.",
-      "defaultKey": "cmd+2"
+      "defaultKey": "cmd+2",
+      "terminalDefaultKey": "cmd+2"
     },
     {
       "id": "focusSessionSlot3",
       "title": "Focus Session 3",
       "description": "Focus session slot 3.",
-      "defaultKey": "cmd+3"
+      "defaultKey": "cmd+3",
+      "terminalDefaultKey": "cmd+3"
     },
     {
       "id": "focusSessionSlot4",
       "title": "Focus Session 4",
       "description": "Focus session slot 4.",
-      "defaultKey": "cmd+4"
+      "defaultKey": "cmd+4",
+      "terminalDefaultKey": "cmd+4"
     },
     {
       "id": "focusSessionSlot5",
       "title": "Focus Session 5",
       "description": "Focus session slot 5.",
-      "defaultKey": "cmd+5"
+      "defaultKey": "cmd+5",
+      "terminalDefaultKey": "cmd+5"
     },
     {
       "id": "focusSessionSlot6",
       "title": "Focus Session 6",
       "description": "Focus session slot 6.",
-      "defaultKey": "cmd+6"
+      "defaultKey": "cmd+6",
+      "terminalDefaultKey": "cmd+6"
     },
     {
       "id": "focusSessionSlot7",
       "title": "Focus Session 7",
       "description": "Focus session slot 7.",
-      "defaultKey": "cmd+7"
+      "defaultKey": "cmd+7",
+      "terminalDefaultKey": "cmd+7"
     },
     {
       "id": "focusSessionSlot8",
       "title": "Focus Session 8",
       "description": "Focus session slot 8.",
-      "defaultKey": "cmd+8"
+      "defaultKey": "cmd+8",
+      "terminalDefaultKey": "cmd+8"
     },
     {
       "id": "focusSessionSlot9",
       "title": "Focus Session 9",
       "description": "Focus session slot 9.",
-      "defaultKey": "cmd+9"
+      "defaultKey": "cmd+9",
+      "terminalDefaultKey": "cmd+9"
     },
     {
       "id": "runActionSlot1",
       "title": "Start Action 1",
       "description": "Start action 1 from the Actions list.",
       "defaultKey": "ctrl+shift+1",
-      "windowsLinuxDefaultKey": "cmd+shift+1"
+      "windowsLinuxDefaultKey": "cmd+shift+1",
+      "terminalDefaultKey": "ctrl+shift+1",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+1"
     },
     {
       "id": "runActionSlot2",
       "title": "Start Action 2",
       "description": "Start action 2 from the Actions list.",
       "defaultKey": "ctrl+shift+2",
-      "windowsLinuxDefaultKey": "cmd+shift+2"
+      "windowsLinuxDefaultKey": "cmd+shift+2",
+      "terminalDefaultKey": "ctrl+shift+2",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+2"
     },
     {
       "id": "runActionSlot3",
       "title": "Start Action 3",
       "description": "Start action 3 from the Actions list.",
       "defaultKey": "ctrl+shift+3",
-      "windowsLinuxDefaultKey": "cmd+shift+3"
+      "windowsLinuxDefaultKey": "cmd+shift+3",
+      "terminalDefaultKey": "ctrl+shift+3",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+3"
     },
     {
       "id": "runActionSlot4",
       "title": "Start Action 4",
       "description": "Start action 4 from the Actions list.",
       "defaultKey": "ctrl+shift+4",
-      "windowsLinuxDefaultKey": "cmd+shift+4"
+      "windowsLinuxDefaultKey": "cmd+shift+4",
+      "terminalDefaultKey": "ctrl+shift+4",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+4"
     },
     {
       "id": "runActionSlot5",
       "title": "Start Action 5",
       "description": "Start action 5 from the Actions list.",
       "defaultKey": "ctrl+shift+5",
-      "windowsLinuxDefaultKey": "cmd+shift+5"
+      "windowsLinuxDefaultKey": "cmd+shift+5",
+      "terminalDefaultKey": "ctrl+shift+5",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+5"
     },
     {
       "id": "splitMore",
       "title": "Split Sideways",
       "description": "Create a terminal beside the focused pane.",
       "defaultKey": "cmd+d",
-      "windowsLinuxDefaultKey": "cmd+shift+o"
+      "terminalDefaultKey": "cmd+d",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+o"
     },
     {
       "id": "splitMoreDown",
       "title": "Split Downwards",
       "description": "Create a terminal below the focused pane.",
       "defaultKey": "cmd+shift+d",
-      "windowsLinuxDefaultKey": "cmd+shift+e"
+      "terminalDefaultKey": "cmd+shift+d",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+e"
     },
     {
       "id": "pasteIntoTerminal",
       "title": "Paste",
-      "description": "Paste the clipboard into the focused terminal. On Windows and Linux this key works only in a terminal, and Ctrl+V pastes everywhere else.",
+      "description": "Paste the clipboard into the focused terminal.",
       "defaultKey": "cmd+v",
-      "windowsLinuxDefaultKey": "cmd+shift+v"
+      "terminalDefaultKey": "cmd+v",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+v"
     },
     {
       "id": "findInFocusedView",
       "title": "Find",
       "description": "Find text in the focused terminal, browser page, chat or file. On Windows and Linux, Ctrl+F also finds anywhere but in a terminal.",
       "defaultKey": "cmd+f",
-      "windowsLinuxDefaultKey": "cmd+shift+f"
+      "terminalDefaultKey": "cmd+f",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+f"
     },
     {
       "id": "findNextInBrowser",
       "title": "Find Next",
       "description": "Go to the next match of Find in a browser page.",
       "defaultKey": "cmd+g",
-      "windowsLinuxDefaultKey": "f3"
+      "noTerminalBinding": true
     },
     {
       "id": "findPreviousInBrowser",
       "title": "Find Previous",
       "description": "Go to the previous match of Find in a browser page.",
       "defaultKey": "cmd+shift+g",
-      "windowsLinuxDefaultKey": "shift+f3"
+      "noTerminalBinding": true
     },
     {
       "id": "zoomInFocusedView",
       "title": "Zoom In",
       "description": "Make the focused terminal, browser page or picture bigger.",
-      "defaultKey": "cmd+="
+      "defaultKey": "cmd+=",
+      "terminalDefaultKey": "cmd+="
     },
     {
       "id": "zoomOutFocusedView",
       "title": "Zoom Out",
       "description": "Make the focused terminal, browser page or picture smaller.",
-      "defaultKey": "cmd+-"
+      "defaultKey": "cmd+-",
+      "terminalDefaultKey": "cmd+-"
     },
     {
       "id": "resetFocusedViewZoom",
       "title": "Reset Zoom",
       "description": "Return the focused terminal, browser page or picture to its normal size.",
-      "defaultKey": "cmd+0"
+      "defaultKey": "cmd+0",
+      "terminalDefaultKey": "cmd+0"
     },
     {
       "id": "closeFocusedSurface",
       "title": "Close Tab",
       "description": "Close the focused terminal tab, browser tab or view tab.",
       "defaultKey": "cmd+w",
-      "windowsLinuxDefaultKey": "cmd+shift+w"
+      "terminalDefaultKey": "cmd+w",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+w"
     },
     {
       "id": "openNewWindow",
       "title": "New Window",
       "description": "Open another Ghostex window.",
-      "defaultKey": "cmd+shift+n"
+      "defaultKey": "cmd+shift+n",
+      "terminalDefaultKey": "cmd+shift+n"
     },
     {
       "id": "toggleAgentsFocusMode",
       "title": "Focus Mode",
       "description": "Show only the focused pane of the Agents view, or bring the other panes back.",
-      "defaultKey": "cmd+ctrl+f"
+      "defaultKey": "cmd+ctrl+f",
+      "terminalDefaultKey": "cmd+ctrl+f"
+    },
+    {
+      "id": "terminalCopy",
+      "title": "Copy",
+      "description": "Copy the text selected in the terminal. With nothing selected, the key goes on to the program.",
+      "defaultKey": "cmd+c",
+      "windowsLinuxDefaultKey": "cmd+shift+c",
+      "terminalOnly": true,
+      "terminalDefaultKey": "cmd+c",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+c"
+    },
+    {
+      "id": "terminalSelectAll",
+      "title": "Select All",
+      "description": "Select everything in the terminal, its scrollback included.",
+      "defaultKey": "cmd+a",
+      "windowsLinuxDefaultKey": "cmd+shift+a",
+      "terminalOnly": true,
+      "terminalDefaultKey": "cmd+a",
+      "windowsLinuxTerminalDefaultKey": "cmd+shift+a"
+    },
+    {
+      "id": "openBrowserHistory",
+      "title": "Browser History",
+      "description": "Show the history of the browser page you are on.",
+      "defaultKey": "cmd+y",
+      "windowsLinuxDefaultKey": "cmd+h",
+      "noTerminalBinding": true
+    },
+    {
+      "id": "reloadBrowserPage",
+      "title": "Reload Page",
+      "description": "Reload the browser page you are on (F5 also reloads it).",
+      "defaultKey": "cmd+r",
+      "noTerminalBinding": true
+    },
+    {
+      "id": "sleepFocusedSessionSecondKey",
+      "title": "Sleep Focused Session (Second Key)",
+      "description": "A second key that sleeps the focused terminal session.",
+      "defaultKey": "alt+shift+s",
+      "terminalDefaultKey": "alt+shift+s"
+    },
+    {
+      "id": "unfocusTerminal",
+      "title": "Unfocus Terminal",
+      "description": "Take the keyboard out of the terminal, so the hotkeys that apply outside a terminal work next.",
+      "defaultKey": "cmd+shift+m",
+      "terminalOnly": true,
+      "terminalDefaultKey": "cmd+shift+m"
+    },
+    {
+      "id": "focusLastTerminal",
+      "title": "Focus Last Terminal",
+      "description": "Put the keyboard back in the terminal that had it last, bringing its session forward if it is not on screen.",
+      "defaultKey": "cmd+shift+m",
+      "noTerminalBinding": true
     }
   ]
 }

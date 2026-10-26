@@ -191,22 +191,6 @@ pub(crate) fn gpui_keystroke_from_shared_hotkey(key: &str) -> Option<String> {
     ghostex_settings_catalog::hotkey_keystroke(key, ghostex_settings_catalog::Platform::current())
 }
 
-/// Builds a shell-owned binding from the same cross-platform hotkey spelling
-/// used by shared Settings. In that contract `cmd` means the platform primary
-/// modifier: Command on macOS and Ctrl on Windows/Linux. Shell defaults must go
-/// through this boundary too; literal GPUI `cmd-*` bindings require the
-/// Windows/Meta key on non-macOS platforms.
-pub(crate) fn gpui_key_binding_from_shared_hotkey<A: Action>(
-    hotkey: &str,
-    action: A,
-    context: Option<&str>,
-    cx: &gpui::App,
-) -> KeyBinding {
-    let keystroke = gpui_keystroke_from_shared_hotkey(hotkey)
-        .unwrap_or_else(|| panic!("invalid shell hotkey: {hotkey}"));
-    gpui_runtime_key_binding(keystroke.as_str(), action, context, cx)
-}
-
 /// A key binding for a chord built at runtime (from settings, the hotkey catalog or a per-platform
 /// helper). GPUI's `KeyBinding::new` only takes `'static` chords and parses them without knowing
 /// the host OS; `KeyBinding::load` reads the host from `cx`, which the web build needs to follow a
@@ -378,7 +362,7 @@ pub(crate) const GPUI_DEFAULT_GHOSTEX_HOTKEYS: &[(&str, &str)] = &[
     ("splitSessionRight", "alt+shift+d"),
     ("splitMore", "cmd+d"),
     ("splitMoreDown", "cmd+shift+d"),
-    // CDXC:Hotkeys 2026-10-26: the keys hard-coded in main.rs until then, bound by
+    // CDXC:Hotkeys 2026-10-27: the keys hard-coded in main.rs until then, bound by
     // app/shell_hotkeys.rs; mirrors packages/settings-catalog/src/hotkey_definitions.rs.
     ("pasteIntoTerminal", "cmd+v"),
     ("findInFocusedView", "cmd+f"),
@@ -390,6 +374,16 @@ pub(crate) const GPUI_DEFAULT_GHOSTEX_HOTKEYS: &[(&str, &str)] = &[
     ("closeFocusedSurface", "cmd+w"),
     ("openNewWindow", "cmd+shift+n"),
     ("toggleAgentsFocusMode", "cmd+ctrl+f"),
+    // CDXC:Hotkeys 2026-10-27: the terminal's Copy and Select All, the browser page's History and
+    // Reload, Sleep's second key, and the two terminal focus hotkeys; mirrors
+    // packages/settings-catalog/src/hotkey_definitions.rs.
+    ("terminalCopy", "cmd+c"),
+    ("terminalSelectAll", "cmd+a"),
+    ("openBrowserHistory", "cmd+y"),
+    ("reloadBrowserPage", "cmd+r"),
+    ("sleepFocusedSessionSecondKey", "alt+shift+s"),
+    ("unfocusTerminal", "cmd+shift+m"),
+    ("focusLastTerminal", "cmd+shift+m"),
 ];
 
 #[cfg(target_os = "macos")]
@@ -519,9 +513,13 @@ pub(crate) fn gpui_hotkey_feature_enabled(action_id: &str) -> bool {
     })
 }
 
+/// The configured hotkey a native key press runs. `in_terminal` (a terminal has the keyboard)
+/// picks each hotkey's Terminal focused binding instead of its normal one, as the GPUI keymap
+/// does with the terminal's key context.
 #[cfg(target_os = "macos")]
 pub(crate) fn gpui_configured_hotkey_action_id_for_native_text(
     hotkey_text: &str,
+    in_terminal: bool,
 ) -> Option<String> {
     if gpui_hotkey_is_reserved(hotkey_text) {
         // Reserved chords belong to the focused terminal, so the native
@@ -542,6 +540,19 @@ pub(crate) fn gpui_configured_hotkey_action_id_for_native_text(
             || gpui_shell_owned_hotkey_action_id(action_id)
             || !gpui_hotkey_feature_enabled(action_id)
         {
+            continue;
+        }
+        if in_terminal {
+            if gpui_terminal_hotkey_key_in(&snapshot, action_id)
+                .and_then(|key| normalized_gpui_hotkey_text(&key))
+                .as_deref()
+                == Some(hotkey_text.as_str())
+            {
+                return Some((*action_id).to_string());
+            }
+            continue;
+        }
+        if !ghostex_settings_catalog::hotkey_has_normal_binding(action_id) {
             continue;
         }
         let key = match persisted_hotkeys
@@ -645,6 +656,53 @@ pub(crate) fn gpui_configured_hotkey_key_in(
     Some(key.to_string())
 }
 
+/// The key context a hotkey's normal binding applies in: outside a terminal, where its Terminal
+/// focused binding applies instead (CDXC:Hotkeys 2026-10-27 DECISION in
+/// packages/settings-catalog/src/hotkey_definitions.rs), and only in the Browser view for the
+/// browser page's own keys, as before.
+pub(crate) fn gpui_normal_hotkey_context(action_id: &str) -> &'static str {
+    match action_id {
+        "openBrowserHistory" | "reloadBrowserPage" => BROWSER_KEY_CONTEXT,
+        _ => GPUI_OUTSIDE_TERMINAL_KEY_CONTEXT,
+    }
+}
+
+/// `!` + `terminal_element::TERMINAL_KEY_CONTEXT`. GPUI's `!` checks every context on the focus
+/// path, so a binding with it never fires while focus is anywhere inside a terminal.
+pub(crate) const GPUI_OUTSIDE_TERMINAL_KEY_CONTEXT: &str = "!GhostexGpuiTerminal";
+
+/// The normal binding's chord ([`gpui_configured_hotkey_key_in`]), `None` for a hotkey that has
+/// only a Terminal focused binding.
+pub(crate) fn gpui_normal_hotkey_key_in(
+    snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
+    action_id: &str,
+) -> Option<String> {
+    ghostex_settings_catalog::hotkey_has_normal_binding(action_id)
+        .then(|| gpui_configured_hotkey_key_in(snapshot, action_id))
+        .flatten()
+}
+
+/// The Terminal focused binding's chord, read from `terminalHotkeys` in `snapshot` with the
+/// catalog's defaults and migrations; `None` when it has none or the user cleared it.
+pub(crate) fn gpui_terminal_hotkey_key_in(
+    snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
+    action_id: &str,
+) -> Option<String> {
+    let saved = snapshot
+        .object()
+        .get(ghostex_settings_catalog::TERMINAL_HOTKEYS_SETTING_KEY)
+        .and_then(serde_json::Value::as_object)
+        .and_then(|hotkeys| hotkeys.get(action_id))
+        .and_then(serde_json::Value::as_str);
+    let key = ghostex_settings_catalog::terminal_hotkey(
+        action_id,
+        saved,
+        ghostex_settings_catalog::Platform::current(),
+    )?;
+    (!gpui_hotkey_is_reserved(&key) && gpui_keystroke_from_shared_hotkey(&key).is_some())
+        .then_some(key)
+}
+
 /// Resolve labels through the same settings, defaults, and migrations as native key bindings.
 pub(crate) fn gpui_configured_hotkey_label(action_id: &str) -> Option<String> {
     let key = gpui_configured_hotkey_key(action_id)?;
@@ -726,6 +784,10 @@ pub(crate) fn gpui_keyboard_owner_allows_hotkey(
             | "voiceCallAboutSession"
             | "holdToTalk"
             | "readAloudStop"
+            // Unfocus Terminal only ever resolves while a terminal has the keyboard, and Focus
+            // Last Terminal must bring it back from any surface.
+            | "unfocusTerminal"
+            | "focusLastTerminal"
     ) {
         return true;
     }
@@ -852,7 +914,7 @@ pub(crate) fn gpui_configured_hotkey_key_bindings_from_settings(cx: &gpui::App) 
             cx,
         ),
     ];
-    let mut push_binding = |action_id: &str, key: &str| {
+    let mut push_binding = |action_id: &str, key: &str, context: Option<&str>| {
         if gpui_chat_owned_hotkey_action_id(action_id)
             || gpui_shell_owned_hotkey_action_id(action_id)
             || key.trim().is_empty()
@@ -871,17 +933,30 @@ pub(crate) fn gpui_configured_hotkey_key_bindings_from_settings(cx: &gpui::App) 
             RunConfiguredGhostexHotkey {
                 action_id: action_id.to_string(),
             },
-            None,
+            context,
             cx,
         ));
     };
     for (action_id, default_key) in GPUI_DEFAULT_GHOSTEX_HOTKEYS {
-        let key = match gpui_persisted_hotkey_value(&persisted_hotkeys, action_id) {
-            Some(serde_json::Value::String(persisted_key)) => persisted_key.as_str(),
-            _ => default_key,
-        };
-        let key = gpui_migrated_hotkey_for_action(action_id, key, default_key);
-        push_binding(action_id, gpui_platform_hotkey_for_action(action_id, key));
+        if ghostex_settings_catalog::hotkey_has_normal_binding(action_id) {
+            let key = match gpui_persisted_hotkey_value(&persisted_hotkeys, action_id) {
+                Some(serde_json::Value::String(persisted_key)) => persisted_key.as_str(),
+                _ => default_key,
+            };
+            let key = gpui_migrated_hotkey_for_action(action_id, key, default_key);
+            push_binding(
+                action_id,
+                gpui_platform_hotkey_for_action(action_id, key),
+                Some(gpui_normal_hotkey_context(action_id)),
+            );
+        }
+        if let Some(key) = gpui_terminal_hotkey_key_in(&snapshot, action_id) {
+            push_binding(
+                action_id,
+                &key,
+                Some(terminal_element::TERMINAL_KEY_CONTEXT),
+            );
+        }
     }
     // Persisted ids beyond the mirrored default table keep binding as before
     // (the shared normalizer only writes known ids, so this is a safety net
@@ -900,7 +975,7 @@ pub(crate) fn gpui_configured_hotkey_key_bindings_from_settings(cx: &gpui::App) 
         let Some(key) = key.as_str() else {
             continue;
         };
-        push_binding(action_id, key);
+        push_binding(action_id, key, None);
     }
     bindings
 }
@@ -944,6 +1019,14 @@ pub(crate) fn gpui_configured_hotkey_unbinds_from_settings(
                 .filter_map(gpui_keystroke_from_shared_hotkey),
         );
     }
+    keys.extend(
+        GPUI_DEFAULT_GHOSTEX_HOTKEYS
+            .iter()
+            .filter_map(|(action_id, _)| {
+                gpui_terminal_hotkey_key_in(snapshot, action_id)
+                    .and_then(|key| gpui_keystroke_from_shared_hotkey(&key))
+            }),
+    );
     keys.into_iter()
         .filter(|keystroke| gpui_runtime_keystroke_parses(keystroke, cx))
         .map(|keystroke| {

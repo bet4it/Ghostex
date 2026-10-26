@@ -498,6 +498,7 @@ impl GhostexGpuiApp {
                 agents_delayed_send_persistence_ticker_active: false,
                 titlebar_dropdown_focus_handle: cx.focus_handle().tab_stop(false),
                 root_action_focus_handle: cx.focus_handle().tab_stop(false),
+                last_keyboard_terminal: None,
                 titlebar_dropdown_previous_focus_handle: None,
                 titlebar_popup_menu: None,
                 context_menu: None,

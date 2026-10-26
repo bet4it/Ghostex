@@ -108,6 +108,12 @@ pub struct CatalogHotkey {
     pub windows_linux_default_key: Option<&'static str>,
     /// `ghostex settings hotkeys` resolves a saved map exactly like the desktop: a retired default moves to the current one.
     pub retired_default_keys: &'static [&'static str],
+    /// Whether it has a normal binding (outside a terminal) and a Terminal focused one.
+    pub normal: bool,
+    pub terminal: bool,
+    /// The Terminal focused default on macOS and, where it differs, on Windows and Linux.
+    pub terminal_default_key: &'static str,
+    pub windows_linux_terminal_default_key: Option<&'static str>,
 }
 
 pub struct Catalog {
@@ -391,6 +397,12 @@ pub fn catalog() -> Catalog {
             default_key: definition.default_key,
             windows_linux_default_key: definition.windows_linux_default_key,
             retired_default_keys: definition.retired_default_keys,
+            normal: crate::hotkeys::hotkey_has_normal_binding(definition.id),
+            terminal: crate::hotkeys::hotkey_has_terminal_binding(definition),
+            terminal_default_key: crate::hotkeys::terminal_default_key(definition, Platform::MacOs),
+            windows_linux_terminal_default_key: crate::hotkeys::windows_linux_terminal_default_key(
+                definition,
+            ),
         })
         .collect();
 
@@ -525,6 +537,17 @@ impl CatalogHotkey {
         }
         if !self.retired_default_keys.is_empty() {
             fields.push(("retiredDefaultKeys", self.retired_default_keys.to_json()));
+        }
+        if !self.normal {
+            fields.push(("terminalOnly", Json::Bool(true)));
+        }
+        if self.terminal {
+            fields.push(("terminalDefaultKey", Json::str(self.terminal_default_key)));
+            if let Some(key) = self.windows_linux_terminal_default_key {
+                fields.push(("windowsLinuxTerminalDefaultKey", Json::str(key)));
+            }
+        } else {
+            fields.push(("noTerminalBinding", Json::Bool(true)));
         }
         Json::obj(fields)
     }

@@ -29,11 +29,13 @@ mod pages;
 pub mod platform_text;
 pub mod rows;
 
-pub use hotkey_chords::{hotkey_keystroke, platform_hotkey};
+pub use hotkey_chords::{hotkey_keystroke, platform_hotkey, terminal_hotkey};
 pub use hotkey_label::hotkey_label;
 pub use hotkeys::{
-    default_hotkeys, hotkey_definition, hotkey_definitions, hotkey_is_terminal_only,
-    HotkeyDefinition, VIEW_SCOPED_HOTKEY_IDS, WINDOWS_LINUX_TERMINAL_ONLY_HOTKEY_IDS,
+    default_hotkeys, hotkey_definition, hotkey_definitions, hotkey_has_normal_binding,
+    hotkey_has_terminal_binding, terminal_default_key, windows_linux_terminal_default_key,
+    HotkeyDefinition, TERMINAL_HOTKEYS_SETTING_KEY, TERMINAL_ONLY_HOTKEY_IDS,
+    VIEW_SCOPED_HOTKEY_IDS,
 };
 pub use json::{Json, ToJson, J};
 pub use layout::{general_group, general_navigation, GeneralGroup, NavItem, GENERAL_GROUPS};

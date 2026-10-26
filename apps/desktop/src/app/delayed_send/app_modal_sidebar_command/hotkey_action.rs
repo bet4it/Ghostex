@@ -36,6 +36,15 @@ impl GhostexGpuiApp {
                     self.start_new_agent_session(cx);
                     return;
                 }
+                // focus/terminal_focus_hotkeys.rs
+                if action_id == "unfocusTerminal" {
+                    self.unfocus_terminal(window, cx);
+                    return;
+                }
+                if action_id == "focusLastTerminal" {
+                    self.focus_last_terminal(window, cx);
+                    return;
+                }
                 if gpui_focused_chat_hotkey_action_id(action_id) {
                     self.run_focused_chat_hotkey(action_id, window, cx);
                     return;
