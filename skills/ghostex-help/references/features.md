@@ -2219,7 +2219,8 @@ session when its access works again.
 When a session's login stops working mid-conversation ("Login expired · Please
 run /login"), the chat's sign-in card offers Reconnect beside Switch account.
 For a session on a saved account it opens the same browser sign-in as that
-account's Reconnect in Settings, and when you finish, the session (and any
+account's Reconnect in Settings (or skips it when the account's saved login
+has already worked again since the error), and when you finish, the session (and any
 other session on that account showing the same card) restarts on its own
 conversation, so you don't retype anything. The account shows Needs sign-in in
 Settings > Accounts and `ghostex accounts` from the moment a session reports

@@ -144,7 +144,7 @@ pub(crate) fn enrich_notice(
             "{agent} could not sign in with the saved login of {label}. The last Reconnect didn't finish: {error} Choose Reconnect to try again, or switch this session to another account.{evidence}"
         ),
         _ => format!(
-            "{agent} could not sign in with the saved login of {label}. Choose Reconnect to sign in to it again in your browser; this session restarts on its own conversation when you're done. Automatic queued delivery is paused while this error applies.{evidence}"
+            "{agent} could not sign in with the saved login of {label}. Choose Reconnect to restart this session on its own conversation; Ghostex opens a browser sign-in first unless that login has worked again since. Automatic queued delivery is paused while this error applies.{evidence}"
         ),
     };
     notice.detail = Some(detail);
@@ -180,6 +180,25 @@ fn plan(state: &AppState, project_id: &str, session_id: &str) -> Result<Plan, Do
         invalid("This session uses its own login, not a saved account. Open the terminal and sign in there.")
     })?;
     Ok(Plan { provider, account })
+}
+
+/// The session's account when its saved login is proven to work after the card's error was first
+/// seen (`login_expired::proven_since`); `None` when Reconnect has to sign in.
+fn proven_plan(
+    state: &AppState,
+    project_id: &str,
+    session_id: &str,
+) -> Result<Option<Plan>, DomainStateError> {
+    let plan = plan(state, project_id, session_id)?;
+    let since = crate::session_chat_options::cached_session_chat_terminal_notice(
+        state, project_id, session_id,
+    )
+    .filter(|notice| notice.sign_in_error())
+    .and_then(|notice| chrono::DateTime::parse_from_rfc3339(&notice.detected_at).ok())
+    .map(|at| at.timestamp_millis())
+    // No card to date the error by: nothing can be proven after it.
+    .unwrap_or(i64::MAX);
+    Ok(crate::accounts::login_expired::proven_since(&plan.account, since).then_some(plan))
 }
 
 fn owner(project_id: &str, session_id: &str) -> String {
@@ -242,6 +261,34 @@ pub(crate) async fn reconnect(
                 error: None,
             },
         );
+    }
+    // CDXC:AgentProviders 2026-10-26 DECISION:
+    // User (on Q1): the 12:27:06Z "Updated credentials for account 4" that looked like proof MS's saved login had survived was their own sign-in from Settings > Accounts, so "I'm not sure if it was actually just needed a reconnect". Reconnect restarts without a browser sign-in only when the saved login is proven to work after the card appeared (a sign-in through Ghostex, or a good claude-swap usage reading of that login, taken afterwards); otherwise it opens the sign-in.
+    let owned = state.clone();
+    let (pid, sid) = (project_id.clone(), session_id.clone());
+    let proven = tokio::task::spawn_blocking(move || proven_plan(&owned, &pid, &sid))
+        .await
+        .map_err(|error| invalid(error.to_string()))?;
+    if let Ok(Some(plan)) = proven {
+        if let Ok(mut sign_ins) = SIGN_INS.lock() {
+            sign_ins.remove(&session_key);
+        }
+        crate::session_chat_send_diagnostics::record_send_recovery(
+            state,
+            "sessionChatReconnectRestartOnly",
+            &project_id,
+            &session_id,
+            &format!(
+                "The saved login of {} worked after the sign-in error, so Reconnect restarted the session without a sign-in.",
+                account_label(&plan.account)
+            ),
+            &[],
+        );
+        let state = state.clone();
+        tokio::spawn(async move {
+            restart_sessions(&state, &project_id, &session_id, &plan, false).await
+        });
+        return Ok(());
     }
     let started = start(state, &project_id, &session_id).await;
     let (plan, job_id, slept) = match started {

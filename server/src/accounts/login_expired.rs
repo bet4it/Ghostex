@@ -122,6 +122,21 @@ fn reading_at(id: &str) -> Option<i64> {
         .and_then(|account| millis(account.usage_updated_at.as_deref()))
 }
 
+/// Whether `account`'s saved login is proven to work after `since` (milliseconds): it signed in
+/// through Ghostex or was seen working again (`login_confirmed_at`), or claude-swap read its usage
+/// with it, after then. Reconnect restarts without a browser sign-in only then.
+pub(crate) fn proven_since(account: &SavedAccount, since: i64) -> bool {
+    proven(
+        millis(account.login_confirmed_at.as_deref()),
+        reading_at(&account.id),
+        since,
+    )
+}
+
+fn proven(confirmed_at: Option<i64>, read_at: Option<i64>, since: i64) -> bool {
+    confirmed_at.max(read_at).is_some_and(|at| at > since)
+}
+
 fn millis(value: Option<&str>) -> Option<i64> {
     value
         .and_then(|time| DateTime::parse_from_rfc3339(time).ok())
@@ -436,6 +451,22 @@ mod tests {
             decide(&transcript, i64::MIN, Some(ms(marked)), read, true),
             Some(Change::Clear)
         );
+    }
+
+    #[test]
+    fn only_a_sign_in_or_a_reading_after_the_error_proves_the_saved_login() {
+        let error = ms("2026-10-26T12:24:38Z");
+        // Nothing since the error: Reconnect opens the browser sign-in.
+        assert!(!proven(None, None, error));
+        assert!(!proven(
+            Some(ms("2026-10-26T12:00:00Z")),
+            Some(ms("2026-10-26T12:20:00Z")),
+            error
+        ));
+        // A sign-in (or the account seen working) after the error: Reconnect only restarts.
+        assert!(proven(Some(ms("2026-10-26T12:27:06Z")), None, error));
+        // A good usage reading of the saved login after the error does too.
+        assert!(proven(None, Some(ms("2026-10-26T12:27:06Z")), error));
     }
 
     #[test]
