@@ -3,7 +3,10 @@
 //!
 //! States: `machines-agents` (Agents, Kubuntu VM picked), `machines-agents-open` (Agents on this
 //! computer with the picker open), `machines-integrations` (Integrations, Kubuntu VM picked),
-//! `machines-old` (Agents, Kubuntu VM picked, its gxserver too old for the requests).
+//! `machines-old` (Agents, Kubuntu VM picked, its gxserver too old for the requests),
+//! `machines-windows` and `machines-windows-integrations` (Agents and Integrations, Kubuntu VM
+//! picked and answering as Windows: the Developer Mode notice; `GHOSTEX_NATIVE_MODAL_DEMO_SETTINGS=
+//! '{"settingsModalNavigation":{"windowsLinkNoticeCollapsed":true}}'` shows it folded).
 use serde_json::{Map, Value, json};
 
 pub(super) fn owns(state: &str) -> bool {
@@ -26,11 +29,11 @@ pub(super) fn story_settings(state: &str, settings: &mut Map<String, Value>) {
 
 pub(super) fn open_message(state: &str) -> Option<Value> {
     Some(match state {
-        "machines-agents" | "machines-old" => {
+        "machines-agents" | "machines-old" | "machines-windows" => {
             json!({ "initialTab": "agents", "initialMachineId": "remote-1" })
         }
         "machines-agents-open" => json!({ "initialTab": "agents" }),
-        "machines-integrations" => {
+        "machines-integrations" | "machines-windows-integrations" => {
             json!({ "initialTab": "integrations", "initialMachineId": "remote-1" })
         }
         _ => return None,
@@ -48,8 +51,21 @@ pub(super) fn answers(message: &Value) -> Vec<Value> {
     })]
 }
 
-/// Kubuntu VM's scripted gxserver.
+/// Kubuntu VM's scripted gxserver; the `machines-windows*` states answer as a Windows machine.
 pub(super) fn remote_rpc(state: &str, path: &str, params: &Value) -> Result<Value, String> {
+    let answer = linux_rpc(state, path, params)?;
+    if !state.starts_with("machines-windows") {
+        return Ok(answer);
+    }
+    serde_json::from_str(
+        &answer
+            .to_string()
+            .replace("\"platform\":\"linux\"", "\"platform\":\"windows\""),
+    )
+    .map_err(|error| error.to_string())
+}
+
+fn linux_rpc(state: &str, path: &str, params: &Value) -> Result<Value, String> {
     if state == "machines-old" {
         return Err("Kubuntu VM runs an older Ghostex that can't do this yet. Update Ghostex on Kubuntu VM (Settings > Remote), then try again.".to_string());
     }

@@ -56,6 +56,17 @@ fn platform_note(platform: Option<&str>) -> &'static str {
     }
 }
 
+impl RemoteIntegrations {
+    /// The machine's platform from its last answer (`windows`, `macos`, `linux`).
+    pub(super) fn platform(&self) -> Option<String> {
+        self.status
+            .as_ref()?
+            .get("platform")?
+            .as_str()
+            .map(str::to_string)
+    }
+}
+
 impl IntegrationsTab {
     fn remote_request(
         &mut self,

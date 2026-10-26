@@ -36,6 +36,7 @@ impl GhostexGpuiApp {
             | "openAccessibilityPreferences"
             | "openScreenRecordingPreferences"
             | "openMacOSNotificationSettings"
+            | "openWindowsDeveloperSettings"
             | "requestMacOSNotificationPermission"
             | "playCompletionSoundPreview"
             | "testAgentTaskCompletion"

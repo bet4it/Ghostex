@@ -18,7 +18,7 @@ use super::super::rail::{rail_pages, render_no_matches};
 use super::super::store::{
     SettingsStore, SettingsStoreEvent, post_store_message, store_copy_to_clipboard,
 };
-use super::machine_picker;
+use super::{machine_picker, windows_link_notice};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, AnyView, App, AppContext as _, ClickEvent, Context, ElementId, Entity, FontWeight,
@@ -1367,6 +1367,26 @@ impl Render for IntegrationsTab {
             cx,
         ) {
             blocks.push(PageBlock::section("machinePicker", picker));
+        }
+        // A remote machine's integrations answer says its platform; this computer's is the build's.
+        let windows = match &self.shown_machine {
+            Some(_) => windows_link_notice::is_windows(self.remote.platform().as_deref()),
+            None => cfg!(target_os = "windows"),
+        };
+        if windows {
+            let remote_name = self
+                .shown_machine
+                .as_ref()
+                .map(|_| self.shown_machine_label());
+            blocks.push(PageBlock::section(
+                "windowsLinkNotice",
+                windows_link_notice::render_windows_link_notice(
+                    &p,
+                    &self.store.clone(),
+                    remote_name.as_deref(),
+                    cx,
+                ),
+            ));
         }
         let section = "integrations";
         if self.shown_machine.is_some() {

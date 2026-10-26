@@ -284,6 +284,9 @@ pub(crate) struct SettingsStore {
     /// The remote machine Agents and Integrations show (tabs/machine_picker.rs); `None` is this
     /// computer. Shared by both pages and forgotten when Settings closes.
     picked_machine: Option<String>,
+    /// The Windows Developer Mode notice of Agents and Integrations is folded to its icon
+    /// (`windowsLinkNoticeCollapsed` in `settingsModalNavigation`, tabs/machine_picker.rs).
+    windows_link_notice_collapsed: bool,
 }
 
 impl EventEmitter<SettingsStoreEvent> for SettingsStore {}
@@ -329,8 +332,14 @@ impl SettingsStore {
             open_forms,
             extensions_group_open: false,
             picked_machine: None,
+            windows_link_notice_collapsed: false,
         };
         store.picked_machine = store.request.initial_machine_id.clone();
+        store.windows_link_notice_collapsed = store
+            .value("settingsModalNavigation")
+            .get("windowsLinkNoticeCollapsed")
+            .and_then(Value::as_bool)
+            .unwrap_or(false);
         store.active_tab = store.initial_tab();
         store.extensions_group_open = store
             .value("settingsModalNavigation")
@@ -988,6 +997,7 @@ impl SettingsStore {
         json!({
             "activeTab": self.active_tab.id(),
             "extensionsGroupOpen": self.extensions_group_open,
+            "windowsLinkNoticeCollapsed": self.windows_link_notice_collapsed,
             "scrollTopByTab": Value::Object(tops),
             "version": 1,
         })
@@ -1031,6 +1041,18 @@ impl SettingsStore {
     /// The Extensions group's header: opens or closes the group and saves it.
     pub(crate) fn toggle_extensions_group(&mut self, cx: &mut Context<Self>) {
         self.extensions_group_open = !self.extensions_group_open;
+        self.persist_navigation(cx);
+        cx.notify();
+    }
+
+    /// The Windows Developer Mode notice is folded to its icon.
+    pub(crate) fn windows_link_notice_collapsed(&self) -> bool {
+        self.windows_link_notice_collapsed
+    }
+
+    /// Folds or opens the Windows Developer Mode notice on both pages, and saves it.
+    pub(crate) fn toggle_windows_link_notice(&mut self, cx: &mut Context<Self>) {
+        self.windows_link_notice_collapsed = !self.windows_link_notice_collapsed;
         self.persist_navigation(cx);
         cx.notify();
     }

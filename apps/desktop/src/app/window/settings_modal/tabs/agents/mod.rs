@@ -31,7 +31,7 @@ use super::super::page::{PageBlock, settings_page};
 use super::super::rail::{rail_pages, render_no_matches};
 use super::super::search::should_show_section;
 use super::super::store::{SettingsStore, SettingsStoreEvent};
-use super::machine_picker;
+use super::{machine_picker, windows_link_notice};
 use gpui::{
     AnyView, App, AppContext as _, Bounds, Context, Entity, FocusHandle, IntoElement,
     ParentElement as _, Pixels, Render, SharedString, Styled as _, Window, div,
@@ -443,6 +443,30 @@ impl Render for AgentsTab {
             cx,
         ) {
             blocks.push(PageBlock::section("machinePicker", picker));
+        }
+        // A remote machine's own CLI answers say its platform; this computer's is the build's.
+        let windows = match &self.shown_machine {
+            Some(_) => self
+                .cli
+                .list
+                .values()
+                .any(|state| windows_link_notice::is_windows(Some(&state.platform))),
+            None => cfg!(target_os = "windows"),
+        };
+        if windows {
+            let remote_name = self
+                .shown_machine
+                .as_ref()
+                .map(|_| self.cli_machine_label());
+            blocks.push(PageBlock::section(
+                "windowsLinkNotice",
+                windows_link_notice::render_windows_link_notice(
+                    &p,
+                    &self.store.clone(),
+                    remote_name.as_deref(),
+                    cx,
+                ),
+            ));
         }
         if self.shown_machine.is_some() {
             if let Some(section) = self.render_remote_agents(&p, window, cx) {

@@ -3215,7 +3215,11 @@ sessions, so any client can control agents on any machine.
   at that Mac, so until then the row says so. Turning agents on, their defaults
   and resume hooks are set on each computer itself. On the phone, a computer's
   Edit screen (swipe left on its card in Machines, then Edit) shows the same
-  Agent CLIs and Skills and tools with Install and Update.
+  Agent CLIs and Skills and tools with Install and Update. When that machine
+  (or this computer) runs Windows, both pages show a notice: Ghostex links
+  hooks, skills and integrations with symbolic links, which Windows lets apps
+  create only with Developer Mode on (Windows Settings > System > For
+  developers > Developer Mode). Click its X to fold it to a warning icon.
 - **Web app**: the desktop's sidebar (with its session, group and project
   actions, the Git menu and Quick Access), chat and terminal running in a
   browser and talking to gxserver; remote machines, Settings and the commit

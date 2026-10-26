@@ -453,6 +453,9 @@ pub(crate) const GPUI_MACOS_NOTIFICATION_SETTINGS_URL: &str =
 /// Settings > System > Notifications, where Ghostex's toasts are allowed or blocked.
 #[cfg(target_os = "windows")]
 pub(crate) const GPUI_WINDOWS_NOTIFICATION_SETTINGS_URL: &str = "ms-settings:notifications";
+/// Windows Settings > System > For developers, where Developer Mode lets apps create symbolic links.
+#[cfg(target_os = "windows")]
+pub(crate) const GPUI_WINDOWS_DEVELOPER_SETTINGS_URL: &str = "ms-settings:developers";
 /// CDXC:Cli 2026-09-03 WHY:
 /// This value is the on-disk ownership stamp written into the public `ghostex`
 /// and `gx` wrappers and read back to tell a Ghostex wrapper from a foreign
