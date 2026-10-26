@@ -88,9 +88,12 @@ pub(crate) struct ProjectEditorAutoSleepPolicySnapshot {
     pub(crate) kanban: Option<Duration>,
     pub(crate) automate: Option<Duration>,
     pub(crate) manage: Option<Duration>,
+    /// CDXC:Workarea 2026-10-27 DECISION:
+    /// User approved Keep views loaded (merge of #328) as an opt-in exception to CDXC:Workarea 2026-09-19, 2026-09-30, 2026-10-25 and CDXC:Workspaces 2026-10-09, which stay the default.
+    ///
     /// CDXC:Workarea 2026-10-26 WHY:
     /// Keep views loaded (`keepViewsLoaded`, off by default) is for working across projects and workspaces all day with VS Code, Files, website and Browser views open: without it a fourth awake view, leaving a project with another view on screen, the keep-alive minutes and a workspace switch each close a view's page, and coming back reloads it even with every Auto Sleep Off. It is an opt-in exception to four owner decisions that stay the default: the awake cap (CDXC:Workarea 2026-10-25), keeping only the page on screen (CDXC:Workarea 2026-09-19), the keep-alive limit (CDXC:Workarea 2026-09-30) and the workspace switch sleep (CDXC:Workspaces 2026-10-09).
-    /// SEE-ALSO: apps/desktop/src/app/project_editor.rs, apps/desktop/src/app/project_keep_alive.rs, apps/desktop/src/app/web_page_sleep.rs, apps/desktop/src/app/workspace_windows/window_workspace.rs, apps/desktop/src/app/native_docs/files.rs.
+    /// SEE-ALSO: apps/desktop/src/app/project_editor.rs, apps/desktop/src/app/project_keep_alive.rs, apps/desktop/src/app/web_page_sleep.rs, apps/desktop/src/app/workspace_windows/window_workspace.rs, apps/desktop/src/app/native_docs/files.rs, apps/desktop/src/app/gx_store/space_sleep.rs.
     pub(crate) keep_views_loaded: bool,
 }
 

@@ -79,7 +79,7 @@
     {
       "key": "projectSwitchKeepAliveMinutes",
       "title": "Keep the previous project live for",
-      "subtitle": "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away. Keep views loaded (Auto Sleep) keeps every side panel view with no time limit.",
+      "subtitle": "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away. Keep views loaded (Auto Sleep) keeps every side panel view until its Auto Sleep time instead.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "sidebar",

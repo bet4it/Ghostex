@@ -234,13 +234,20 @@ impl GhostexGpuiApp {
         });
     }
 
-    /// Closes what `mode` of the project on screen still has parked while that view is put to
-    /// sleep or closed: a page kept for the project's return or held for Keep views loaded (it came
-    /// back showing another view), or its parked website page.
-    pub(crate) fn release_parked_view_pages(&mut self, mode: TitlebarMode) {
-        let project_id = self.agents_workspace_project_id.as_deref();
+    /// Closes what `project_id` still has parked for `mode`, or for every view with `None`: a page
+    /// kept for the project's return or held for Keep views loaded, and its parked website pages.
+    /// Putting a view of the project on screen to sleep or closing its tab releases that view's
+    /// (it came back showing another view); Sleep on a project that is not on screen releases all
+    /// of them (`sleep_project_views`).
+    pub(crate) fn release_parked_project_pages(
+        &mut self,
+        project_id: Option<&str>,
+        mode: Option<TitlebarMode>,
+    ) {
+        let for_mode = |view: TitlebarMode| mode.is_none_or(|mode| mode == view);
         self.parked_project_workarea_surfaces.retain(|parked| {
-            !(parked.project_id.as_deref() == project_id && parked.slot_key.titlebar_mode() == mode)
+            !(parked.project_id.as_deref() == project_id
+                && for_mode(parked.slot_key.titlebar_mode()))
         });
         let Some(project_id) = project_id else {
             return;
@@ -248,12 +255,23 @@ impl GhostexGpuiApp {
         let views = self
             .project_views
             .parked_views()
-            .filter(|(_, owner, view, _)| *owner == project_id && *view == mode)
+            .filter(|(_, owner, view, _)| *owner == project_id && for_mode(*view))
             .map(|(key, ..)| key.to_owned())
             .collect::<Vec<_>>();
         for key in views {
             self.project_views.close_parked_view(&key);
         }
+    }
+
+    /// Whether `project_id` has a parked page that `release_parked_project_pages` would close.
+    pub(crate) fn holds_parked_project_pages(&self, project_id: &str) -> bool {
+        self.parked_project_workarea_surfaces
+            .iter()
+            .any(|parked| parked.project_id.as_deref() == Some(project_id))
+            || self
+                .project_views
+                .parked_views()
+                .any(|(_, owner, ..)| owner == project_id)
     }
 
     /// Turning Keep views loaded on treats what the keep-alive minutes still keep as if it had been

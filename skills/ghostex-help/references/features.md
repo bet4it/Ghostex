@@ -776,9 +776,10 @@ in the background for the "Keep the previous project live for" number of minutes
 instant. Set it to 0 to release them as soon as you leave. The page each other
 Space opens on is the exception: it stays loaded for as long as that Space opens
 on it, so swiping to a Space always shows its web page instantly. To keep every
-side panel view you opened in a project loaded, not only the one on screen and
-with no time limit, turn on Settings > General > System > Auto Sleep > Keep views
-loaded (`keepViewsLoaded`). Auto Sleep and Sleep still apply, it uses more memory,
+side panel view you opened in a project loaded, not only the one on screen, until
+its Auto Sleep time instead of these minutes (Auto Sleep Off keeps them), turn on
+Settings > General > System > Auto Sleep > Keep views loaded (`keepViewsLoaded`).
+Sleep on the project or its Space still releases them, it uses more memory,
 and terminals and chats keep the minutes above. VS Code still reloads when you
 switch VS Code between computers, including when you switch back.
 Starting a new agent from the sidebar launcher or New Thread picker keeps your
@@ -2669,11 +2670,12 @@ version of the Projects features in Cursor and Claude Code.
   orchestrator.
 - **Threads in the sidebar**: an orchestrator's row shows a crown in
   place of its agent's logo, and a crew icon
-  with one number: how many of its threads are working; when none are
-  working, how many are waiting on you; when neither, how many threads it
-  lists. The icon and number are orange when the number counts
-  working threads, light blue when it counts threads waiting on you, and grey
-  otherwise. Its
+  with one number: how many sessions under it (its threads' threads too) are
+  stuck waiting for your approval; when none, how many of its threads are
+  working; when none are working, how many are waiting on you; when neither,
+  how many threads it lists. The icon and number are red when the number counts
+  sessions waiting for approval, orange when it counts working threads, light
+  blue when it counts threads waiting on you, and grey otherwise. Its
   threads sit indented right under it with their own status dots: the ones
   working, waiting, or active in the last 2 hours. Older threads wait behind an
   "N older threads" row at the end, which lists them all (and "Hide older
@@ -2683,7 +2685,8 @@ version of the Projects features in Cursor and Claude Code.
   threads are folded, the orchestrator's row shows their status dots (with its
   own) overlapping in place of its time, like a computer tab's dots, so a thread
   that is working, finished or asking something is never hidden (a thread
-  waiting on you, for a question or a permission, is the pink dot). Opening an
+  waiting for your approval is the red dot, one waiting on you for anything
+  else is the pink dot). Opening an
   orchestrator marks its finished threads as seen, so their blue dots clear
   (a thread waiting on a question or approval keeps its dot); otherwise opening
   its chat leaves the fold and the older threads as you set them; opening one of its threads

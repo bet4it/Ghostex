@@ -32,7 +32,8 @@ impl GhostexGpuiApp {
         } else if let Some(slot) = ProjectWorkareaCefSurfaceSlotKey::for_titlebar_mode(mode) {
             self.remove_project_workarea_runtime_cef_surface(slot, cx);
         }
-        self.release_parked_view_pages(mode);
+        let project_id = self.agents_workspace_project_id.clone();
+        self.release_parked_project_pages(project_id.as_deref(), Some(mode));
         self.update_active_mode_cef_child_visibility(cx);
         self.persist_shell_layout_state();
         cx.notify();
