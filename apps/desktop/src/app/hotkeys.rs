@@ -682,8 +682,41 @@ pub(crate) fn gpui_normal_hotkey_key_in(
         .flatten()
 }
 
-/// The Terminal focused binding's chord, read from `terminalHotkeys` in `snapshot` with the
-/// catalog's defaults and migrations; `None` when it has none or the user cleared it.
+/// The normal chord the user changed `action_id` to in `hotkeys` (`""` when they cleared it), or
+/// `None` while it is still its default. `hotkeys` holds the whole table, so a saved value only
+/// counts when it resolves, through the same migrations the normal binding uses, to something
+/// other than the default does.
+pub(crate) fn gpui_customized_normal_hotkey_key_in(
+    snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
+    action_id: &str,
+) -> Option<String> {
+    if !ghostex_settings_catalog::hotkey_has_normal_binding(action_id) {
+        return None;
+    }
+    let (_, default_key) = GPUI_DEFAULT_GHOSTEX_HOTKEYS
+        .iter()
+        .find(|(id, _)| *id == action_id)?;
+    let saved = snapshot
+        .object()
+        .get("hotkeys")
+        .and_then(serde_json::Value::as_object)
+        .and_then(|hotkeys| gpui_persisted_hotkey_value(hotkeys, action_id))
+        .and_then(serde_json::Value::as_str)?;
+    let resolve = |key: &str| {
+        gpui_platform_hotkey_for_action(
+            action_id,
+            gpui_migrated_hotkey_for_action(action_id, key, default_key),
+        )
+        .trim()
+        .to_ascii_lowercase()
+    };
+    let current = resolve(saved);
+    (current != resolve(default_key)).then_some(current)
+}
+
+/// The Terminal focused binding's chord: what `terminalHotkeys` in `snapshot` holds for it, or
+/// else the normal chord the user customized, or else the Terminal focused default
+/// (`ghostex_settings_catalog::terminal_hotkey`); `None` when it has none or it is cleared.
 pub(crate) fn gpui_terminal_hotkey_key_in(
     snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
     action_id: &str,
@@ -694,9 +727,11 @@ pub(crate) fn gpui_terminal_hotkey_key_in(
         .and_then(serde_json::Value::as_object)
         .and_then(|hotkeys| hotkeys.get(action_id))
         .and_then(serde_json::Value::as_str);
+    let customized_normal = gpui_customized_normal_hotkey_key_in(snapshot, action_id);
     let key = ghostex_settings_catalog::terminal_hotkey(
         action_id,
         saved,
+        customized_normal.as_deref(),
         ghostex_settings_catalog::Platform::current(),
     )?;
     (!gpui_hotkey_is_reserved(&key) && gpui_keystroke_from_shared_hotkey(&key).is_some())

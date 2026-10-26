@@ -267,8 +267,11 @@ view from the strip.
   picker, Ctrl+Shift+L for a browser tab, Ctrl+Shift+B for the sidebar,
   Ctrl+Shift+I for notifications, Ctrl+Alt+Shift+P to search sessions,
   Ctrl+Shift+Y for files, Ctrl+Alt+H for Find Prompts and Ctrl+Alt+/ for
-  Hotkeys. Every binding in either section can be changed or cleared on its
-  own, and the same keys may be set in both. Cmd+Shift+M (Ctrl+Shift+M on
+  Hotkeys. A key you changed (or cleared) in the normal sections also applies
+  in a terminal until you set that action's Terminal focused row. Every binding
+  in either section can be changed or cleared on its own, and the same keys may
+  be set in both; `ghostex settings hotkeys` takes `--terminal` for the
+  Terminal focused ones. Cmd+Shift+M (Ctrl+Shift+M on
   Windows and Linux) takes the keyboard out of the terminal (Unfocus
   Terminal), so the other hotkeys apply, and pressed again puts it back in the
   terminal that had it last (Focus Last Terminal). While the VS Code view itself has keyboard focus, Cmd+N and

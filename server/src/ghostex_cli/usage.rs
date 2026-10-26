@@ -1274,11 +1274,11 @@ Usage:
   gx settings set <key> <value> [--json]
   gx settings reset <key> [--json]
   gx settings open [<key>] [--tab <id>] [--json]
-  gx settings hotkeys [list] [<search>] [--changed] [--json]
-  gx settings hotkeys get <id> [--json]
-  gx settings hotkeys set <id> <keys> [--replace] [--json]
-  gx settings hotkeys reset <id> [--json]
-  gx settings hotkeys reset --all [--json]
+  gx settings hotkeys [list] [<search>] [--changed] [--terminal] [--json]
+  gx settings hotkeys get <id> [--terminal] [--json]
+  gx settings hotkeys set <id> <keys> [--replace] [--terminal] [--json]
+  gx settings hotkeys reset <id> [--terminal] [--json]
+  gx settings hotkeys reset --all [--terminal] [--json]
   gx settings --help
 
 Keys:
@@ -1290,6 +1290,15 @@ Values:
   number    a number; some keys accept only listed values or a min/max/step range
   enum      exactly one of the listed option values (case-sensitive)
   text      any text, passed verbatim
+
+Hotkeys:
+  Every hotkey that can act from a terminal has two bindings: the normal one,
+  which applies outside a terminal, and the Terminal focused one, which applies
+  while a terminal has the keyboard (Settings > Hotkeys > Terminal focused).
+  --terminal reads or changes the Terminal focused one. Until it is set, it
+  follows the normal key when you changed that, else its own default. reset
+  --terminal makes it follow again. Copy, Select All and Unfocus Terminal have
+  only a Terminal focused binding.
 
 Writing:
   set and reset send the change to the running Ghostex desktop app, which saves

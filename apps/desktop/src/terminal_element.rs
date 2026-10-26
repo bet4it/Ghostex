@@ -3262,7 +3262,8 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
                 .any(|retired| key.trim().eq_ignore_ascii_case(retired))
         });
     let key = terminal_overlay_platform_hotkey(action_id, persisted_key.unwrap_or(default_key));
-    let key = key.trim();
+    let terminal_key = terminal_overlay_terminal_hotkey(&snapshot, action_id);
+    let key = terminal_key.as_deref().unwrap_or(key).trim();
     if key.is_empty() {
         return None;
     }
@@ -3271,6 +3272,48 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
             .map(terminal_overlay_hotkey_chord_label)
             .collect::<Vec<_>>()
             .join(", "),
+    )
+}
+
+/// The bar sits on a terminal, so it names the Terminal focused key (`gpui_terminal_hotkey_key_in`
+/// in apps/desktop/src/app/hotkeys.rs, mirrored here because this file is also built without the
+/// `app` module). On macOS that key equals the normal one until the user records it, so the normal
+/// label stands unless `terminalHotkeys` holds a value. Sleep's label names its second key, the
+/// one a terminal keeps on Windows and Linux.
+fn terminal_overlay_terminal_hotkey(
+    snapshot: &crate::shared_settings::SharedSidebarSettingsSnapshot,
+    action_id: &str,
+) -> Option<String> {
+    use ghostex_settings_catalog::{Platform, customized_normal_hotkey, terminal_hotkey};
+    let action_id = match action_id {
+        "sleepFocusedSession" => "sleepFocusedSessionSecondKey",
+        other => other,
+    };
+    let platform = Platform::current();
+    let saved_terminal = snapshot
+        .object()
+        .get(ghostex_settings_catalog::TERMINAL_HOTKEYS_SETTING_KEY)
+        .and_then(serde_json::Value::as_object)
+        .and_then(|hotkeys| hotkeys.get(action_id))
+        .and_then(serde_json::Value::as_str);
+    if platform == Platform::MacOs && saved_terminal.is_none() {
+        return None;
+    }
+    let customized_normal = customized_normal_hotkey(
+        action_id,
+        snapshot
+            .object()
+            .get("hotkeys")
+            .and_then(serde_json::Value::as_object)
+            .and_then(|hotkeys| hotkeys.get(action_id))
+            .and_then(serde_json::Value::as_str),
+        platform,
+    );
+    terminal_hotkey(
+        action_id,
+        saved_terminal,
+        customized_normal.as_deref(),
+        platform,
     )
 }
 

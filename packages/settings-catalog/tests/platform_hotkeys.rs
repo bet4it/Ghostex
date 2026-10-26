@@ -12,9 +12,9 @@
 use std::collections::BTreeMap;
 
 use ghostex_settings_catalog::{
-    hotkey_definition, hotkey_definitions, hotkey_has_normal_binding, hotkey_has_terminal_binding,
-    hotkey_keystroke, modules, platform_hotkey, terminal_hotkey, Platform,
-    TERMINAL_ONLY_HOTKEY_IDS, VIEW_SCOPED_HOTKEY_IDS,
+    customized_normal_hotkey, hotkey_definition, hotkey_definitions, hotkey_has_normal_binding,
+    hotkey_has_terminal_binding, hotkey_keystroke, modules, platform_hotkey, terminal_hotkey,
+    Platform, TERMINAL_ONLY_HOTKEY_IDS, VIEW_SCOPED_HOTKEY_IDS,
 };
 
 const WINDOWS_AND_LINUX: [Platform; 2] = [Platform::Windows, Platform::Linux];
@@ -39,7 +39,7 @@ fn terminal_keystrokes(platform: Platform) -> BTreeMap<&'static str, String> {
     hotkey_definitions()
         .iter()
         .filter_map(|definition| {
-            let key = terminal_hotkey(definition.id, None, platform)?;
+            let key = terminal_hotkey(definition.id, None, None, platform)?;
             Some((
                 definition.id,
                 hotkey_keystroke(&key, platform).unwrap_or_default(),
@@ -644,37 +644,179 @@ fn saved_bindings_migrate_safely() {
         platform_hotkey("splitMore", "cmd+alt+d", Platform::Linux),
         "cmd+alt+d"
     );
-    // Terminal focused: nothing saved is the default, a saved macOS default moves to the Windows and
-    // Linux one, a cleared one stays cleared and a chosen one stays.
+    // Terminal focused: nothing saved is the default, a recorded key stays as recorded (Ctrl+D
+    // included, which a user may want to keep in a terminal) and a cleared one stays cleared.
     assert_eq!(
-        terminal_hotkey("splitMore", None, Platform::Linux).as_deref(),
+        terminal_hotkey("splitMore", None, None, Platform::Linux).as_deref(),
         Some("cmd+shift+o")
     );
     assert_eq!(
-        terminal_hotkey("splitMore", Some("cmd+d"), Platform::Linux).as_deref(),
-        Some("cmd+shift+o")
-    );
-    assert_eq!(
-        terminal_hotkey("splitMore", Some("cmd+d"), Platform::MacOs).as_deref(),
+        terminal_hotkey("splitMore", Some("cmd+d"), None, Platform::Linux).as_deref(),
         Some("cmd+d")
     );
     assert_eq!(
-        terminal_hotkey("splitMore", Some(""), Platform::Linux).as_deref(),
+        terminal_hotkey("splitMore", Some(""), None, Platform::Linux).as_deref(),
         Some("")
     );
     assert_eq!(
-        terminal_hotkey("splitMore", Some("cmd+alt+9"), Platform::Linux).as_deref(),
+        terminal_hotkey("splitMore", Some("cmd+alt+9"), None, Platform::Linux).as_deref(),
         Some("cmd+alt+9")
     );
     // A hotkey without a Terminal focused binding has none to resolve.
     assert_eq!(
-        terminal_hotkey("focusLastTerminal", None, Platform::Linux),
+        terminal_hotkey("focusLastTerminal", None, None, Platform::Linux),
         None
     );
     assert_eq!(
-        terminal_hotkey("scrollChatToBottom", None, Platform::MacOs),
+        terminal_hotkey("scrollChatToBottom", None, None, Platform::MacOs),
         None
     );
+}
+
+/// `hotkeys` holds the whole table, so a saved value only counts as customized when it resolves to
+/// something other than the default (CDXC:Hotkeys 2026-10-27 WHY on `terminal_hotkey`). The cases
+/// are the user's own: Expand View Panel on Cmd+Shift+E, Previous/Next Session on Cmd+Ctrl+Tab,
+/// and cleared keys.
+#[test]
+fn only_a_changed_normal_key_counts_as_customized() {
+    for platform in [Platform::MacOs, Platform::Windows, Platform::Linux] {
+        // Saved but equal to the default.
+        let default = hotkey_definition("splitMore")
+            .expect("splitMore")
+            .platform_default_key(platform);
+        assert_eq!(
+            customized_normal_hotkey("splitMore", Some(default), platform),
+            None
+        );
+        assert_eq!(customized_normal_hotkey("splitMore", None, platform), None);
+        // Changed or cleared.
+        assert_eq!(
+            customized_normal_hotkey("expandViewPanel", Some("cmd+shift+e"), platform).as_deref(),
+            Some("cmd+shift+e")
+        );
+        assert_eq!(
+            customized_normal_hotkey("focusNextSession", Some("cmd+ctrl+tab"), platform).as_deref(),
+            Some("cmd+ctrl+tab")
+        );
+        assert_eq!(
+            customized_normal_hotkey("openNotifications", Some(""), platform).as_deref(),
+            Some("")
+        );
+        // A retired default resolves to the default, so it is not a change.
+        assert_eq!(
+            customized_normal_hotkey("openFindPrompts", Some("alt+f"), platform),
+            None
+        );
+        // Terminal-only hotkeys have no normal key to follow.
+        assert_eq!(
+            customized_normal_hotkey("terminalCopy", Some("cmd+x"), platform),
+            None
+        );
+    }
+    // A saved macOS default on Windows and Linux resolves to the Windows and Linux default.
+    assert_eq!(
+        customized_normal_hotkey("renameActiveSession", Some("cmd+r"), Platform::Linux),
+        None
+    );
+}
+
+/// While `terminalHotkeys` has no value for an action, its Terminal focused binding follows the
+/// normal key the user customized, so keys they set before the section existed keep working in a
+/// terminal; an uncustomized key gets the Terminal focused default; a recorded or cleared
+/// Terminal focused value wins.
+#[test]
+fn a_customized_normal_key_also_applies_in_a_terminal() {
+    let follow = |id: &str, saved_normal: Option<&str>, saved_terminal: Option<&str>, platform| {
+        let customized = customized_normal_hotkey(id, saved_normal, platform);
+        terminal_hotkey(id, saved_terminal, customized.as_deref(), platform)
+    };
+    // macOS: the customized normal key applies in a terminal too.
+    assert_eq!(
+        follow(
+            "expandViewPanel",
+            Some("cmd+shift+e"),
+            None,
+            Platform::MacOs
+        )
+        .as_deref(),
+        Some("cmd+shift+e")
+    );
+    assert_eq!(
+        follow(
+            "focusPreviousSession",
+            Some("cmd+ctrl+shift+tab"),
+            None,
+            Platform::MacOs
+        )
+        .as_deref(),
+        Some("cmd+ctrl+shift+tab")
+    );
+    assert_eq!(
+        follow("openNotifications", Some(""), None, Platform::MacOs).as_deref(),
+        Some("")
+    );
+    for platform in WINDOWS_AND_LINUX {
+        // Uncustomized, saved as the default (the whole table is saved): the Ghostty default.
+        assert_eq!(
+            follow("splitMore", Some("cmd+d"), None, platform).as_deref(),
+            Some("cmd+shift+o"),
+            "{platform:?}"
+        );
+        assert_eq!(
+            follow("closeFocusedSurface", None, None, platform).as_deref(),
+            Some("cmd+shift+w")
+        );
+        // Customized: inherited, a cleared one included.
+        assert_eq!(
+            follow("splitMore", Some("cmd+alt+d"), None, platform).as_deref(),
+            Some("cmd+alt+d")
+        );
+        assert_eq!(
+            follow("focusNextSession", Some("cmd+ctrl+tab"), None, platform).as_deref(),
+            Some("cmd+ctrl+tab")
+        );
+        assert_eq!(
+            follow("splitMore", Some(""), None, platform).as_deref(),
+            Some("")
+        );
+        // A recorded or cleared Terminal focused value wins over the customized normal key.
+        assert_eq!(
+            follow(
+                "splitMore",
+                Some("cmd+alt+d"),
+                Some("cmd+shift+x"),
+                platform
+            )
+            .as_deref(),
+            Some("cmd+shift+x")
+        );
+        assert_eq!(
+            follow("splitMore", Some("cmd+alt+d"), Some(""), platform).as_deref(),
+            Some("")
+        );
+        // Terminal-only hotkeys keep their own default.
+        assert_eq!(
+            follow("terminalCopy", Some("cmd+x"), None, platform).as_deref(),
+            Some("cmd+shift+c")
+        );
+    }
+}
+
+/// The desktop, the Settings page and `ghostex settings hotkeys` all pass the customized normal
+/// key into `terminal_hotkey`, each from the normal chord it binds or shows.
+#[test]
+fn every_surface_lets_the_terminal_binding_follow_a_customized_normal_key() {
+    assert!(desktop_source("app/hotkeys.rs")
+        .contains("gpui_customized_normal_hotkey_key_in(snapshot, action_id)"));
+    assert!(desktop_source("app/window/settings_modal/tabs/hotkeys.rs")
+        .contains("customized.get(&definition.id)"));
+    assert!(desktop_source("terminal_element.rs").contains("customized_normal_hotkey("));
+    let cli = std::fs::read_to_string(concat!(
+        env!("CARGO_MANIFEST_DIR"),
+        "/../../server/src/ghostex_cli/settings_hotkeys.rs"
+    ))
+    .expect("server/src/ghostex_cli/settings_hotkeys.rs");
+    assert!(cli.contains("normal.as_str() != platform_default(definition)"));
 }
 
 /// Paste on Windows and Linux: Ctrl+Shift+V only while a terminal has the keyboard, Ctrl+V

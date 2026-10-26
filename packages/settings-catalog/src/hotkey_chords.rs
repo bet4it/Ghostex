@@ -112,32 +112,69 @@ pub fn hotkey_keystroke(key: &str, platform: Platform) -> Option<String> {
     Some(modifiers.join("-"))
 }
 
-/// The chord a hotkey's Terminal focused binding runs on, from its saved value in
-/// `terminalHotkeys`: the platform's Terminal focused default when nothing (or a retired default)
-/// is saved, a saved macOS default moved to the Windows and Linux one there, an explicit blank
-/// kept as unassigned, and anything else as saved. `None` when the hotkey has no such binding.
-pub fn terminal_hotkey(id: &str, saved: Option<&str>, platform: Platform) -> Option<String> {
+/// The chord a hotkey's Terminal focused binding runs on.
+///
+/// `saved` is its value in `terminalHotkeys`: once the user records or clears the Terminal focused
+/// row, that wins (a blank stays unassigned; a retired default moves to the current one).
+/// Otherwise it follows `customized_normal`, the action's normal chord when the user changed it
+/// from its default (a cleared `""` included), and failing that it is the platform's Terminal
+/// focused default. `None` when the hotkey has no Terminal focused binding.
+///
+/// CDXC:Hotkeys 2026-10-27 WHY:
+/// The user said "i don't want to really change much about the hotkeys we have", and keys they had set (or cleared) in Settings > Hotkeys before the Terminal focused section existed must keep working in a terminal. `hotkeys` stores the whole table, so "saved" does not mean "changed": each surface passes the normal chord only when it differs from the normal default after its own migrations, and an unchanged key gets the Terminal focused default (Ghostty's on Windows and Linux).
+pub fn terminal_hotkey(
+    id: &str,
+    saved: Option<&str>,
+    customized_normal: Option<&str>,
+    platform: Platform,
+) -> Option<String> {
     let definition = hotkey_definition(id)?;
     if !crate::hotkeys::hotkey_has_terminal_binding(definition) {
         return None;
     }
-    let default_key = crate::hotkeys::terminal_default_key(definition, platform);
+    let fallback = || match customized_normal {
+        Some(normal) if crate::hotkeys::hotkey_has_normal_binding(id) => normal.trim().to_string(),
+        _ => crate::hotkeys::terminal_default_key(definition, platform).to_string(),
+    };
     let Some(saved) = saved else {
-        return Some(default_key.to_string());
+        return Some(fallback());
     };
     let saved = saved.trim();
     if saved.is_empty() {
         return Some(String::new());
     }
-    let mac_default_elsewhere =
-        platform != Platform::MacOs && saved.eq_ignore_ascii_case(definition.default_key);
-    if mac_default_elsewhere
-        || definition
-            .retired_default_keys
-            .iter()
-            .any(|retired| saved.eq_ignore_ascii_case(retired))
+    if definition
+        .retired_default_keys
+        .iter()
+        .any(|retired| saved.eq_ignore_ascii_case(retired))
     {
-        return Some(default_key.to_string());
+        return Some(fallback());
     }
     Some(saved.to_string())
+}
+
+/// The normal chord the user changed `id` to, from its saved value in `hotkeys` (`""` when they
+/// cleared it), or `None` while it resolves to its default: `hotkeys` holds the whole table, so a
+/// saved value that equals the default (or a retired default, a macOS default on Windows and Linux,
+/// or macOS's reserved Cmd+K, which all resolve to it) is not a customization.
+pub fn customized_normal_hotkey(
+    id: &str,
+    saved: Option<&str>,
+    platform: Platform,
+) -> Option<String> {
+    let definition = hotkey_definition(id)?;
+    if !crate::hotkeys::hotkey_has_normal_binding(id) {
+        return None;
+    }
+    let saved = saved?.trim().to_ascii_lowercase();
+    let default_key = definition.platform_default_key(platform);
+    let resolves_to_default = definition
+        .retired_default_keys
+        .iter()
+        .any(|retired| saved.eq_ignore_ascii_case(retired))
+        || (platform != Platform::MacOs
+            && definition.windows_linux_default_key.is_some()
+            && saved.eq_ignore_ascii_case(definition.default_key))
+        || (platform == Platform::MacOs && saved.split(' ').next() == Some("cmd+k"));
+    (!resolves_to_default && !saved.eq_ignore_ascii_case(default_key)).then_some(saved)
 }
