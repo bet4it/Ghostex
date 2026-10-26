@@ -792,7 +792,10 @@ fn full_menu(
             .iter()
             // CDXC:SessionSleep 2026-10-01 DECISION: User: "please don't sleep terminal sessions that have shell running or a question status", and Sleep Below is a bulk sweep too, so it skips rows with the grey shell-running dot or an unanswered question.
             .filter(|row| {
-                can_sleep(row) && !row.has_background_work && row.pending_question_count == 0
+                can_sleep(row)
+                    && !row.has_background_work
+                    && row.pending_question_count == 0
+                    && !row.awaiting_approval
             })
             .map(|row| row.sidebar_session_id.clone())
             .collect();

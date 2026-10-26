@@ -822,6 +822,14 @@ pub fn detect_session_chat_composer_ready(
             screen_tail,
         );
     }
+    if agent == "codex"
+        && crate::session_chat_codex_async_answer::question_editor_on_screen(screen_text)
+    {
+        return SessionChatComposerReadiness::not_ready_dismissible(
+            "Codex's question editor has the keyboard instead of its input box.".to_string(),
+            screen_tail,
+        );
+    }
     if agent == "codex" {
         let blocked = crate::session_chat_codex_dialog::detect_codex_dialog(screen_text)
             .map(|dialog| format!("Codex's {} dialog is open.", dialog.title))

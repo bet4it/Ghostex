@@ -19,8 +19,8 @@ use super::spaces::{
     OTHER_SPACE_ICON, OTHER_SPACE_ID, OTHER_SPACE_LABEL,
 };
 use super::view::{
-    CollectionView, EmptyState, GroupSummary, GroupView, MachineSummary, MachineTabView, OrderItem,
-    OrderKind, SidebarView, SpaceProject, SpaceView,
+    CollectionView, EmptyState, GroupSummary, GroupView, MachineSummary, MachineTabView, NeedsYou,
+    OrderItem, OrderKind, SidebarView, SpaceProject, SpaceView,
 };
 use crate::keys::{parse_workspace_subgroup_id, MachineId};
 
@@ -206,6 +206,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
             let mut attention_count = 0;
             let mut background_work_count = 0;
             let mut question_count = 0;
+            let mut approval_count = 0;
             for group_id in group_ids
                 .iter()
                 .filter(|group_id| shows_group(&view, group_id))
@@ -220,10 +221,11 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
                     if session.row.activity == "working" {
                         working_count += 1;
                     }
-                    if session.row.pending_question_count > 0 {
-                        question_count += 1;
-                    } else if session.row.activity == "attention" {
-                        attention_count += 1;
+                    match session.row.needs_you() {
+                        Some(NeedsYou::Approval) => approval_count += 1,
+                        Some(NeedsYou::Question) => question_count += 1,
+                        Some(NeedsYou::Attention) => attention_count += 1,
+                        None => {}
                     }
                     if session.row.shows_background_work() {
                         background_work_count += 1;
@@ -240,6 +242,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
                 row.attention_count = attention_count;
                 row.background_work_count = background_work_count;
                 row.question_count = question_count;
+                row.approval_count = approval_count;
             }
         }
         spaces = rows;
@@ -375,6 +378,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
                     attention_count: summary.attention_count,
                     background_work_count: summary.background_work_count,
                     question_count: summary.question_count,
+                    approval_count: summary.approval_count,
                     awake_count: summary.awake_count,
                 });
                 order.push(OrderItem {
@@ -394,10 +398,11 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
             if session.row.activity == "working" {
                 machine_summary.working_count += 1;
             }
-            if session.row.pending_question_count > 0 {
-                machine_summary.question_count += 1;
-            } else if session.row.activity == "attention" {
-                machine_summary.attention_count += 1;
+            match session.row.needs_you() {
+                Some(NeedsYou::Approval) => machine_summary.approval_count += 1,
+                Some(NeedsYou::Question) => machine_summary.question_count += 1,
+                Some(NeedsYou::Attention) => machine_summary.attention_count += 1,
+                None => {}
             }
             if session.row.shows_background_work() {
                 machine_summary.background_work_count += 1;
@@ -429,6 +434,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
                 attention_count: counts.attention_count,
                 background_work_count: counts.background_work_count,
                 question_count: counts.question_count,
+                approval_count: counts.approval_count,
             }
         })
         .collect();
@@ -619,6 +625,7 @@ fn fold_hidden_group_summaries(groups: &mut [GroupView], ui: &SidebarUiState) {
         total.attention_count += summary.attention_count;
         total.background_work_count += summary.background_work_count;
         total.question_count += summary.question_count;
+        total.approval_count += summary.approval_count;
         total.awake_count += summary.awake_count;
     }
     if hidden
@@ -639,6 +646,7 @@ fn fold_hidden_group_summaries(groups: &mut [GroupView], ui: &SidebarUiState) {
         core.summary.attention_count += total.attention_count;
         core.summary.background_work_count += total.background_work_count;
         core.summary.question_count += total.question_count;
+        core.summary.approval_count += total.approval_count;
         core.summary.awake_count += total.awake_count;
         group.core = std::sync::Arc::new(core);
     }

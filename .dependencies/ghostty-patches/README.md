@@ -90,6 +90,25 @@ After a sync always:
   glslang, SPIRV-Cross) and returns the MSL for Ghostex terminal shaders. The
   result is freed with `ghostty_string_free`.
 
+## Refreshed in the 2026-10-27 sync
+
+- Upstream `f63508e5` to `da5936c2` (33 commits, taken for the
+  shell-integration OSC 7 escape-injection fix, #14859). Every patch applied
+  unchanged; only `0007`'s line offsets moved, and each regenerated patch adds
+  and removes exactly the same lines as before.
+- Upstream's own deadlock fix in `termio` (#14834: `changeConfig` writes the
+  mode 2031 color scheme report directly instead of queueing it to the io
+  thread's own mailbox) touches two `0007` files and complements it; no new
+  unbounded (`.forever`) pushes appeared on the teardown paths `0007` bounds.
+- No `include/`, `src/config/` or embedded-runtime change upstream, so the
+  FFI audit (step 3) and the config-value check (step 6) had nothing to move.
+- z2d moved to 0.13.0 (`deps.files.ghostty.org` mirror; same bytes and hash as
+  the GitHub archive).
+- The zmx fork's `build.zig.zon` now pins this same Ghostty commit (upstream
+  zmx still pins `22f100c6`), so the daemon's ghostty-vt gets the same
+  terminal memory-safety fixes (#14857, #14856, #14838). Move it with the next
+  sync, or drop the fork commit once upstream zmx pins a newer Ghostty.
+
 ## Rebased in the 2026-10-26 sync (Zig 0.17)
 
 - Upstream moved to Zig 0.17 (`minimum_zig_version = "0.17.0"`), so the whole

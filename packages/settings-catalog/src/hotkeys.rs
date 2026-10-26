@@ -103,7 +103,6 @@ const WINDOWS_LINUX_TERMINAL_DEFAULTS: &[(&str, &str)] = &[
     ("openBrowserPane", "cmd+shift+l"),
     ("openNotifications", "cmd+shift+i"),
     ("openFindPrompts", "cmd+alt+h"),
-    ("exportTranscript", "cmd+alt+x"),
     // Ctrl+Shift+A is the terminal's Select All there, as in Ghostty.
     ("sleepFocusedSession", ""),
 ];

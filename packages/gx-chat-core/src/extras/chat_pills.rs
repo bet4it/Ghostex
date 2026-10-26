@@ -10,6 +10,9 @@
 //! CDXC:SessionChat 2026-10-24 DECISION:
 //! User (2026-10-23): "make running thread / running sub agents here have an indicator about this please (yellow color) because right now there's no color which is bad". From the mockups they picked a pulsing dot (Q449 "A"), pulsing rather than still (Q450 "pulse"), the same on the phone (Q451 "yes"), and for the Subagents number "running" (Q452: the running count while any run, the total once none do). Then (2026-10-24): "we have the yellow dot showing 2 ways here in the pills above the composer. let's unify to look just like the one that question shows". So a pill whose menu has a working subagent or thread is `running`: the renderers draw the ? pill's own corner dot (same spot inside the pill's top right edge, same size, same amber #f5a524, one shared helper on each platform), fading on the 1.6 s beat of the Subagents menu's running dot, and still with reduce motion on. Supersedes the 2026-10-23 dot before the icon in the sidebar's working yellow. The Threads number stays the in-flight count above.
 //!
+//! CDXC:SessionChat 2026-10-27 DECISION:
+//! User: "Did you fix the issue with 2 yellow dots on threads pill?": a Threads pill whose threads ran while one waited on the user drew two amber dots, the running corner dot and an amber attention dot after the count. What waits now takes the sidebar's colours (`waiting`: the red approval dot for an approval, the pink question dot for a question), drawn in the pill's top right corner instead of after the count; with a thread running too, the amber running dot and the waiting dot overlap there with a 1px ring, as the sidebar's overlapping status dots do. Only running: the pulsing amber corner dot above. The Threads menu's header dot takes the same colour.
+//!
 //! CDXC:SessionChat 2026-10-18 SEE-ALSO:
 //! apps/desktop/src/app/native_chat/working_card.rs and chat_pills.rs (desktop and web), apps/mobile/app/src/chat/native/cards/WorkingCard.tsx and ChatPills.tsx (phone) draw this list and must match.
 
@@ -50,7 +53,14 @@ pub fn chat_pills(
             } else {
                 String::new()
             },
-            attention: threads.get("attention") == Some(&Value::Bool(true)),
+            waiting: if threads.get("attention") == Some(&Value::Bool(true)) {
+                "approval"
+            } else if threads.get("question") == Some(&Value::Bool(true)) {
+                "question"
+            } else {
+                ""
+            }
+            .to_string(),
             running: count(threads, "working") > 0,
             aria_label: format!("Threads, {meta}"),
             meta,
@@ -62,7 +72,7 @@ pub fn chat_pills(
             id: "tasks".to_string(),
             label: "Tasks".to_string(),
             count: format!("{}/{}", count(tasks, "done"), count(tasks, "total")),
-            attention: false,
+            waiting: String::new(),
             running: false,
             aria_label: format!("Tasks, {meta}"),
             meta,
@@ -83,7 +93,7 @@ pub fn chat_pills(
             label: "Subagents".to_string(),
             // The running ones while any run, every listed one once none do (Q452).
             count: if working > 0 { working } else { rows.len() }.to_string(),
-            attention: false,
+            waiting: String::new(),
             running: working > 0,
             aria_label: format!("Subagents, {meta}"),
             meta,
@@ -95,7 +105,7 @@ pub fn chat_pills(
             id: "background".to_string(),
             label: "Background".to_string(),
             count: count(background, "count").to_string(),
-            attention: false,
+            waiting: String::new(),
             running: false,
             aria_label: format!("Background tasks, {meta}"),
             meta,
@@ -125,9 +135,24 @@ mod tests {
         let waiting = json!({"inFlight": 1, "working": 0, "attention": true});
         let pill = &chat_pills(&waiting, &Value::Null, &Value::Null, &Value::Null)[0];
         assert_eq!((pill.count.as_str(), pill.running), ("1", false));
+        assert_eq!(pill.waiting, "approval");
 
         let working = json!({"inFlight": 2, "working": 2});
         let pill = &chat_pills(&working, &Value::Null, &Value::Null, &Value::Null)[0];
         assert!(pill.running);
+        assert_eq!(pill.waiting, "");
+    }
+
+    /// What waits on the user is one tone: an approval beats a question, and it stands beside a
+    /// running thread instead of replacing it (the renderers overlap the two corner dots).
+    #[test]
+    fn threads_waiting_tone() {
+        let both = json!({"inFlight": 3, "working": 1, "attention": true, "question": true});
+        let pill = &chat_pills(&both, &Value::Null, &Value::Null, &Value::Null)[0];
+        assert_eq!((pill.running, pill.waiting.as_str()), (true, "approval"));
+
+        let asking = json!({"inFlight": 2, "working": 1, "question": true});
+        let pill = &chat_pills(&asking, &Value::Null, &Value::Null, &Value::Null)[0];
+        assert_eq!((pill.running, pill.waiting.as_str()), (true, "question"));
     }
 }

@@ -519,6 +519,13 @@ impl ProjectWorkareaCefSurfaceSlotKey {
         matches!(self, Self::Source | Self::CodeWindow(_))
     }
 
+    /// Whether the slot's page belongs to the project on screen (its folder in Code, its files in
+    /// Files), so switching projects replaces it. The Work page and installed extension pages are
+    /// app-wide; Kanban and Automate draw natively and have none.
+    pub(crate) fn holds_project_page(self) -> bool {
+        matches!(self, Self::Source | Self::CodeWindow(_) | Self::Manage)
+    }
+
     /// The slot a view's page lives in, or nothing for the modes that own no workarea surface:
     /// `Agents` has no page, `Browser` keeps one surface per tab instead, and a Ghostex page is
     /// drawn by GPUI and never loads one.
@@ -624,6 +631,12 @@ impl ProjectWorkareaRuntimeCefSurface {
 impl ProjectWorkareaRuntimeCefSurface {
     pub(crate) fn matches_runtime_url(&self, runtime_url: &ProjectWorkareaRealRuntimeUrl) -> bool {
         self.runtime_url.eq(runtime_url)
+    }
+
+    /// Whether this page in `slot_key` serves every project alike (the Work page, an installed
+    /// extension, a website with one address) rather than one project's Code, Files or website view.
+    pub(crate) fn is_app_wide(&self, slot_key: ProjectWorkareaCefSurfaceSlotKey) -> bool {
+        !slot_key.holds_project_page() && self.runtime_url.project_view_key.is_none()
     }
 }
 

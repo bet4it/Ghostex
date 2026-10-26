@@ -3238,7 +3238,7 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
         "stashedPrompts" => "cmd+alt+s",
         TERMINAL_OVERLAY_FOCUS_MODE_HOTKEY_ACTION_ID => "cmd+ctrl+f",
         "attachFileOrFolder" => "cmd+alt+p",
-        "exportTranscript" => "cmd+alt+e",
+        "exportTranscript" => "",
         "toggleAgentActions" => "cmd+alt+a",
         "scrollTerminalToTop" | "scrollTerminalToBottom" => "",
         _ => return None,
@@ -3255,6 +3255,7 @@ pub(crate) fn terminal_overlay_hotkey_label(action_id: &str) -> Option<String> {
             let retired: &[&str] = match action_id {
                 "forkSession" => &["ctrl+shift+f", "cmd+alt+f"],
                 "reloadSession" => &["ctrl+shift+r", "cmd+alt+r"],
+                "exportTranscript" => &["cmd+alt+e", "ctrl+alt+e", "cmd+alt+x"],
                 _ => &[],
             };
             !retired

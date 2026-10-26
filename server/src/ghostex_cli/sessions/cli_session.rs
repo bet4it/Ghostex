@@ -155,6 +155,8 @@ pub(super) fn to_cli_session(
         "backgroundWorkDetectedAt",
         &[p("backgroundWorkDetectedAt")],
     );
+    // The red waiting-for-approval dot (CDXC:SessionStatus 2026-10-27 in server/src/session_approval.rs); absent when false.
+    insert_js(&mut map, "awaitingApproval", &[p("awaitingApproval")]);
     insert_js(
         &mut map,
         "closeAfterDoneDeadlineAt",

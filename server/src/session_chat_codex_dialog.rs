@@ -506,6 +506,10 @@ fn centered_dialog_text(text: &str) -> Option<String> {
 /// Numbered selectors, searchable menus, checkbox settings, and text forms retain their own selection, navigation, toggle, save, and cancel actions.
 /// SEE-ALSO: apps/desktop/src/app/native_chat/terminal_dialog.rs and Codex tui/src/bottom_pane/list_selection_view.rs.
 pub fn detect_codex_dialog(text: &str) -> Option<TerminalDialog> {
+    // The async question card answers Codex's question editor (session_chat_codex_async_answer.rs).
+    if crate::session_chat_codex_async_answer::question_editor_on_screen(text) {
+        return None;
+    }
     detect_codex_dialog_as_drawn(text).map(update_prompt_dialog)
 }
 

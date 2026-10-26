@@ -67,6 +67,7 @@ pub mod repository_clone;
 pub mod resume_lookup;
 pub mod runtime;
 pub mod server;
+pub mod session_approval;
 pub mod session_auto_sleep;
 pub mod session_chat;
 pub(crate) mod session_chat_account_sign_in;

@@ -207,6 +207,11 @@ pub(crate) fn project_presentation_session(
             0
         }),
     );
+    // Present only while true, like a daemon that predates it (CDXC:SessionStatus 2026-10-27 in
+    // server/src/session_approval.rs).
+    if crate::session_approval::session_awaits_approval(session, generated_at) {
+        output.insert("awaitingApproval".to_string(), Value::Bool(true));
+    }
     insert_optional_string(
         &mut output,
         "agentName",

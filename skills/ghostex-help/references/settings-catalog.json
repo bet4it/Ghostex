@@ -79,7 +79,7 @@
     {
       "key": "projectSwitchKeepAliveMinutes",
       "title": "Keep the previous project live for",
-      "subtitle": "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away.",
+      "subtitle": "After you switch to another project or Space, keep the terminals, chats, and view that were open in the previous project running for this many minutes so switching back is instant. 0 releases them right away. Keep views loaded (Auto Sleep) keeps every side panel view until its Auto Sleep time instead.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "sidebar",
@@ -2699,7 +2699,7 @@
     {
       "key": "autoSleepProjectEditorIdleMinutes",
       "title": "Project Auto Sleep",
-      "subtitle": "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps them awake when more than three views are open.",
+      "subtitle": "Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps Files, Kanban and Automate awake when more than three views are open.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "system",
@@ -2791,6 +2791,21 @@
           "value": "300"
         }
       ],
+      "advanced": true,
+      "agentWritable": true
+    },
+    {
+      "key": "keepViewsLoaded",
+      "title": "Keep views loaded",
+      "subtitle": "Keep the side panel views you open loaded when you switch projects or workspaces, without the three-view limit or the previous project's time limit. Auto Sleep and Sleep still apply. Uses more memory.",
+      "tab": "settings",
+      "tabTitle": "General",
+      "group": "system",
+      "groupTitle": "System",
+      "section": "autoSleep",
+      "sectionTitle": "Auto Sleep",
+      "type": "boolean",
+      "default": false,
       "advanced": true,
       "agentWritable": true
     },
@@ -3715,7 +3730,7 @@
         "sessionNote": "cmd+alt+n",
         "stashPrompt": "alt+s",
         "stashedPrompts": "cmd+alt+s",
-        "exportTranscript": "cmd+alt+e",
+        "exportTranscript": "",
         "toggleAgentActions": "cmd+alt+a",
         "toggleChatView": "alt+g",
         "openFindPrompts": "cmd+shift+f",
@@ -12490,9 +12505,13 @@
       "id": "exportTranscript",
       "title": "Handoff / Export",
       "description": "Export the focused agent session's transcript and hand it off to another agent.",
-      "defaultKey": "cmd+alt+e",
-      "terminalDefaultKey": "cmd+alt+e",
-      "windowsLinuxTerminalDefaultKey": "cmd+alt+x"
+      "defaultKey": "",
+      "retiredDefaultKeys": [
+        "cmd+alt+e",
+        "ctrl+alt+e",
+        "cmd+alt+x"
+      ],
+      "terminalDefaultKey": ""
     },
     {
       "id": "toggleAgentActions",

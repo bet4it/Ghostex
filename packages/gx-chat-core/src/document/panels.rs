@@ -59,8 +59,10 @@ pub struct ChatPill {
     pub label: String,
     /// The number after the label ("3", "4/9"), or "" for none.
     pub count: String,
-    /// Something in the menu needs the user (a thread waiting on an approval): an amber dot.
-    pub attention: bool,
+    /// What in the menu waits on the user: `approval` (a thread needs an approval: the sidebar's red
+    /// approval dot), `question` (a thread waits on an answer: the sidebar's pink question dot), or
+    /// "" for nothing.
+    pub waiting: String,
     /// A subagent or thread in the menu is working: the ? pill's amber corner dot, pulsing.
     pub running: bool,
     /// The panel's muted detail ("2 working · 212 threads"), the menu's header line.

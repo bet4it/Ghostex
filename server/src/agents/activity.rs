@@ -91,7 +91,10 @@ pub(crate) fn update_agent_activity_endpoint(
     let mut update = compute_activity_update(&current, params, None);
     // Explicit activity RPCs (bell, escape, acknowledge, …) must not erase a
     // pending Session Chat card; hook ingest and the transcript retire it.
-    carry_session_chat_prompt(&current, &mut update.activity);
+    let escape_denied_approval = escape_denies_stored_approval(&current, params);
+    if !escape_denied_approval {
+        carry_session_chat_prompt(&current, &mut update.activity);
+    }
     let mut runtime_settings = object_field(&current, "runtimeSettings");
     runtime_settings.insert("agentActivity".to_string(), update.activity.clone());
     promote_draft_on_first_activity(
@@ -108,12 +111,30 @@ pub(crate) fn update_agent_activity_endpoint(
         session_update.insert("lastActiveAt".to_string(), json!(last_active_at));
     }
     let session = repository.update_session(&session_update)?;
-    Ok(json!({
+    let mut result = json!({
         "activity": update.activity,
         "enteredAttention": update.entered_attention,
         "previousActivity": update.previous_activity,
         "session": session,
-    }))
+    });
+    if escape_denied_approval {
+        result["sessionChatPromptChanged"] = json!(true);
+    }
+    Ok(result)
+}
+
+/// CDXC:SessionStatus 2026-10-27 WHY:
+/// An approval answered with Escape in the terminal (every agent's permission prompt cancels on it: Claude's "Esc to cancel") ends through no hook, as the chat's own Deny does (CDXC:SessionChat 2026-09-25 in session_chat_interactive.rs), so the stored card, and with it the red waiting-for-approval dot, stayed until the next finished turn (seen live 2026-10-27, throwaway G0lnj). The Escape the terminal reports retires a stored approval card; a question card stays, since Escape in a question form can mean something else.
+fn escape_denies_stored_approval(session: &Value, params: &Map<String, Value>) -> bool {
+    read_text(params, "event").as_deref() == Some("escape")
+        && session_chat_prompt_setting(session)
+            .and_then(|stored| crate::session_chat::parse_stored_session_chat_prompt(&stored))
+            .is_some_and(|prompt| {
+                matches!(
+                    prompt,
+                    crate::session_chat::SessionChatInteractivePrompt::Approval { .. }
+                )
+            })
 }
 
 pub(crate) fn ingest_agent_hook_event(

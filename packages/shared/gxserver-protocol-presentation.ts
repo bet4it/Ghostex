@@ -410,6 +410,8 @@ export interface GxserverPresentationSession {
   activity: GxserverPresentationSessionActivity;
   /** Unanswered async questions, independent of working/completion activity. */
   pendingQuestionCount?: number;
+  /** Stuck on a permission prompt or approval card only the user can grant (the red dot); absent when not. */
+  awaitingApproval?: boolean;
   agentIcon?: string;
   agentId?: string;
   agentName?: string;

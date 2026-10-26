@@ -582,7 +582,7 @@ view from the strip.
 Related settings: `terminalViewWidthMode`, `webLinkOpenTarget`,
 `documentFileOpenTarget`, `otherFileOpenTarget`, `videoFileOpenTarget`,
 `audioFileOpenTarget`, `docsOpenFilesAsTabs`, the Auto Sleep rows
-(`autoSleep*IdleMinutes`), the Search in Files hotkey (`searchProjectFiles`), and
+(`autoSleep*IdleMinutes`, `keepViewsLoaded`), the Search in Files hotkey (`searchProjectFiles`), and
 Settings > Extensions > Store.
 
 ## Sidebar
@@ -678,7 +678,8 @@ workspace that no window shows yet has a new-window button at the right end of
 its row, which opens it in a new window. Switching reopens the session this window
 last had open in that workspace (or its first project with no session, or
 nothing if it is empty), and puts to sleep the open views of projects outside
-it; their tabs stay and reload when you come back. To move a project,
+it; their tabs stay and reload when you come back (with Keep views loaded on,
+nothing is put to sleep). To move a project,
 right-click it and choose Move to workspace; its sessions and worktrees go with
 it, and it leaves its group and Spaces and shows under Other in the new
 workspace. A project you add with Add Project (or clone from it) joins the
@@ -774,7 +775,13 @@ in the background for the "Keep the previous project live for" number of minutes
 (`projectSwitchKeepAliveMinutes`, default 10, 0 to 60), so switching back is
 instant. Set it to 0 to release them as soon as you leave. The page each other
 Space opens on is the exception: it stays loaded for as long as that Space opens
-on it, so swiping to a Space always shows its web page instantly.
+on it, so swiping to a Space always shows its web page instantly. To keep every
+side panel view you opened in a project loaded, not only the one on screen, until
+its Auto Sleep time instead of these minutes (Auto Sleep Off keeps them), turn on
+Settings > General > System > Auto Sleep > Keep views loaded (`keepViewsLoaded`).
+Sleep on the project or its Space still releases them, it uses more memory,
+and terminals and chats keep the minutes above. VS Code still reloads when you
+switch VS Code between computers, including when you switch back.
 Starting a new agent from the sidebar launcher or New Thread picker keeps your
 current view open, including Code, Browser, Kanban, Automate, and Files. Select
 Agents when you want to open the new agent there.
@@ -873,8 +880,10 @@ where they are while you open, change and close views.
   dragging never adds a heading or moves the list.
 - Sidebar section headings (Pinned, Sessions, Drafts, Parked, and
   Snoozed) show an orange dot when a session is working, a blue dot when
-  a session is done, and a pink dot when an agent is waiting for an answer,
-  including rows hidden by a collapsed heading. Pending questions use
+  a session is done, a pink dot when an agent is waiting for an answer, and a
+  red dot when an agent is stuck waiting for your approval, including rows
+  hidden by a collapsed heading. A collapsed project, a collapsed collection, a
+  Space button and a computer tab show the same red for those sessions. Pending questions use
   pink instead of blue; multiple dots appear when multiple states are present,
   including orange and pink when an agent keeps working after asking. Collapsed
   headings show their session count at the right edge and a muted gray hollow
@@ -886,7 +895,13 @@ where they are while you open, change and close views.
   and spacing while the section reveals or clips the list. The animation follows Sidebar
   Collapse Animation and reduced-motion preferences. Related setting:
   `sidebarCollapseAnimationDurationMs`.
-- A red dot on a session means a model, effort or mode change you picked in the
+- A red dot on a session usually means its agent is stuck waiting for your
+  approval (a permission prompt such as "Run shell command? Yes / No"). It wins
+  over every other dot, hovering the session says "Waiting for your approval",
+  the notifications list names what waits, and its orchestrator's crew icon
+  turns red. Answer the prompt in the session's chat or terminal and the dot
+  goes away. `ghostex sessions` lists such a session as "waiting for approval".
+- A red dot on a session can also mean a model, effort or mode change you picked in the
   chat could not be applied: the agent refused it, or it kept failing for 30
   seconds. Messages you send after picking it wait instead of reaching the agent
   on the wrong model. Hover the session to read why, then pick a model again in
@@ -1023,8 +1038,11 @@ when you open it.
   reloads when you select it again. Tabs playing sound, tabs where you typed
   text you have not sent, and the page another Space opens on stay awake. The side panel
   also keeps only the view on screen and the two you used last awake; with more views open,
-  the oldest one sleeps, unless its VS Code, Browser or Project Auto Sleep is Off: Off keeps
-  that view's state (its page, or Code's terminals) in exchange for more memory. When the
+  the oldest one sleeps, unless it is VS Code, Browser, Files, Kanban or Automate with its
+  Auto Sleep Off: Off keeps that view's state (its page, or Code's terminals) in exchange for
+  more memory. Keep views
+  loaded (`keepViewsLoaded`) lifts that limit for every view, website and extension views
+  included, and keeps the views of projects you leave loaded too. When the
   Code view sleeps, its editor restarts: open files and unsaved changes come back, but its
   terminals start fresh. Resources in the
   header's ⋯ menu sleeps many at once and shows CPU and RAM per session. Clean RAM
@@ -1131,7 +1149,7 @@ when you open it.
   keeps running. **Export to Markdown** only saves the file and copies its path.
   Commands & output, File changes and Reasoning choose what the file includes.
 
-Related settings: `autoSleep*`, `clickToWakeSleepingSessions`,
+Related settings: `autoSleep*`, `keepViewsLoaded`, `clickToWakeSleepingSessions`,
 `dimSleepingSessions`, `wakeSleepingSessionsOnSelect`,
 `showSessionIdInTerminalPanes`, `sessionTitleGenerationAgent`,
 `renameSessionOnDoubleClick`.
@@ -2660,11 +2678,12 @@ version of the Projects features in Cursor and Claude Code.
   orchestrator.
 - **Threads in the sidebar**: an orchestrator's row shows a crown in
   place of its agent's logo, and a crew icon
-  with one number: how many of its threads are working; when none are
-  working, how many are waiting on you; when neither, how many threads it
-  lists. The icon and number are orange when the number counts
-  working threads, light blue when it counts threads waiting on you, and grey
-  otherwise. Its
+  with one number: how many sessions under it (its threads' threads too) are
+  stuck waiting for your approval; when none, how many of its threads are
+  waiting on you; when none are waiting, how many are working; when neither,
+  how many threads it lists. The icon and number are red when the number counts
+  sessions waiting for approval, light blue when it counts threads waiting on
+  you, orange when it counts working threads, and grey otherwise. Its
   threads sit indented right under it with their own status dots: the ones
   working, waiting, or active in the last 2 hours. Older threads wait behind an
   "N older threads" row at the end, which lists them all (and "Hide older
@@ -2674,7 +2693,8 @@ version of the Projects features in Cursor and Claude Code.
   threads are folded, the orchestrator's row shows their status dots (with its
   own) overlapping in place of its time, like a computer tab's dots, so a thread
   that is working, finished or asking something is never hidden (a thread
-  waiting on you, for a question or a permission, is the pink dot). Opening an
+  waiting for your approval is the red dot, one waiting on you for anything
+  else is the pink dot). Opening an
   orchestrator marks its finished threads as seen, so their blue dots clear
   (a thread waiting on a question or approval keeps its dot); otherwise opening
   its chat leaves the fold and the older threads as you set them; opening one of its threads
@@ -3103,7 +3123,7 @@ sessions, so any client can control agents on any machine.
   last tab). Easy Connect installs the Tailcat helper, turns on SSH access with
   one admin prompt, and gives a pairing QR code: under Connect a phone, click
   Show QR to open it in a popup (Settings never shows the code until you ask)
-  and scan it with the Ghostex mobile app (Android ships today). A Tailscale path is offered for tailnets; its code sits behind the same Show QR button.
+  and scan it with the Ghostex mobile app (Android ships today). If the phone can't scan it, click Copy as text under Show QR and paste the code in the phone's Scan code screen (Paste a pairing code). A Tailscale path is offered for tailnets; its code sits behind the same Show QR button and Copy as text.
   The phone's own camera can scan the code too: the QR is a ghostex.dev link,
   so with an up-to-date Ghostex app installed the camera opens the app and it
   pairs straight away, on Android and iPhone.
@@ -3224,10 +3244,10 @@ sessions, so any client can control agents on any machine.
   and resume hooks are set on each computer itself. On the phone, a computer's
   Edit screen (swipe left on its card in Machines, then Edit) shows the same
   Agent CLIs and Skills and tools with Install and Update. When that machine
-  (or this computer) runs Windows, both pages show a notice: Ghostex links
-  hooks, skills and integrations with symbolic links, which Windows lets apps
-  create only with Developer Mode on (Windows Settings > System > For
-  developers > Developer Mode). Click its X to fold it to a warning icon.
+  (or this computer) runs Windows, both pages recommend Developer Mode (Windows
+  Settings > System > For developers > Developer Mode): without it Windows
+  blocks symbolic links, so Ghostex links hooks and skills with junctions and
+  file copies instead. Click the notice's X to fold it to a warning icon.
 - **Web app**: the desktop's sidebar (with its session, group and project
   actions, the Git menu and Quick Access), chat and terminal running in a
   browser and talking to gxserver; remote machines, Settings and the commit

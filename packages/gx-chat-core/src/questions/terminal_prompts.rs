@@ -106,6 +106,8 @@ pub fn terminal_dialog_presentation(dialog: &TerminalDialog) -> Value {
         "Close"
     } else if dialog.footer.to_lowercase().contains("esc to clear") {
         "Clear / Back"
+    } else if dialog.footer.contains("esc not now") {
+        "Not now"
     } else if dialog.footer.contains("go back") {
         "Back"
     } else if dialog.footer.contains("close") || dialog.footer.contains("q to quit") {
@@ -119,6 +121,16 @@ pub fn terminal_dialog_presentation(dialog: &TerminalDialog) -> Value {
                 cancel_label.to_string()
             } else if action == "fork" {
                 "Fork".to_string()
+            } else if matches!(action.as_str(), "left" | "right")
+                && dialog.footer.contains("change size")
+            {
+                // Claude's autocompact offer: ←/→ step the size its second row offers.
+                if action == "left" {
+                    "← Smaller"
+                } else {
+                    "Larger →"
+                }
+                .to_string()
             } else if action == "confirm" && dialog.footer.contains("set as default") {
                 "Set as default".to_string()
             } else if action == "confirm" && dialog.footer.contains("Enter to retry") {

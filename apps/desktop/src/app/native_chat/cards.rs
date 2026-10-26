@@ -251,6 +251,25 @@ impl SingleLineCard {
             )
     }
 
+    /// The space between two one-line cards that follow each other: the transcript's row gap,
+    /// so a stack of cards is spaced the same whether its cards are separate rows, parts of one
+    /// finished turn or one stack (sent messages, answered questions, status rows).
+    pub(super) fn stack_gap(&self) -> f32 {
+        super::transcript_layout::LAYOUT.row_gap
+    }
+
+    /// The space above a part of a transcript row: `stack_gap` when it and the part above it are
+    /// both one-line cards, the row's own `gap` otherwise.
+    ///
+    /// CDXC:SessionChat 2026-10-27 DECISION: User: "i dont get why space here is sometimes bigger and sometimes smaller ... please figure this out i want consistent spacing when 2 cards like those come in a row in the chat transcript". Two one-line cards in a row are always one row gap apart (16px), whatever kind each is and wherever a turn starts or ends: between transcript rows (each row's own bottom gap), between the parts of a finished turn (the "Worked for" fold and the answered-question or sent-message cards under it, which had 10px), and inside a stack of cards (sent messages and status rows had 8px, answered questions 12px with 6px around the stack). Other content keeps its own spacing.
+    pub(super) fn gap_above(&self, above_is_card: bool, is_card: bool, gap: f32) -> f32 {
+        if above_is_card && is_card {
+            self.stack_gap()
+        } else {
+            gap
+        }
+    }
+
     /// The title's type, the fold's "Worked for 12s".
     pub(super) fn title<E: Styled>(&self, element: E, p: &ChatAppearance) -> E {
         element

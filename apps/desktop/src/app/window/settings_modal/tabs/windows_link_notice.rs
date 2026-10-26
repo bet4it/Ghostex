@@ -5,7 +5,7 @@
 //! (`windowsLinkNoticeCollapsed` in `settingsModalNavigation`, SettingsStore).
 //!
 //! CDXC:RemoteMachines 2026-10-27 DECISION:
-//! User: "please add a notice about this for windows that can be collapsed to an icon on the integrations/agents page (when the machine we're installing integrations on is windows)". "This" is a Windows tester's report that their hooks stopped linking to their agents until they turned on Developer Mode: without it Windows lets only administrators create symbolic links, and Ghostex links hooks and skills into each agent with them (packages/agent-sync/src/fsx.rs, server/src/agent_skills.rs). This computer's notice also opens `ms-settings:developers`; a remote machine's can only say where the switch is.
+//! User: "please add a notice about this for windows that can be collapsed to an icon on the integrations/agents page (when the machine we're installing integrations on is windows)". "This" is a Windows tester's report that their hooks stopped linking to their agents until they turned on Developer Mode: without it Windows lets only administrators create symbolic links, and Ghostex links hooks and skills into each agent with them (packages/agent-sync/src/fsx.rs, server/src/agent_skills.rs). This computer's notice also opens `ms-settings:developers`; a remote machine's can only say where the switch is. Since the user's "Fall back to a junction, restore on failure" (Q614, CDXC:AgentSync 2026-10-27 in fsx.rs) links work without it too, so the notice recommends Developer Mode instead of saying links fail.
 use super::super::super::native_modal_kit::*;
 use super::super::fields::{
     ButtonVariant, settings_button, settings_icon, settings_icon_button, tooltip_text,
@@ -29,14 +29,14 @@ const AMBER_TEXT_LIGHT: u32 = 0x92400e;
 /// Windows machine; `None` is this computer.
 pub(crate) fn notice_lines(remote_name: Option<&str>) -> (String, String) {
     let title = match remote_name {
-        Some(name) => format!("Turn on Windows Developer Mode on {name}"),
-        None => "Turn on Windows Developer Mode".to_string(),
+        Some(name) => format!("Windows Developer Mode is recommended on {name}"),
+        None => "Windows Developer Mode is recommended".to_string(),
     };
     let place = if remote_name.is_some() { "there " } else { "" };
     (
         title,
         format!(
-            "Ghostex links hooks, skills and integrations with symbolic links, which Windows lets apps create only with Developer Mode on. Turn it on {place}in Windows Settings > System > For developers > Developer Mode."
+            "Without it Windows blocks symbolic links, so Ghostex links hooks and skills with junctions and file copies instead. Turn it on {place}in Windows Settings > System > For developers > Developer Mode."
         ),
     )
 }
@@ -167,13 +167,13 @@ mod tests {
     #[test]
     fn the_notice_says_why_and_where_the_switch_is() {
         let (title, body) = notice_lines(None);
-        assert_eq!(title, "Turn on Windows Developer Mode");
+        assert_eq!(title, "Windows Developer Mode is recommended");
         assert_eq!(
             body,
-            "Ghostex links hooks, skills and integrations with symbolic links, which Windows lets apps create only with Developer Mode on. Turn it on in Windows Settings > System > For developers > Developer Mode."
+            "Without it Windows blocks symbolic links, so Ghostex links hooks and skills with junctions and file copies instead. Turn it on in Windows Settings > System > For developers > Developer Mode."
         );
         let (title, body) = notice_lines(Some("Windows"));
-        assert_eq!(title, "Turn on Windows Developer Mode on Windows");
+        assert_eq!(title, "Windows Developer Mode is recommended on Windows");
         assert!(body.contains("Turn it on there in Windows Settings > System > For developers"));
     }
 
