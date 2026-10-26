@@ -420,6 +420,9 @@ impl GhostexGpuiApp {
         {
             return false;
         }
+        // Focusing a pane selects its page, and a selection is announced like every other one
+        // (`forget_browser_tab_opener_once_hidden` listens for it).
+        cx.notify();
         let Some(input) = self.browser_address_inputs.get(&pane_id).cloned() else {
             return false;
         };
@@ -774,14 +777,21 @@ impl GhostexGpuiApp {
                         let _ = app.update_in(&mut async_cx, |this, window, cx| {
                             match this.browser_runtime_owner_for_key(runtime_key) {
                                 Some(BrowserRuntimeOwner::Live) => {
-                                    this.open_browser_popup_tab(
+                                    // A page of `source_tab` opened it, so closing it goes back
+                                    // there (`forget_browser_tab_opener_once_hidden`).
+                                    if let Some(tab) = this.open_browser_popup_tab(
                                         requested_url,
                                         remote_machine_id,
                                         placement,
                                         source_tab,
                                         window,
                                         cx,
-                                    );
+                                    ) && let Some(opener) =
+                                        source_tab.filter(|opener| *opener != tab)
+                                    {
+                                        this.browser_tab_opener =
+                                            Some(BrowserTabOpener { tab, opener });
+                                    }
                                 }
                                 Some(BrowserRuntimeOwner::Parked(project_id)) => {
                                     this.open_parked_browser_popup_tab(

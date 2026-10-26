@@ -149,9 +149,9 @@ impl GhostexGpuiApp {
     /// CDXC:Workarea 2026-09-21 DECISION:
     /// User: the view tabs bar shows no "Browser" tab. The Browser view is represented by its own
     /// page tabs after the view tabs, so a Browser button among the views would be a second tab for the
-    /// same thing. Browser stays in the open-views list (the toggle target, the successor on close,
-    /// and whether its page tabs are listed all read that list); only the drawn view tabs, their
-    /// drag indices and the Option/Alt number hotkeys walk this narrower list.
+    /// same thing. Browser stays in the open-views list (the toggle target and whether its page tabs
+    /// are listed read that list); only the drawn view tabs, their drag indices and the Option/Alt
+    /// number hotkeys walk this narrower list.
     /// With `browserPagesInViewRow` on (off by default) the Browser is a view tab here too and its
     /// pages are in their own row (`render/browser_page_tabs.rs`).
     pub(crate) fn strip_view_tabs(&self) -> Vec<TitlebarMode> {
@@ -278,7 +278,16 @@ impl GhostexGpuiApp {
             return;
         }
         let shown = mode == self.active_mode;
-        let successor = shown.then(|| self.view_tab_successor(mode)).flatten();
+        // The Browser view takes all of its pages with it; the one on screen is where the search
+        // for the next tab starts.
+        let successor = self
+            .view_strip_showing_key()
+            .filter(|_| shown)
+            .and_then(|key| {
+                self.view_strip_successor(&self.view_strip_entries(), key, |other| {
+                    mode == TitlebarMode::Browser && matches!(other, ViewStripTabKey::Browser(_))
+                })
+            });
         self.open_views.retain(|tab| *tab != mode);
         // Closing the Code tab closes its windows too; the Sleep below releases their pages.
         if mode == TitlebarMode::Source {
@@ -288,8 +297,10 @@ impl GhostexGpuiApp {
         // releases its CEF surface here instead of waiting for the idle timer.
         self.sleep_titlebar_view(mode, cx);
         if shown {
-            self.show_view_tab_successor(successor, cx);
-            self.sync_browser_address_input_if_shown(window, cx);
+            match successor {
+                Some(next) => self.show_view_strip_entry(next, window, cx),
+                None => self.show_view_tab_successor(None, cx),
+            }
         }
         self.persist_shell_layout_state();
         cx.notify();

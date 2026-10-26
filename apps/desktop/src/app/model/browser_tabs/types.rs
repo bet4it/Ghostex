@@ -210,6 +210,14 @@ pub(crate) struct BrowserDropFeedback {
     pub(crate) target: BrowserTabDropTarget,
 }
 
+/// A page that another page opened, and that page: closing it while it is still the tab on screen
+/// goes back there (`view_strip_successor`).
+#[derive(Clone, Copy)]
+pub(crate) struct BrowserTabOpener {
+    pub(crate) tab: BrowserTabId,
+    pub(crate) opener: BrowserTabId,
+}
+
 #[derive(Clone)]
 pub(crate) struct BrowserPaneTab {
     pub(crate) tab_id: BrowserTabId,

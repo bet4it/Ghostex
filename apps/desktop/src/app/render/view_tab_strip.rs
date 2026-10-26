@@ -60,12 +60,10 @@ impl GhostexGpuiApp {
         let drop_index = self.view_strip_drop_index;
         // Exactly one tab in the row is filled: the one the panel is showing. While another view is
         // open the browser has nothing on screen, so none of its tabs claim that fill.
-        let showing_browser_tab_id = (self.active_mode == TitlebarMode::Browser)
-            .then(|| {
-                self.browser_tabs
-                    .active_tab_id_for_pane(self.browser_tabs.focused_pane)
-            })
-            .flatten();
+        let showing_browser_tab_id = match self.view_strip_showing_key() {
+            Some(ViewStripTabKey::Browser(tab_id)) => Some(tab_id),
+            _ => None,
+        };
         let mut view_index = 0;
         let tab_elements = entries
             .iter()

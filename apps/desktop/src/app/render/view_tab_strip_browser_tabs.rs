@@ -293,6 +293,9 @@ impl GhostexGpuiApp {
             return;
         }
         if self.active_mode != TitlebarMode::Browser {
+            // Selected before the Browser comes back, so it comes back on this page instead of first
+            // waking the page it was last on.
+            self.browser_tabs.select_tab_in_pane(pane_id, tab_id);
             self.open_view_tab(TitlebarMode::Browser, window, cx);
         }
         self.select_browser_tab_in_pane(pane_id, tab_id, window, cx);

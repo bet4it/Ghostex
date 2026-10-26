@@ -123,6 +123,9 @@ pub struct GhostexGpuiApp {
     pub(crate) browser_profiles: BrowserProfileModel,
     pub(crate) browser_tabs: BrowserTabModel,
     pub(crate) browser_tabs_project_id: Option<String>,
+    /// The page on screen that another page opened, while it has stayed on screen since; see
+    /// `forget_browser_tab_opener_once_hidden`.
+    pub(crate) browser_tab_opener: Option<BrowserTabOpener>,
     pub(crate) parked_browser_tabs_by_project: HashMap<String, BrowserTabModel>,
     /*
     CDXC:Browser 2026-08-26:

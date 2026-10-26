@@ -40,7 +40,11 @@ one tab instead). The row is one order: drag any tab, a view or a page, anywhere
 in it, and it scrolls sideways once the tabs run out of room. Right-click a tab
 and choose **Pin tab** to shrink it to its icon and keep it at the left of the
 row; a pinned tab has no **x** and ignores a middle click, so it closes only from
-its menu, and **Unpin tab** puts it back.
+its menu, and **Unpin tab** puts it back. Closing the tab you are looking at
+shows the tab next to it in the row, the one to its right or else the one to its
+left, whether that is a view or a page. A page that another page opened (a link
+or an image that opens in a new tab) goes back to that page instead, if it is
+still open and you have not switched tabs since.
 Only the view you are looking at, and the two you came from most recently, stay
 loaded; the rest keep their tab and wake when you click them.
 
