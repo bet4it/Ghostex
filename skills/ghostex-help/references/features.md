@@ -3115,7 +3115,7 @@ sessions, so any client can control agents on any machine.
   last tab). Easy Connect installs the Tailcat helper, turns on SSH access with
   one admin prompt, and gives a pairing QR code: under Connect a phone, click
   Show QR to open it in a popup (Settings never shows the code until you ask)
-  and scan it with the Ghostex mobile app (Android ships today). A Tailscale path is offered for tailnets; its code sits behind the same Show QR button.
+  and scan it with the Ghostex mobile app (Android ships today). If the phone can't scan it, click Copy as text under Show QR and paste the code in the phone's Scan code screen (Paste a pairing code). A Tailscale path is offered for tailnets; its code sits behind the same Show QR button and Copy as text.
   The phone's own camera can scan the code too: the QR is a ghostex.dev link,
   so with an up-to-date Ghostex app installed the camera opens the app and it
   pairs straight away, on Android and iPhone.
