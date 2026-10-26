@@ -74,20 +74,18 @@ impl GhostexGpuiApp {
         // A page opened for it in the background waits for a click like the rest instead of
         // loading on the way back in: the later sleep wins.
         self.pending_parked_browser_opens.remove(project_id);
-        self.waiting_parked_browser_pages
-            .retain(|(waiting, _)| waiting != project_id);
+        // The project on screen too: Browser can be asleep on its timer or the awake cap with pages
+        // of its tabs still waiting to be made, which the Sleep below then skips.
+        self.sleep_parked_browser_project(project_id, cx);
         if self.agents_workspace_project_id.as_deref() == Some(project_id) {
             for mode in self.project_editor_shell.lifecycle_modes() {
                 if self.project_editor_shell.is_mode_awake(mode) {
                     self.sleep_titlebar_view(mode, cx);
                 }
             }
-        } else {
-            self.sleep_parked_browser_project(project_id, cx);
+        } else if let Some(state) = self.project_view_states_by_project.get_mut(project_id) {
             // Its active view is no longer held awake for the way back in (`active_view_awake`).
-            if let Some(state) = self.project_view_states_by_project.get_mut(project_id) {
-                state.active_view_awake = false;
-            }
+            state.active_view_awake = false;
         }
     }
 

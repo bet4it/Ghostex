@@ -551,7 +551,7 @@ impl GhostexGpuiApp {
     }
 
     /// CDXC:Browser 2026-10-25 WHY:
-    /// A click on a page's notification brings back the tab whose page posted it, wherever that tab is now: the window that holds it comes forward and enters the project's workspace when it shows another (the tab lives in that window, so the click is not sent to another one), a project that is not on screen comes on screen without choosing or starting a session (`gx_store_focus_project`), and its Browser shows that tab, waking its page if it slept (`land_pending_parked_browser_open`). The notification names the tab by a random id that lives only for this run (`notification_target`), not by its address, project, tab number or page: opening the address in the project on screen added a copy of another project's page there; a project taken when the page was made can change (a page adopted by a project); a tab number is reused by the last tab's placeholder; a page is dropped when it sleeps while its tab stays; numbered ids repeat in the next run; and macOS drops a click whose id holds a `/`. A closed tab leaves nothing to bring back.
+    /// A click on a page's notification brings back the tab whose page posted it, wherever that tab is now: the window that holds it comes forward and enters the project's workspace when it shows another (the tab lives in that window, so the click is not sent to another one), a project that is not on screen comes on screen without choosing or starting a session (`gx_store_focus_project`), and its Browser shows that tab, waking its page if it slept (`land_pending_parked_browser_open`). A remote project comes back the same way, as with a session link (`gx_store_open_browser_url_in_project`), and the terminals its workspace shows reattach once its computer is connected (`attach_surfaced_remote_workspace_terminals`). The attach of a click on its header (`gx_store_attach_remote_group`) is not used: with no attachable session, or its computer not connected, it stops at a toast, so the page this window holds would not come back. Otherwise it attaches a session the click did not aim at and gives that session's terminal the keyboard. The notification names the tab by a random id that lives only for this run (`notification_target`), not by its address, project, tab number or page: opening the address in the project on screen added a copy of another project's page there; a project taken when the page was made can change (a page adopted by a project); a tab number is reused by the last tab's placeholder; a page is dropped when it sleeps while its tab stays; numbered ids repeat in the next run; and macOS drops a click whose id holds a `/`. A closed tab leaves nothing to bring back.
     pub(crate) fn show_browser_tab_of_notification(
         &mut self,
         target: uuid::Uuid,
@@ -655,12 +655,17 @@ impl GhostexGpuiApp {
 
     /// Sleep every parked page of a project that is not mounted, one tab at a time through the
     /// per-tab path, so each tab stays in the project's model as a restored placeholder and the
-    /// panes' address text survives. Returns whether any page was dropped.
+    /// panes' address text survives. Its pages still waiting to be made
+    /// (`waiting_parked_browser_pages`) are not made later either, also when it has no parked
+    /// runtime; for the live Browser model's project (`browser_tabs_project_id`), which never has
+    /// one, that is all this does. Returns whether any page was dropped.
     pub(crate) fn sleep_parked_browser_project(
         &mut self,
         project_id: &str,
         cx: &mut gpui::Context<Self>,
     ) -> bool {
+        self.waiting_parked_browser_pages
+            .retain(|(waiting, _)| waiting != project_id);
         let Some(runtime) = self.parked_browser_runtimes_by_project.get(project_id) else {
             return false;
         };
@@ -772,9 +777,6 @@ impl GhostexGpuiApp {
         }
         for project_id in &removed {
             self.pending_parked_browser_opens.remove(project_id);
-            // A page not made yet is not made for it later either.
-            self.waiting_parked_browser_pages
-                .retain(|(waiting, _)| waiting != project_id);
             self.sleep_parked_browser_project(project_id, cx);
             let views = self
                 .project_views
