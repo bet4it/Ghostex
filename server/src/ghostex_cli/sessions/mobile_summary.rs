@@ -759,6 +759,7 @@ fn to_mobile_session_summary(session: &Value) -> Value {
         "backgroundWorkDetectedAt",
         &[s("backgroundWorkDetectedAt")],
     );
+    insert_js(&mut map, "awaitingApproval", &[s("awaitingApproval")]);
     insert_js(
         &mut map,
         "closeAfterDoneDeadlineAt",

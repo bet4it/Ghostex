@@ -322,7 +322,7 @@ pub(crate) fn group_summary(sessions: &[SessionView]) -> GroupSummary {
         }
         if row.pending_question_count > 0 {
             summary.question_count += 1;
-        } else if row.activity == "attention" {
+        } else if row.needs_attention() {
             summary.attention_count += 1;
         }
         if row.shows_background_work() {

@@ -164,6 +164,7 @@ pub(crate) fn session_row(
         detail: session.subtitle.as_deref(),
         session_note: session_note.as_deref(),
         pending_question_count: session.pending_question_count,
+        awaiting_approval: session.awaiting_approval,
         activity: session.activity.as_str(),
         delayed_send_remaining_label: delayed
             .as_ref()
@@ -256,6 +257,7 @@ pub(crate) fn session_row(
         model_selection_failed: session.model_selection_failure.is_some(),
         program_status_failed,
         pending_question_count: session.pending_question_count,
+        awaiting_approval: session.awaiting_approval,
         agent_icon: agent_icon.map(str::to_string),
         session_kind: Some(session_kind),
         lifecycle_state: lifecycle_state.to_string(),

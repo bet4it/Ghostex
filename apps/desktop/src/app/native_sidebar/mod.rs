@@ -44,7 +44,7 @@ pub(crate) mod sessions;
 mod space_drag;
 mod space_gesture;
 pub(crate) mod state;
-mod status;
+pub(crate) mod status;
 mod sticky;
 mod threads;
 mod tooltips;

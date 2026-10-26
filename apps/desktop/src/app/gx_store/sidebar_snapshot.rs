@@ -897,6 +897,7 @@ fn build_session(
             json!({
                 "count": badge.count,
                 "tone": match badge.tone {
+                    ghostex_gx_core::CoordinatorBadgeTone::Approval => "approval",
                     ghostex_gx_core::CoordinatorBadgeTone::Waiting => "waiting",
                     ghostex_gx_core::CoordinatorBadgeTone::Working => "working",
                     ghostex_gx_core::CoordinatorBadgeTone::Idle => "idle",
@@ -917,6 +918,7 @@ fn build_session(
                 "attention": folded.attention,
                 "backgroundWork": folded.background_work,
                 "question": folded.question,
+                "approval": folded.approval,
             });
         }
     }
@@ -947,6 +949,7 @@ fn build_session(
         has_background_work: row.has_background_work,
         model_selection_failed: row.model_selection_failed,
         program_status_failed: row.program_status_failed,
+        awaiting_approval: row.awaiting_approval,
         agent_icon: row.agent_icon.clone(),
         kind: row.is_browser.then(|| "browser".to_string()),
         session_kind: row.session_kind.clone(),

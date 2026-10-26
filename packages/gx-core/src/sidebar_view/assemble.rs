@@ -222,7 +222,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
                     }
                     if session.row.pending_question_count > 0 {
                         question_count += 1;
-                    } else if session.row.activity == "attention" {
+                    } else if session.row.needs_attention() {
                         attention_count += 1;
                     }
                     if session.row.shows_background_work() {
@@ -396,7 +396,7 @@ pub(crate) fn assemble(input: AssembleInput<'_>) -> SidebarView {
             }
             if session.row.pending_question_count > 0 {
                 machine_summary.question_count += 1;
-            } else if session.row.activity == "attention" {
+            } else if session.row.needs_attention() {
                 machine_summary.attention_count += 1;
             }
             if session.row.shows_background_work() {

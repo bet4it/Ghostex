@@ -46,6 +46,9 @@ pub(crate) fn tally_threads<'a>(
 ) -> HashMap<SessionKey, ThreadTally> {
     let mut seen: BTreeSet<&str> = BTreeSet::new();
     let mut tallies: HashMap<SessionKey, ThreadTally> = HashMap::new();
+    let mut parents: HashMap<&SessionKey, &SessionKey> = HashMap::new();
+    let mut approvals: Vec<&SessionKey> = Vec::new();
+    let bump = |count: &mut u16| *count = count.saturating_add(1);
     for row in rows {
         let Some(parent) = row.coordinator_parent.as_ref() else {
             continue;
@@ -53,8 +56,13 @@ pub(crate) fn tally_threads<'a>(
         if row.is_browser || !seen.insert(row.sidebar_session_id.as_str()) {
             continue;
         }
+        if let Some(key) = row.key.as_ref() {
+            parents.insert(key, parent);
+        }
+        if row.awaiting_approval {
+            approvals.push(parent);
+        }
         let tally = tallies.entry(parent.clone()).or_default();
-        let bump = |count: &mut u16| *count = count.saturating_add(1);
         if is_recent_thread(row, now_ms) {
             bump(&mut tally.total);
         }
@@ -62,6 +70,18 @@ pub(crate) fn tally_threads<'a>(
             Some("waiting") => bump(&mut tally.waiting),
             Some("working") => bump(&mut tally.working),
             _ => {}
+        }
+    }
+    // A session waiting for approval counts on every orchestrator above it, so a nested
+    // orchestrator's stuck thread turns the top crew badge red too (CDXC:SessionStatus 2026-10-27
+    // in view.rs). The walk stops at a loop or past any real depth.
+    for parent in approvals {
+        let mut ancestor = Some(parent);
+        let mut visited: Vec<&SessionKey> = Vec::new();
+        while let Some(key) = ancestor.filter(|key| !visited.contains(key) && visited.len() < 32) {
+            bump(&mut tallies.entry(key.clone()).or_default().approval);
+            visited.push(key);
+            ancestor = parents.get(key).copied();
         }
     }
     tallies
@@ -422,6 +442,7 @@ mod tests {
                 attention: true,
                 background_work: false,
                 question: true,
+                approval: false,
             }
         );
         // A thread waiting on the user (gxserver's `waiting`, a permission prompt) is the pink
@@ -433,6 +454,13 @@ mod tests {
         let waiting = nest(waiting, &["lead"]);
         assert!(!waiting[0].nesting.folded_status.attention);
         assert!(waiting[0].nesting.folded_status.question);
+        // A thread waiting for approval is the red approval dot instead of the pink one.
+        let mut approval = sessions();
+        Arc::make_mut(&mut approval[3].row).pending_question_count = 0;
+        Arc::make_mut(&mut approval[3].row).awaiting_approval = true;
+        let approval = nest(approval, &["lead"]);
+        assert!(approval[0].nesting.folded_status.approval);
+        assert!(!approval[0].nesting.folded_status.question);
 
         assert!(folded
             .iter()
@@ -443,6 +471,29 @@ mod tests {
         assert!(open
             .iter()
             .all(|session| !session.nesting.folded_status.any()));
+    }
+
+    /// A session waiting for approval counts on every orchestrator above it, its own and a nested
+    /// orchestrator's parent alike; the working and waiting counts stay per direct thread.
+    #[test]
+    fn approval_counts_on_every_orchestrator_above_it() {
+        let rows = |approval: bool| {
+            let mut sub = row("sub", "working", Some("lead")).row;
+            Arc::make_mut(&mut sub).is_coordinator = true;
+            Arc::make_mut(&mut sub).thread_state = Some("working".to_string());
+            let mut stuck = row("stuck", "attention", Some("sub")).row;
+            Arc::make_mut(&mut stuck).thread_state = Some("waiting".to_string());
+            Arc::make_mut(&mut stuck).awaiting_approval = approval;
+            vec![row("lead", "idle", None).row, sub, stuck]
+        };
+        let tallies = tally_threads(rows(true).iter(), 0);
+        assert_eq!(tallies[&key("lead")].approval, 1);
+        assert_eq!(tallies[&key("lead")].working, 1);
+        assert_eq!(tallies[&key("sub")].approval, 1);
+        assert_eq!(tallies[&key("sub")].waiting, 1);
+        let tallies = tally_threads(rows(false).iter(), 0);
+        assert_eq!(tallies[&key("lead")].approval, 0);
+        assert_eq!(tallies[&key("sub")].approval, 0);
     }
 
     /// A nested coordinator that is the last thread of its parent but has threads of its own drawn

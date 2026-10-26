@@ -119,6 +119,7 @@ fn format_compact_session_line(session: &Value, project_label: Option<&str>) -> 
         js_string(session.get("agent")),
         format_compact_provider(session).unwrap_or_default(),
         js_string(session.get("status")),
+        format_awaiting_approval(session.get("awaitingApproval")),
         format_pending_questions(session.get("pendingQuestionCount")),
         format_active_time(session.get("lastInteractionAt")),
     ]
@@ -130,6 +131,15 @@ fn format_compact_session_line(session: &Value, project_label: Option<&str>) -> 
         return headline;
     }
     format!("{headline}\n    {}", details.join(" · "))
+}
+
+/// The sidebar's red approval dot in words: the agent is stuck on a permission prompt.
+fn format_awaiting_approval(value: Option<&Value>) -> String {
+    if value.and_then(Value::as_bool) == Some(true) {
+        "waiting for approval".to_string()
+    } else {
+        String::new()
+    }
 }
 
 /// The sidebar's pink question dot in words: questions the agent asked that wait for an answer.

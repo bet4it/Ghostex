@@ -16,7 +16,8 @@ use gpui::{
 use serde_json::{Value, json};
 
 /// The sidebar's working colour (native_sidebar/status.rs), so a thread reads the same in both
-/// places, and the amber of the "Needs your approval" tag.
+/// places, and the amber of a row's "Needs your approval" tag (the header's dot takes the sidebar's
+/// red, `chat_pills::waiting_color`).
 const WORKING_COLOR: u32 = 0xc68a06;
 const APPROVAL_COLOR: u32 = 0xf5a524;
 
@@ -57,12 +58,21 @@ impl NativeChatView {
             "titlebar/users-group.svg",
             "Threads",
             text(&panel, "meta"),
-            (panel["attention"] == true).then(|| {
+            // The pill's waiting colour (CDXC:SessionChat 2026-10-27 in the core's
+            // extras/chat_pills.rs): the sidebar's red for an approval, its pink for a question.
+            super::chat_pills::waiting_color(if panel["attention"] == true {
+                "approval"
+            } else if panel["question"] == true {
+                "question"
+            } else {
+                ""
+            })
+            .map(|color| {
                 div()
                     .size(px(8.0 * s))
                     .rounded_full()
                     .flex_shrink_0()
-                    .bg(rgb(APPROVAL_COLOR))
+                    .bg(color)
                     .into_any_element()
             }),
             p,

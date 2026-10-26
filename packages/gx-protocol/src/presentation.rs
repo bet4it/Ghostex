@@ -821,6 +821,14 @@ pub struct PresentationSession {
     pub attention: Option<AttentionState>,
     #[serde(default, deserialize_with = "crate::de::lenient_u64")]
     pub pending_question_count: u64,
+    /// The session is stuck on a permission prompt or approval card only the user can grant;
+    /// clients draw the red approval dot. Absent (false) otherwise and on daemons that predate it.
+    #[serde(
+        default,
+        deserialize_with = "crate::de::null_as_default",
+        skip_serializing_if = "std::ops::Not::not"
+    )]
+    pub awaiting_approval: bool,
     #[serde(default, deserialize_with = "crate::de::null_as_default")]
     pub actions: SessionActions,
     /// Falls back to `createdAt` on the server, so it cannot say whether the session was ever

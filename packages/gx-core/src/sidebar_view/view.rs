@@ -304,6 +304,8 @@ pub struct RowNesting {
     /// CDXC:Coordinators 2026-10-24 DECISION:
     /// User: "show 2 dots (yellow and blue) in this case (they need to be overlapping dots pls)", for a folded coordinator whose hidden threads are working and finished unseen, which the computer tab counted while no drawn row showed them; the phone does the same. While the threads are folded, the coordinator row shows the dots of every thread under it (any depth) plus its own, in the trailing spot of its status dot or time, as the overlapping stack the computer tabs and Spaces draw (same colours and order); unfolded, each thread draws its own dot and the stack goes away.
     /// Then, asked how a folded thread waiting on a permission prompt should show, the user picked "show a waiting thread as the pink needs-you dot": as the pink needs-you dot in the stack, beside amber and blue, and opening the orchestrator does not clear it; the blue is only a finished turn, which opening the orchestrator clears.
+    /// CDXC:SessionStatus 2026-10-27 DECISION:
+    /// User: "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve". A thread waiting for approval (`awaitingApproval`) draws the red approval dot on its own row, so the folded stack shows that red dot for it instead of the pink one; any other waiting thread keeps the pink needs-you dot.
     pub folded_status: FoldedStatus,
 }
 
@@ -316,10 +318,17 @@ pub struct FoldedStatus {
     pub attention: bool,
     pub background_work: bool,
     pub question: bool,
+    /// A row stuck on an approval only the user can grant: the red dot, drawn in place of the
+    /// row's other needs-you dots.
+    pub approval: bool,
 }
 
 impl FoldedStatus {
     pub(crate) fn add(&mut self, row: &SessionRow) {
+        if row.awaiting_approval {
+            self.approval = true;
+            return;
+        }
         self.working |= row.activity == "working";
         // A thread waiting on the user (a permission prompt, a bell: gxserver's `waiting`) is the
         // pink needs-you dot; only a finished turn is the stack's blue, so the blue is exactly what
@@ -333,7 +342,7 @@ impl FoldedStatus {
 
     /// Whether the stack draws any dot.
     pub fn any(&self) -> bool {
-        self.working || self.attention || self.background_work || self.question
+        self.working || self.attention || self.background_work || self.question || self.approval
     }
 }
 
@@ -345,13 +354,15 @@ pub struct ThreadTally {
     pub total: u16,
     pub waiting: u16,
     pub working: u16,
+    /// Sessions under the coordinator, at any depth, stuck on an approval only the user can grant.
+    pub approval: u16,
 }
 
 /// What a coordinator row's badge shows.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct CoordinatorBadge {
-    /// The number beside the crew icon: the working threads, else the waiting ones, else the
-    /// coordinator's recent threads. `0` draws no number.
+    /// The number beside the crew icon: the threads waiting for approval, else the working ones,
+    /// else the waiting ones, else the coordinator's recent threads. `0` draws no number.
     pub count: u16,
     pub tone: CoordinatorBadgeTone,
 }
@@ -362,6 +373,8 @@ pub enum CoordinatorBadgeTone {
     Idle,
     Working,
     Waiting,
+    /// A thread under it (at any depth) waits for approval: red, ahead of every other tone.
+    Approval,
 }
 
 impl RowNesting {
@@ -375,8 +388,16 @@ impl RowNesting {
     ///
     /// CDXC:Coordinators 2026-10-04 DECISION:
     /// User: "in this state the main coordinator should show 2 working not 5" (5 threads, 2 working). The badge is the crew icon and one number: how many threads are working; when none work, how many wait on the user; when neither, how many threads the coordinator lists by default (working, waiting or active in the last two hours, worktree threads included; the two-hour rule in `sidebar_view/threads.rs`), so the number matches the rows under it. The tint follows the number: orange when it is the working count, light blue when it is the waiting count, neutral otherwise. Supersedes the 2026-10-01 decision ("make it just show the people icon and the total number of sessions that are part of this one"), which always showed the total.
+    /// CDXC:SessionStatus 2026-10-27 DECISION:
+    /// User: "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve ... This sub thread for outdated dependeincies audit was stuck on this for a long time and i didn't know!!". While any session under the coordinator, at any depth (a nested orchestrator's threads too), waits for approval, the crew icon and number turn red and the number counts those sessions, ahead of the working and waiting counts above.
     pub fn coordinator_badge(&self) -> CoordinatorBadge {
         let threads = self.threads;
+        if threads.approval > 0 {
+            return CoordinatorBadge {
+                count: threads.approval,
+                tone: CoordinatorBadgeTone::Approval,
+            };
+        }
         CoordinatorBadge {
             count: if threads.working > 0 {
                 threads.working
@@ -415,7 +436,16 @@ impl SessionRow {
     /// CDXC:SessionStatus 2026-09-24 DECISION:
     /// User: a section, project, collection, Space or machine header shows the grey dot when it has no working session but has a grey-dot session, so the headers count exactly the rows that draw the grey dot: idle rows with a background shell or monitor still running.
     pub fn shows_background_work(&self) -> bool {
-        self.has_background_work && self.activity != "working" && self.activity != "attention"
+        self.has_background_work
+            && self.activity != "working"
+            && self.activity != "attention"
+            && !self.awaiting_approval
+    }
+
+    /// Waiting on the user as the headers and the status indicators count it: attention, or an
+    /// approval only the user can grant, which can sit under a title that settled to idle.
+    pub fn needs_attention(&self) -> bool {
+        self.activity == "attention" || self.awaiting_approval
     }
 }
 
@@ -449,6 +479,10 @@ pub struct SessionRow {
     /// from those reports; drawn as the same red dot until the user has seen it.
     pub program_status_failed: bool,
     pub pending_question_count: u64,
+    /// gxserver's `awaitingApproval`: the session is stuck on a permission prompt or approval card
+    /// only the user can grant; drawn as the red approval dot ahead of every other status
+    /// (CDXC:SessionStatus 2026-10-27 in server/src/session_approval.rs).
+    pub awaiting_approval: bool,
     pub agent_icon: Option<String>,
     /// `terminal`, `browser`, or whatever else a newer daemon publishes.
     pub session_kind: Option<String>,
@@ -658,4 +692,80 @@ pub struct EmptyState {
     pub detail: String,
     /// The retry button's label while `error` is set.
     pub action_label: String,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn badge(approval: u16, working: u16, waiting: u16, total: u16) -> CoordinatorBadge {
+        RowNesting {
+            threads: ThreadTally {
+                total,
+                waiting,
+                working,
+                approval,
+            },
+            ..RowNesting::default()
+        }
+        .coordinator_badge()
+    }
+
+    /// Red (approval) wins over orange (working), which wins over light blue (waiting); the number
+    /// follows the tone.
+    #[test]
+    fn coordinator_badge_tone_priority() {
+        assert_eq!(
+            badge(2, 3, 1, 6),
+            CoordinatorBadge {
+                count: 2,
+                tone: CoordinatorBadgeTone::Approval
+            }
+        );
+        assert_eq!(
+            badge(0, 3, 1, 6),
+            CoordinatorBadge {
+                count: 3,
+                tone: CoordinatorBadgeTone::Working
+            }
+        );
+        assert_eq!(
+            badge(0, 0, 1, 6),
+            CoordinatorBadge {
+                count: 1,
+                tone: CoordinatorBadgeTone::Waiting
+            }
+        );
+        assert_eq!(
+            badge(0, 0, 0, 6),
+            CoordinatorBadge {
+                count: 6,
+                tone: CoordinatorBadgeTone::Idle
+            }
+        );
+    }
+
+    /// An approval row is the red dot alone in a folded stack, counts as needing the user, and is
+    /// never the grey background-work dot.
+    #[test]
+    fn approval_row_status() {
+        let row = SessionRow {
+            activity: "idle".to_string(),
+            has_background_work: true,
+            pending_question_count: 1,
+            awaiting_approval: true,
+            ..SessionRow::default()
+        };
+        assert!(row.needs_attention());
+        assert!(!row.shows_background_work());
+        let mut status = FoldedStatus::default();
+        status.add(&row);
+        assert_eq!(
+            status,
+            FoldedStatus {
+                approval: true,
+                ..FoldedStatus::default()
+            }
+        );
+    }
 }

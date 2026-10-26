@@ -893,7 +893,13 @@ where they are while you open, change and close views.
   and spacing while the section reveals or clips the list. The animation follows Sidebar
   Collapse Animation and reduced-motion preferences. Related setting:
   `sidebarCollapseAnimationDurationMs`.
-- A red dot on a session means a model, effort or mode change you picked in the
+- A red dot on a session usually means its agent is stuck waiting for your
+  approval (a permission prompt such as "Run shell command? Yes / No"). It wins
+  over every other dot, hovering the session says "Waiting for your approval",
+  the notifications list names what waits, and its orchestrator's crew icon
+  turns red. Answer the prompt in the session's chat or terminal and the dot
+  goes away. `ghostex sessions` lists such a session as "waiting for approval".
+- A red dot on a session can also mean a model, effort or mode change you picked in the
   chat could not be applied: the agent refused it, or it kept failing for 30
   seconds. Messages you send after picking it wait instead of reaching the agent
   on the wrong model. Hover the session to read why, then pick a model again in

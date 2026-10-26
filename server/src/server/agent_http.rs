@@ -107,13 +107,19 @@ pub(crate) fn dispatch_agent_http_blocking(
                 &params,
                 &result,
             );
-            let session_chat_state_changed = endpoint_path == "/api/ingestAgentHookEvent"
+            let session_chat_state_changed = (endpoint_path == "/api/ingestAgentHookEvent"
                 && (result
                     .get("sessionChatPromptChanged")
                     .and_then(Value::as_bool)
                     == Some(true)
                     || result
                         .get("sessionChatActivityChanged")
+                        .and_then(Value::as_bool)
+                        == Some(true)))
+                // An Escape that retired an approval card (`escape_denies_stored_approval`).
+                || (endpoint_path == "/api/updateAgentActivity"
+                    && result
+                        .get("sessionChatPromptChanged")
                         .and_then(Value::as_bool)
                         == Some(true));
             /*
@@ -601,6 +607,12 @@ pub(crate) fn log_agent_activity_transition(
 }
 
 pub(crate) fn strip_agent_hook_internal_result_fields(endpoint_path: &str, result: &mut Value) {
+    if endpoint_path == "/api/updateAgentActivity" {
+        if let Some(object) = result.as_object_mut() {
+            object.remove("sessionChatPromptChanged");
+        }
+        return;
+    }
     if endpoint_path != "/api/ingestAgentHookEvent" {
         return;
     }

@@ -100,6 +100,9 @@ pub(crate) struct NativeSidebarSession {
     /// The session's program reported `error` (OSC 7501) and drives its status.
     #[serde(default)]
     pub(crate) program_status_failed: bool,
+    /// Stuck on a permission prompt or approval card only the user can grant (the red dot).
+    #[serde(default)]
+    pub(crate) awaiting_approval: bool,
     pub(crate) agent_icon: Option<String>,
     pub(crate) kind: Option<String>,
     pub(crate) session_kind: Option<String>,

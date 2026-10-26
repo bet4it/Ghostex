@@ -175,8 +175,8 @@ pub(crate) fn coordinator_icon(appearance: &SidebarAppearance) -> AnyElement {
 /// The size of the row's time text in `sessions.rs`; the badge's icon and count use it so they sit on the time's baseline.
 const BADGE_TEXT_SIZE: f32 = 13.55;
 
-/// The coordinator row's marker: the crew icon and its thread count, tinted when a thread waits on
-/// someone (light blue) or works (orange).
+/// The coordinator row's marker: the crew icon and its thread count, tinted when a thread waits for
+/// approval (red), works (orange) or waits on someone (light blue).
 ///
 /// CDXC:Coordinators 2026-09-30 WHY:
 /// A coordinator looks like any other session of its agent otherwise, and its thread rows alone do not say which row they hang from once the list scrolls (or once the tree is folded). What the numbers mean is gx-core's `RowNesting::coordinator_badge`.
@@ -197,6 +197,7 @@ pub(crate) fn coordinator_badge(
         .and_then(|threads| threads.get("tone"))
         .and_then(Value::as_str)
     {
+        Some("approval") => rgb(super::status::APPROVAL_COLOR).into(),
         Some("waiting") => rgb(WAITING_COLOR).into(),
         Some("working") => rgb(super::status::WORKING_COLOR).into(),
         _ => appearance.muted,
@@ -384,6 +385,7 @@ pub(crate) fn folded_status_indicator(
         flag("attention"),
         flag("backgroundWork"),
         flag("question"),
+        flag("approval"),
         scale,
         ring,
     ))

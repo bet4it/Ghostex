@@ -26,8 +26,18 @@ pub(super) const MENU_HEADER_HEIGHT: f32 = 24.0;
 pub(super) const MENU_SECTION_GAP: f32 = 4.0;
 pub(super) const MENU_FOOTER_HEIGHT: f32 = 22.0;
 
-/// The amber of a thread waiting on the user's approval (coordinator_threads.rs).
+/// The amber of the ? pill's corner dot and a running pill's (`corner_dot`).
 pub(super) const ATTENTION_COLOR: u32 = 0xf5a524;
+
+/// The sidebar's colour for what a pill's menu waits on (gx-chat-core `ChatPill::waiting`): its red
+/// approval dot or its pink question dot (native_sidebar/status.rs), so the two places cannot drift.
+pub(super) fn waiting_color(waiting: &str) -> Option<gpui::Hsla> {
+    match waiting {
+        "approval" => Some(rgb(crate::app::native_sidebar::status::APPROVAL_COLOR).into()),
+        "question" => Some(rgb(crate::app::native_sidebar::status::QUESTION_COLOR).into()),
+        _ => None,
+    }
+}
 
 /// The corner dot's offsets from a pill's padding box: inside its edge, in the top right corner,
 /// so the pills' scroller never cuts it.
@@ -57,6 +67,10 @@ impl ChatPillBounds {
 /// The amber dot in a pill's top right corner, the one shape for the ? pill's waiting questions
 /// (question_ping.rs) and a running pill (`running_dot`), so the two cannot drift apart again.
 pub(super) fn corner_dot(s: f32) -> gpui::Div {
+    tinted_corner_dot(s, rgb(ATTENTION_COLOR).into())
+}
+
+fn tinted_corner_dot(s: f32, color: gpui::Hsla) -> gpui::Div {
     let dot = super::scroll_bottom::question_ping_dot();
     div()
         .absolute()
@@ -64,7 +78,37 @@ pub(super) fn corner_dot(s: f32) -> gpui::Div {
         .right(px(CORNER_DOT_RIGHT * s))
         .size(px(dot * s))
         .rounded_full()
-        .bg(rgb(ATTENTION_COLOR))
+        .bg(color)
+}
+
+/// A pill's corner (gx-chat-core extras/chat_pills.rs, CDXC:SessionChat 2026-10-27): the pulsing
+/// amber dot while something runs, the sidebar's red or pink dot while something waits on the
+/// user, and both overlapping with the sidebar's 1px ring (`sized_overlapped_dots`) when both
+/// hold, the waiting one in front. `ring` is what the pill sits on.
+fn corner_indicator(pill: &Value, s: f32, ring: gpui::Hsla) -> Option<AnyElement> {
+    let running = pill["running"] == true;
+    let waiting = waiting_color(&text(pill, "waiting"));
+    match (running, waiting) {
+        (true, None) => Some(running_dot(s)),
+        (false, Some(color)) => Some(tinted_corner_dot(s, color).into_any_element()),
+        (true, Some(color)) => Some(
+            // The ring sits outside each dot, so the stack starts one ring further out and the
+            // front dot lands where the single dot does.
+            div()
+                .absolute()
+                .top(px((CORNER_DOT_TOP - 1.0) * s))
+                .right(px((CORNER_DOT_RIGHT - 1.0) * s))
+                .child(crate::app::native_sidebar::status::sized_overlapped_dots(
+                    vec![rgb(ATTENTION_COLOR).into(), color],
+                    super::scroll_bottom::question_ping_dot(),
+                    s,
+                    ring,
+                    None,
+                ))
+                .into_any_element(),
+        ),
+        (false, None) => None,
+    }
 }
 
 /// A running pill's corner dot (`running`, extras/chat_pills.rs, where the user's decision lives).
@@ -339,6 +383,9 @@ impl NativeChatView {
         let bounds = self.pill_bounds.cell(&id);
         let measured = bounds.clone();
         let count = text(pill, "count");
+        // Two overlapping corner dots reach half a dot further in than one, so the pill makes that
+        // room on its right instead of drawing over its count.
+        let stacked = pill["running"] == true && waiting_color(&text(pill, "waiting")).is_some();
         div()
             .id(trigger)
             .relative()
@@ -350,6 +397,11 @@ impl NativeChatView {
             .flex_shrink_0()
             .gap(px(5.0 * s))
             .px(px(8.0 * s))
+            .when(stacked, |pill| {
+                pill.pr(px(
+                    (8.0 + super::scroll_bottom::question_ping_dot() / 2.0) * s
+                ))
+            })
             .py(px(2.0 * s))
             .rounded_full()
             .border(px(s))
@@ -361,7 +413,7 @@ impl NativeChatView {
             .chat_cursor_pointer()
             .when(open, |pill| pill.bg(p.foreground.opacity(0.08)))
             .hover(|style| style.bg(p.foreground.opacity(0.06)))
-            .when(pill["running"] == true, |pill| pill.child(running_dot(s)))
+            .children(corner_indicator(pill, s, p.composer_background))
             .child(
                 svg()
                     .path(icon(&id))
@@ -376,15 +428,6 @@ impl NativeChatView {
                         .text_color(p.foreground)
                         .font_features(FontFeatures(vec![("tnum".into(), 1)].into()))
                         .child(count),
-                )
-            })
-            .when(pill["attention"] == true, |pill| {
-                pill.child(
-                    div()
-                        .size(px(6.0 * s))
-                        .rounded_full()
-                        .flex_shrink_0()
-                        .bg(rgb(ATTENTION_COLOR)),
                 )
             })
             .on_click(cx.listener(move |this, _, window, cx| {
