@@ -642,14 +642,18 @@ pub(super) async fn run_session_chat_send_worker(
                     }
                 }
                 SessionChatSendStep::VerifyTerminalDialog { agent, id } => {
-                    let current = capture_session_terminal_text(&zmx_name).await.and_then(
-                        |screen| match agent.as_str() {
-                            "claude" => {
-                                crate::session_chat_claude_dialog::detect_claude_dialog(&screen)
-                            }
-                            _ => crate::session_chat_codex_dialog::detect_codex_dialog(&screen),
-                        },
-                    );
+                    // Claude's dialog is read the way its chat card was (session_chat_claude_dialog.rs).
+                    let current = match agent.as_str() {
+                        "claude" => {
+                            crate::session_chat_claude_dialog::capture_claude_dialog(&zmx_name)
+                                .await
+                        }
+                        _ => capture_session_terminal_text(&zmx_name)
+                            .await
+                            .and_then(|screen| {
+                                crate::session_chat_codex_dialog::detect_codex_dialog(&screen)
+                            }),
+                    };
                     if current.is_none_or(|dialog| dialog.id != id) {
                         outcome = Err(SessionChatSendError::not_attempted(
                             "The dialog changed before the answer could be sent.".to_string(),
