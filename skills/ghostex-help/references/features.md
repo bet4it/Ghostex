@@ -3263,7 +3263,9 @@ agent dims it) and choose the Claude account it runs on. It opens in Chat View
 session starts on claude.ai from the project's GitHub repository on a new
 `claude/…` branch. On the computer the chat pane then shows the session's own
 claude.ai page, signed in as the session's account, where you read and answer
-Claude; the web page and the phone show its terminal instead. The account is final for that session: its usage,
+Claude; the web page shows its terminal instead. On the phone, tapping the row
+opens the session's claude.ai page, and **Open Terminal** in its long-press menu
+shows the conversation in its terminal. The account is final for that session: its usage,
 follow-ups and Bring to this computer all stay on it. New Thread highlights the
 account of the project's last cloud session first. The row always sits under the
 project of the repository's main folder, even when started from a worktree.
