@@ -317,39 +317,6 @@ mod tests {
     }
 
     #[test]
-    fn extract_mcp_messages_parses_content_length_frames() {
-        let body = r#"{"id":1,"method":"initialize"}"#;
-        let mut buffer = format!("Content-Length: {}\r\n\r\n{}", body.len(), body).into_bytes();
-        let messages = extract_mcp_messages(&mut buffer);
-        assert_eq!(messages.len(), 1);
-        assert_eq!(messages[0].get("id"), Some(&json!(1)));
-        assert!(buffer.is_empty());
-
-        // Split frame arrives across chunks.
-        let mut buffer =
-            format!("Content-Length: {}\r\n\r\n{}", body.len(), &body[..10]).into_bytes();
-        assert!(extract_mcp_messages(&mut buffer).is_empty());
-        buffer.extend_from_slice(body[10..].as_bytes());
-        assert_eq!(extract_mcp_messages(&mut buffer).len(), 1);
-
-        // Case-insensitive header, extra headers, and two frames back to back.
-        let mut buffer = format!(
-            "X-Other: 1\r\ncontent-length: {}\r\n\r\n{}CONTENT-LENGTH: {}\r\n\r\n{}",
-            body.len(),
-            body,
-            body.len(),
-            body
-        )
-        .into_bytes();
-        assert_eq!(extract_mcp_messages(&mut buffer).len(), 2);
-
-        // Header block without Content-Length drops the buffer.
-        let mut buffer = b"X-Other: 1\r\n\r\nleftover".to_vec();
-        assert!(extract_mcp_messages(&mut buffer).is_empty());
-        assert!(buffer.is_empty());
-    }
-
-    #[test]
     fn normalize_browser_navigation_url_adds_https_when_missing_scheme() {
         assert_eq!(
             normalize_browser_navigation_url("https://x.test/a"),

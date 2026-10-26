@@ -16,6 +16,7 @@ mod claude_cloud_cli;
 mod connectors;
 mod connectors_executor;
 mod connectors_mcp;
+mod mcp_stdio;
 mod coordinator;
 pub mod diagnostics;
 pub mod editors;

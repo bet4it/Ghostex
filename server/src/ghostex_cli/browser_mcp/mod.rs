@@ -7,7 +7,7 @@
 CDXC:Cli 2026-07-13:
 Faithful port of the Node CLI's `browser` namespace: subcommand dispatch,
 browser usage text, the openBrowserPane bridge payload, and the full stdio MCP
-server (Content-Length framed JSON-RPC) that drives Ghostex's embedded CEF
+server (JSON-RPC over stdio; framing shared with the connectors server in mcp_stdio.rs) that drives Ghostex's embedded CEF
 pages over the Chrome DevTools Protocol. The page-side scripts (snapshot,
 click, fill) are the verbatim JS function sources the Node CLI produced via
 `fn.toString()`; they still execute inside the page's JS engine through
