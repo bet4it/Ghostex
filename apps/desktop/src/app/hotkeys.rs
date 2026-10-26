@@ -149,6 +149,14 @@ pub(crate) fn gpui_files_owned_hotkey_action_id(action_id: &str) -> bool {
     action_id == "searchProjectFiles"
 }
 
+/// Hotkeys bound straight to an app action (paste, find, zoom, close, new window, Focus mode), at
+/// the chord Settings gives them (`app/shell_hotkeys.rs`), instead of going through
+/// `RunConfiguredGhostexHotkey`, so they behave exactly as they did while they were hard-coded.
+pub(crate) fn gpui_shell_owned_hotkey_action_id(action_id: &str) -> bool {
+    ghostex_settings_catalog::hotkey_definition(action_id)
+        .is_some_and(|definition| definition.kind() == "shellAction")
+}
+
 /// The hotkeys that act on the focused session's chat (`focused_chat_hotkeys.rs`).
 pub(crate) fn gpui_focused_chat_hotkey_action_id(action_id: &str) -> bool {
     matches!(
@@ -164,71 +172,14 @@ pub(crate) fn gpui_focused_chat_hotkey_action_id(action_id: &str) -> bool {
     )
 }
 
+/// The chord `key` runs on for `action_id` on this platform: a saved macOS default moves to the
+/// action's Windows and Linux default there (`windows_linux_default_key` in the hotkey catalog).
 pub(crate) fn gpui_platform_hotkey_for_action<'a>(action_id: &str, key: &'a str) -> &'a str {
-    if cfg!(target_os = "macos") {
-        key
-    } else {
-        let defaults = match action_id {
-            "rotatePanesClockwise" => Some(("ctrl+shift+l", "cmd+alt+l")),
-            "mergeAllTabs" => Some(("ctrl+shift+m", "cmd+alt+m")),
-            "delayedSend" => Some(("ctrl+shift+s", "cmd+alt+s")),
-            "promptEditor" => Some(("ctrl+g", "cmd+shift+g")),
-            "stashedPrompts" => Some(("cmd+alt+s", "cmd+shift+s")),
-            "forkSession" => Some(("cmd+ctrl+shift+f", "cmd+alt+shift+f")),
-            // CDXC:Hotkeys 2026-09-25: Ctrl+R is the terminal's reverse history search, the
-            // Commands panel has no Ctrl+J, and Ctrl+Shift+C is terminal copy on Windows and Linux.
-            "renameActiveSession" => Some(("cmd+r", "cmd+shift+r")),
-            "openCommandsPanel" => Some(("cmd+j", "f12")),
-            "copyLastChatReply" => Some(("cmd+shift+c", "")),
-            // Ctrl+Alt+S is Delayed Actions on Windows and Linux.
-            "toggleChatSummaryMode" => Some(("ctrl+alt+s", "cmd+alt+shift+s")),
-            // Ctrl+Alt+L locks the screen on several Linux desktops.
-            "toggleChatComposerMaximized" => Some(("ctrl+alt+m", "cmd+alt+shift+m")),
-            "toggleChatFilesLinks" => Some(("ctrl+alt+l", "cmd+alt+shift+l")),
-            // Ctrl+Shift+V is the terminal's paste on Windows and Linux.
-            "toggleVoiceAgent" => Some(("ctrl+alt+v", "cmd+alt+shift+v")),
-            "toggleDictation" => Some(("ctrl+alt+d", "cmd+alt+shift+d")),
-            "popOutPane" => Some(("ctrl+shift+o", "cmd+alt+o")),
-            // CDXC:Navigation 2026-08-19: same Mac-Control substitution
-            // as the Jump to Project entries below, mirroring the
-            // windowsLinuxDefaultKey values in packages/settings-catalog/src/hotkey_definitions.rs.
-            "navigateHistoryBack" => Some(("cmd+[", "cmd+alt+shift+[")),
-            "navigateHistoryForward" => Some(("cmd+]", "cmd+alt+shift+]")),
-            "focusPreviousSession" => Some(("ctrl+shift+tab", "cmd+shift+tab")),
-            "focusNextSession" => Some(("ctrl+tab", "cmd+tab")),
-            "jumpToProject1" => Some(("cmd+ctrl+1", "cmd+alt+1")),
-            "jumpToProject2" => Some(("cmd+ctrl+2", "cmd+alt+2")),
-            "jumpToProject3" => Some(("cmd+ctrl+3", "cmd+alt+3")),
-            "jumpToProject4" => Some(("cmd+ctrl+4", "cmd+alt+4")),
-            "jumpToProject5" => Some(("cmd+ctrl+5", "cmd+alt+5")),
-            "jumpToProject6" => Some(("cmd+ctrl+6", "cmd+alt+6")),
-            "jumpToProject7" => Some(("cmd+ctrl+7", "cmd+alt+7")),
-            "jumpToProject8" => Some(("cmd+ctrl+8", "cmd+alt+8")),
-            "jumpToProject9" => Some(("cmd+ctrl+9", "cmd+alt+9")),
-            "runActionSlot1" => Some(("ctrl+shift+1", "cmd+shift+1")),
-            "runActionSlot2" => Some(("ctrl+shift+2", "cmd+shift+2")),
-            "runActionSlot3" => Some(("ctrl+shift+3", "cmd+shift+3")),
-            "runActionSlot4" => Some(("ctrl+shift+4", "cmd+shift+4")),
-            "runActionSlot5" => Some(("ctrl+shift+5", "cmd+shift+5")),
-            _ => None,
-        };
-        match defaults {
-            Some((mac_default, windows_linux_default))
-                if key.trim().eq_ignore_ascii_case(mac_default) =>
-            {
-                /*
-                CDXC:Hotkeys 2026-07-30:
-                Control is a distinct app modifier on macOS, while Windows and
-                Linux use Ctrl as the primary modifier replacing Command. Give
-                every Mac-Control default an explicit, conflict-free non-Mac
-                chord and migrate persisted values that still equal the Mac
-                default. Custom bindings remain unchanged.
-                */
-                windows_linux_default
-            }
-            _ => key,
-        }
-    }
+    ghostex_settings_catalog::platform_hotkey(
+        action_id,
+        key,
+        ghostex_settings_catalog::Platform::current(),
+    )
 }
 
 /// Converts a shared-settings hotkey ("cmd+shift+p") into gpui keystroke
@@ -237,82 +188,7 @@ pub(crate) fn gpui_platform_hotkey_for_action<'a>(action_id: &str, key: &'a str)
 /// terminal or web surfaces, except on keys that never type text (Escape and
 /// F1-F24).
 pub(crate) fn gpui_keystroke_from_shared_hotkey(key: &str) -> Option<String> {
-    let mut command = false;
-    let mut control = false;
-    let mut option = false;
-    let mut shift = false;
-    let mut key_token: Option<String> = None;
-    for token in key.split('+') {
-        let token = token.trim().to_ascii_lowercase();
-        if token.is_empty() {
-            return None;
-        }
-        match token.as_str() {
-            "cmd" | "command" | "meta" => command = true,
-            "ctrl" | "control" => control = true,
-            "alt" | "opt" | "option" => option = true,
-            "shift" => shift = true,
-            _ => {
-                if key_token.is_some() {
-                    return None;
-                }
-                key_token = Some(match token.as_str() {
-                    "arrowup" => "up".to_string(),
-                    "arrowdown" => "down".to_string(),
-                    "arrowleft" => "left".to_string(),
-                    "arrowright" => "right".to_string(),
-                    "esc" => "escape".to_string(),
-                    "return" => "enter".to_string(),
-                    other => other.to_string(),
-                });
-            }
-        }
-    }
-    let mut key_token = key_token?;
-    if option && key_token == "ß" {
-        /*
-        CDXC:Hotkeys 2026-07-30:
-        Older Settings builds persisted macOS Option+S as the produced `ß`
-        character. GPUI receives the physical S key, so migrate that known
-        recorder value at the settings boundary until the corrected recorder
-        writes `alt+s`.
-        */
-        key_token = "s".to_string();
-    }
-    let mut modifiers = Vec::new();
-    if cfg!(target_os = "macos") {
-        if command {
-            modifiers.push("cmd");
-        }
-        if control {
-            modifiers.push("ctrl");
-        }
-    } else {
-        if command {
-            modifiers.push("ctrl");
-        }
-        if control {
-            modifiers.push(if command { "alt" } else { "ctrl" });
-        }
-    }
-    if option && !modifiers.contains(&"alt") {
-        modifiers.push("alt");
-    }
-    if shift {
-        modifiers.push("shift");
-    }
-    // CDXC:Hotkeys 2026-09-27 WHY:
-    // Focus Chat Box is Shift+Esc, and dropping every Shift-only chord here left it with no binding at all: the native router matched the chord, but the window had nothing to run, so the key did nothing. Escape and the F-keys never type text, so they may go without Cmd, Ctrl or Alt; typing keys still may not.
-    let non_typing_key = key_token == "escape"
-        || key_token
-            .strip_prefix('f')
-            .and_then(|number| number.parse::<u8>().ok())
-            .is_some_and(|number| (1..=24).contains(&number));
-    if !non_typing_key && !modifiers.iter().any(|modifier| *modifier != "shift") {
-        return None;
-    }
-    modifiers.push(&key_token);
-    Some(modifiers.join("-"))
+    ghostex_settings_catalog::hotkey_keystroke(key, ghostex_settings_catalog::Platform::current())
 }
 
 /// Builds a shell-owned binding from the same cross-platform hotkey spelling
@@ -502,6 +378,18 @@ pub(crate) const GPUI_DEFAULT_GHOSTEX_HOTKEYS: &[(&str, &str)] = &[
     ("splitSessionRight", "alt+shift+d"),
     ("splitMore", "cmd+d"),
     ("splitMoreDown", "cmd+shift+d"),
+    // CDXC:Hotkeys 2026-10-26: the keys hard-coded in main.rs until then, bound by
+    // app/shell_hotkeys.rs; mirrors packages/settings-catalog/src/hotkey_definitions.rs.
+    ("pasteIntoTerminal", "cmd+v"),
+    ("findInFocusedView", "cmd+f"),
+    ("findNextInBrowser", "cmd+g"),
+    ("findPreviousInBrowser", "cmd+shift+g"),
+    ("zoomInFocusedView", "cmd+="),
+    ("zoomOutFocusedView", "cmd+-"),
+    ("resetFocusedViewZoom", "cmd+0"),
+    ("closeFocusedSurface", "cmd+w"),
+    ("openNewWindow", "cmd+shift+n"),
+    ("toggleAgentsFocusMode", "cmd+ctrl+f"),
 ];
 
 #[cfg(target_os = "macos")]
@@ -651,6 +539,7 @@ pub(crate) fn gpui_configured_hotkey_action_id_for_native_text(
         // travels onward to the page instead of resolving to a native action.
         if gpui_chat_owned_hotkey_action_id(action_id)
             || gpui_files_owned_hotkey_action_id(action_id)
+            || gpui_shell_owned_hotkey_action_id(action_id)
             || !gpui_hotkey_feature_enabled(action_id)
         {
             continue;
@@ -729,10 +618,20 @@ pub(crate) fn gpui_titlebar_view_hotkey_index(action_id: &str) -> Option<usize> 
 /// The chord an action is bound to, in the shared "+" syntax, resolved through the same
 /// settings, defaults, and migrations as native key bindings. `None` when it has no valid chord.
 pub(crate) fn gpui_configured_hotkey_key(action_id: &str) -> Option<String> {
+    gpui_configured_hotkey_key_in(
+        &shared_settings::shared_sidebar_settings_snapshot(),
+        action_id,
+    )
+}
+
+/// [`gpui_configured_hotkey_key`] read from `snapshot` instead of the current settings.
+pub(crate) fn gpui_configured_hotkey_key_in(
+    snapshot: &shared_settings::SharedSidebarSettingsSnapshot,
+    action_id: &str,
+) -> Option<String> {
     let (_, default_key) = GPUI_DEFAULT_GHOSTEX_HOTKEYS
         .iter()
         .find(|(id, _)| *id == action_id)?;
-    let snapshot = shared_settings::shared_sidebar_settings_snapshot();
     let key = snapshot
         .object()
         .get("hotkeys")
@@ -955,6 +854,7 @@ pub(crate) fn gpui_configured_hotkey_key_bindings_from_settings(cx: &gpui::App) 
     ];
     let mut push_binding = |action_id: &str, key: &str| {
         if gpui_chat_owned_hotkey_action_id(action_id)
+            || gpui_shell_owned_hotkey_action_id(action_id)
             || key.trim().is_empty()
             || gpui_hotkey_is_reserved(key)
         {
@@ -1022,7 +922,9 @@ pub(crate) fn gpui_configured_hotkey_unbinds_from_settings(
         .filter_map(|(action_id, default_key)| {
             // Chat owns these chords (see GPUI_DEFAULT_GHOSTEX_HOTKEYS): they are
             // never bound natively, so there is nothing to unbind either.
-            if gpui_chat_owned_hotkey_action_id(action_id) {
+            if gpui_chat_owned_hotkey_action_id(action_id)
+                || gpui_shell_owned_hotkey_action_id(action_id)
+            {
                 return None;
             }
             let key = match persisted_hotkeys

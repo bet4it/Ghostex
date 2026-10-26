@@ -398,6 +398,9 @@ pub(crate) fn populations(data: &QuickAccessData) -> Populations {
                 && definition.id != "openCommandsPanelSecondKey"
                 && definition.kind() != "runActionSlot"
                 && definition.kind() != "chatAction"
+                // Paste, find, zoom, close and the like act on whatever has the keyboard, which a
+                // Quick Access row is not (CDXC:Hotkeys 2026-10-26 in the hotkey catalog).
+                && definition.kind() != "shellAction"
                 && !PANE_ACTION_COMMAND_IDS.contains(&definition.id)
                 && !hidden.contains(definition.id)
         })

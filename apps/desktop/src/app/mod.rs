@@ -22,6 +22,7 @@ pub(crate) mod helpers;
 pub(crate) mod hotkeys;
 pub(crate) mod model;
 pub(crate) mod remote_browser;
+pub(crate) mod shell_hotkeys;
 pub(crate) mod window;
 
 pub(crate) mod add_project_modal_lifecycle;

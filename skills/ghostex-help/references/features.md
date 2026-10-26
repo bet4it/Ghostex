@@ -254,9 +254,19 @@ view from the strip.
   terminal, Cmd+T always opens a new browser tab, Cmd+Ctrl+Shift+F forks the
   focused session, and Cmd+D splits. Cmd+R renames the focused session,
   Cmd+Shift+A (or Option+Shift+S) sleeps it, and Cmd+Shift+Backspace (or Cmd+W)
-  closes it. On Windows and Linux use Ctrl for Cmd, except that fork is
-  Ctrl+Alt+Shift+F and rename is Ctrl+Shift+R, because Ctrl+R belongs to the
-  terminal. While the VS Code view itself has keyboard focus, Cmd+N and
+  closes it. On Windows and Linux the keys follow Ghostty there and leave the
+  plain Ctrl keys to the terminal (Ctrl+W deletes a word, Ctrl+D ends input):
+  Ctrl+Shift+T opens a terminal, Ctrl+Shift+W closes the focused tab,
+  Ctrl+Shift+O and Ctrl+Shift+E split right and down, Ctrl+Shift+F finds,
+  Ctrl+Shift+C and Ctrl+Shift+V copy and paste in a terminal, Ctrl+Shift+A
+  selects it all, and Ctrl+Shift+N opens a new window. Ghostex's own keys there
+  are Ctrl+Shift+D for a new agent session, Ctrl+Alt+Shift+N for the New Thread
+  picker, Ctrl+Shift+L for a browser tab, Ctrl+Shift+B for the sidebar,
+  Ctrl+Shift+I for notifications, Ctrl+Alt+Shift+P to search sessions,
+  Ctrl+Shift+Y for files, Ctrl+Alt+H for Find Prompts, Ctrl+Alt+/ for Hotkeys,
+  Ctrl+Shift+R to rename and Ctrl+Alt+Shift+F to fork; Alt+Shift+S sleeps the
+  focused session. Every one of these, Paste, Find, Zoom and Close Tab included,
+  can be changed or cleared in Settings > Hotkeys. While the VS Code view itself has keyboard focus, Cmd+N and
   Cmd+Shift+O go to VS Code instead (New File, Go to Symbol).
   Starting a new session always creates a new one; empty sessions stay in the
   sidebar until you close them. An Advanced setting, Close empty sessions when
@@ -2294,9 +2304,10 @@ version, a terminal look Ghostex had been taking from your Ghostty config was
 copied into Ghostex's terminal config once, so nothing changed; the old "Ghostex
 managed terminal settings" section in Ghostty's config was left in place and you
 can delete it. Command-click opens links;
-Cmd+V pastes images as previewable links. On Windows and Linux, Ctrl+V or
-Ctrl+Shift+V pastes from the client computer's clipboard into the focused
-terminal, including a remote terminal. Shift+Insert also pastes, in terminals
+Cmd+V pastes images as previewable links. On Windows and Linux, Ctrl+Shift+V
+pastes from the client computer's clipboard into the focused terminal, including
+a remote terminal, as in Ghostty; Ctrl+V goes to the program in the terminal
+(an image on the clipboard still pastes as a link). Shift+Insert also pastes, in terminals
 and in text fields such as the chat composer and dialogs. A configured hotkey
 using the same chord takes precedence. In an agent's terminal prompt, use
 Prompt Editor in the terminal toolbar, Ctrl+G on macOS, or Ctrl+Shift+G on

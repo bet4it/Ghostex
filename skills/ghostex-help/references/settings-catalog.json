@@ -12073,6 +12073,7 @@
       "title": "New Agent Session",
       "description": "Start your last-used agent in the active project, in your default interface.",
       "defaultKey": "cmd+shift+o",
+      "windowsLinuxDefaultKey": "cmd+shift+d",
       "retiredDefaultKeys": [
         "cmd+t"
       ]
@@ -12100,7 +12101,8 @@
       "id": "openSessionSearchPalette",
       "title": "Open Quick Access: Recent Sessions",
       "description": "Open Ghostex Quick Access on Recent Sessions.",
-      "defaultKey": "cmd+p"
+      "defaultKey": "cmd+p",
+      "windowsLinuxDefaultKey": "cmd+alt+shift+p"
     },
     {
       "id": "openProjectSearchPalette",
@@ -12112,13 +12114,15 @@
       "id": "openQuickAccessFiles",
       "title": "Open Quick Access: Files",
       "description": "Open Ghostex Quick Access on Files to find a file in your projects and open it.",
-      "defaultKey": "cmd+o"
+      "defaultKey": "cmd+o",
+      "windowsLinuxDefaultKey": "cmd+shift+y"
     },
     {
       "id": "openNewThreadPalette",
       "title": "New Thread in Active Project",
       "description": "Pick an agent, Browser, or Terminal to start in the active project.",
       "defaultKey": "cmd+n",
+      "windowsLinuxDefaultKey": "cmd+alt+shift+n",
       "retiredDefaultKeys": [
         "cmd+shift+t",
         "cmd+alt+t"
@@ -12169,6 +12173,7 @@
       "title": "Hotkeys",
       "description": "Open app hotkeys.",
       "defaultKey": "cmd+/",
+      "windowsLinuxDefaultKey": "cmd+alt+/",
       "retiredDefaultKeys": [
         "cmd+."
       ]
@@ -12177,7 +12182,8 @@
       "id": "toggleSidebarCollapsed",
       "title": "Toggle Sidebar",
       "description": "Collapse or expand the sidebar.",
-      "defaultKey": "cmd+b"
+      "defaultKey": "cmd+b",
+      "windowsLinuxDefaultKey": "cmd+shift+b"
     },
     {
       "id": "toggleViewPanel",
@@ -12209,6 +12215,7 @@
       "title": "Open Browser Pane",
       "description": "Open a browser tab beside the focused tab.",
       "defaultKey": "cmd+t",
+      "windowsLinuxDefaultKey": "cmd+shift+l",
       "retiredDefaultKeys": [
         "ctrl+shift+b",
         "cmd+n"
@@ -12403,7 +12410,8 @@
       "id": "exportTranscript",
       "title": "Handoff / Export",
       "description": "Export the focused agent session's transcript and hand it off to another agent.",
-      "defaultKey": "cmd+alt+e"
+      "defaultKey": "cmd+alt+e",
+      "windowsLinuxDefaultKey": "cmd+alt+x"
     },
     {
       "id": "toggleAgentActions",
@@ -12428,6 +12436,7 @@
       "title": "Find Prompts",
       "description": "Search every prompt you have sent to an agent, then resume or fork it.",
       "defaultKey": "cmd+shift+f",
+      "windowsLinuxDefaultKey": "cmd+alt+h",
       "retiredDefaultKeys": [
         "alt+f"
       ]
@@ -12435,7 +12444,7 @@
     {
       "id": "searchProjectFiles",
       "title": "Search in Files",
-      "description": "While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys open Find Prompts.",
+      "description": "While the Files view has focus, search the text of every file in the project, like VS Code's Search. Elsewhere the same keys keep their other use.",
       "defaultKey": "cmd+shift+f"
     },
     {
@@ -12549,7 +12558,8 @@
       "id": "openNotifications",
       "title": "Open Notifications",
       "description": "Open the Notifications panel under the bell in the sidebar's top row.",
-      "defaultKey": "cmd+i"
+      "defaultKey": "cmd+i",
+      "windowsLinuxDefaultKey": "cmd+shift+i"
     },
     {
       "id": "jumpToLatestUnreadNotification",
@@ -12843,13 +12853,80 @@
       "id": "splitMore",
       "title": "Split Sideways",
       "description": "Create a terminal beside the focused pane.",
-      "defaultKey": "cmd+d"
+      "defaultKey": "cmd+d",
+      "windowsLinuxDefaultKey": "cmd+shift+o"
     },
     {
       "id": "splitMoreDown",
       "title": "Split Downwards",
       "description": "Create a terminal below the focused pane.",
-      "defaultKey": "cmd+shift+d"
+      "defaultKey": "cmd+shift+d",
+      "windowsLinuxDefaultKey": "cmd+shift+e"
+    },
+    {
+      "id": "pasteIntoTerminal",
+      "title": "Paste",
+      "description": "Paste the clipboard into the focused terminal.",
+      "defaultKey": "cmd+v",
+      "windowsLinuxDefaultKey": "cmd+shift+v"
+    },
+    {
+      "id": "findInFocusedView",
+      "title": "Find",
+      "description": "Find text in the focused terminal, browser page, chat or file. On Windows and Linux, Ctrl+F also finds anywhere but in a terminal.",
+      "defaultKey": "cmd+f",
+      "windowsLinuxDefaultKey": "cmd+shift+f"
+    },
+    {
+      "id": "findNextInBrowser",
+      "title": "Find Next",
+      "description": "Go to the next match of Find in a browser page.",
+      "defaultKey": "cmd+g",
+      "windowsLinuxDefaultKey": "f3"
+    },
+    {
+      "id": "findPreviousInBrowser",
+      "title": "Find Previous",
+      "description": "Go to the previous match of Find in a browser page.",
+      "defaultKey": "cmd+shift+g",
+      "windowsLinuxDefaultKey": "shift+f3"
+    },
+    {
+      "id": "zoomInFocusedView",
+      "title": "Zoom In",
+      "description": "Make the focused terminal, browser page or picture bigger.",
+      "defaultKey": "cmd+="
+    },
+    {
+      "id": "zoomOutFocusedView",
+      "title": "Zoom Out",
+      "description": "Make the focused terminal, browser page or picture smaller.",
+      "defaultKey": "cmd+-"
+    },
+    {
+      "id": "resetFocusedViewZoom",
+      "title": "Reset Zoom",
+      "description": "Return the focused terminal, browser page or picture to its normal size.",
+      "defaultKey": "cmd+0"
+    },
+    {
+      "id": "closeFocusedSurface",
+      "title": "Close Tab",
+      "description": "Close the focused terminal tab, browser tab or view tab.",
+      "defaultKey": "cmd+w",
+      "windowsLinuxDefaultKey": "cmd+shift+w"
+    },
+    {
+      "id": "openNewWindow",
+      "title": "New Window",
+      "description": "Open another Ghostex window.",
+      "defaultKey": "cmd+shift+n"
+    },
+    {
+      "id": "toggleAgentsFocusMode",
+      "title": "Focus Mode",
+      "description": "Show only the focused pane of the Agents view, or bring the other panes back.",
+      "defaultKey": "cmd+ctrl+f"
     }
   ]
 }

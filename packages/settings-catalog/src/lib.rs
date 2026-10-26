@@ -18,6 +18,7 @@ mod data;
 pub mod file_opening;
 mod general;
 pub mod help;
+pub mod hotkey_chords;
 mod hotkey_definitions;
 pub mod hotkey_label;
 pub mod hotkeys;
@@ -28,6 +29,7 @@ mod pages;
 pub mod platform_text;
 pub mod rows;
 
+pub use hotkey_chords::{hotkey_keystroke, platform_hotkey};
 pub use hotkey_label::hotkey_label;
 pub use hotkeys::{
     default_hotkeys, hotkey_definition, hotkey_definitions, HotkeyDefinition,
