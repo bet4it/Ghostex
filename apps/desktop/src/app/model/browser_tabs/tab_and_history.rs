@@ -177,6 +177,27 @@ impl BrowserTabGroup {
         Some(tab)
     }
 
+    /// After `closed` left this pane, select the pane's tab drawn nearest to it in `drawn_order`
+    /// (its right, else its left). A pane none of whose tabs are drawn keeps the choice
+    /// `remove_tab` made.
+    pub(crate) fn select_drawn_neighbour(
+        &mut self,
+        closed: BrowserTabId,
+        drawn_order: &[BrowserTabId],
+    ) {
+        let Some(index) = drawn_order.iter().position(|tab_id| *tab_id == closed) else {
+            return;
+        };
+        let (left, right) = drawn_order.split_at(index);
+        if let Some(next) = right[1..]
+            .iter()
+            .chain(left.iter().rev())
+            .find(|tab_id| self.has_tab(**tab_id))
+        {
+            self.active_tab = *next;
+        }
+    }
+
     pub(crate) fn insert_tab_at(&mut self, tab: BrowserPaneTab, insertion_index: usize) {
         let mut target_index = insertion_index.min(self.tabs.len());
 

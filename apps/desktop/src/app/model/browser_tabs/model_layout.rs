@@ -2,10 +2,13 @@ use super::*;
 use crate::*;
 
 impl BrowserTabModel {
+    /// `drawn_order` is the order the strip draws the pages in: a pane whose selected tab closes
+    /// selects the tab drawn next to it (`BrowserTabGroup::select_drawn_neighbour`).
     pub(crate) fn close_tab(
         &mut self,
         tab_id: BrowserTabId,
         active_profile_id: BrowserProfileId,
+        drawn_order: &[BrowserTabId],
     ) -> bool {
         /*
         CDXC:Browser 2026-06-22-05:56:
@@ -60,6 +63,7 @@ impl BrowserTabModel {
         let Some(source_pane_id) = find_browser_leaf_id_for_tab(&self.root, tab_id) else {
             return false;
         };
+        let closing_pane_active = self.active_tab_id_for_pane(source_pane_id) == Some(tab_id);
         let Some((_tab, source_is_empty)) = self.remove_tab_for_move(source_pane_id, tab_id) else {
             return false;
         };
@@ -67,6 +71,8 @@ impl BrowserTabModel {
 
         if source_is_empty {
             self.collapse_empty_leaf(source_pane_id);
+        } else if closing_pane_active && let Some(leaf) = self.find_leaf_mut(source_pane_id) {
+            leaf.tab_group.select_drawn_neighbour(tab_id, drawn_order);
         }
         if self.find_leaf(self.focused_pane).is_none()
             && let Some(first_leaf_id) = first_browser_leaf_id(&self.root)
@@ -245,6 +251,15 @@ impl BrowserTabModel {
         let mut pane_ids = Vec::new();
         collect_browser_leaf_ids(&self.root, &mut pane_ids);
         pane_ids
+    }
+
+    /// Every tab, pane by pane in layout order.
+    pub(crate) fn tab_ids_by_pane(&self) -> Vec<BrowserTabId> {
+        self.rendered_leaf_order()
+            .into_iter()
+            .filter_map(|pane_id| self.find_leaf(pane_id))
+            .flat_map(|leaf| leaf.tab_group.tabs.iter().map(|tab| tab.tab_id))
+            .collect()
     }
 
     pub(crate) fn active_loaded_tab_id_for_leaf(&self, leaf: &BrowserLeaf) -> Option<BrowserTabId> {

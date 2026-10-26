@@ -1,6 +1,8 @@
 //! The view panel's strip as one ordered row: which tab is drawn where, which are pinned, and what
 //! a drag along the row does.
 
+use gpui::Window;
+
 use crate::app::model::*;
 use crate::app::render::view_tab_strip_browser_tabs::ViewStripBrowserTab;
 use crate::*;
@@ -57,6 +59,89 @@ impl GhostexGpuiApp {
             .in_drawn_order(available, self.browser_pages_in_view_row, |entry| {
                 key(*entry)
             })
+    }
+
+    /// The strip's tab on screen: the open view, or while the Browser is the open view its page on
+    /// screen, or its own tab when the pages have a row of their own. `None` while the panel is
+    /// closed or on the picker.
+    pub(crate) fn view_strip_showing_key(&self) -> Option<ViewStripTabKey> {
+        match self.open_view_mode()? {
+            TitlebarMode::Browser if !self.browser_pages_in_view_row => {
+                self.browser_page_on_screen().map(ViewStripTabKey::Browser)
+            }
+            mode => Some(ViewStripTabKey::View(mode)),
+        }
+    }
+
+    /// The focused pane's page while the Browser is the open view.
+    pub(crate) fn browser_page_on_screen(&self) -> Option<BrowserTabId> {
+        (self.active_mode == TitlebarMode::Browser)
+            .then(|| {
+                self.browser_tabs
+                    .active_tab_id_for_pane(self.browser_tabs.focused_pane)
+            })
+            .flatten()
+    }
+
+    /// The row the Browser's pages are drawn in, in drawn order: the strip, with the views, or the
+    /// pages' own row while they have one (`browserPagesInViewRow`).
+    pub(crate) fn browser_pages_drawn_row(&self) -> Vec<ViewStripEntry> {
+        if self.browser_pages_in_view_row {
+            self.browser_page_row()
+                .into_iter()
+                .map(ViewStripEntry::Browser)
+                .collect()
+        } else {
+            self.view_strip_entries()
+        }
+    }
+
+    /// CDXC:Workarea 2026-10-26 WHY:
+    /// The strip draws views and pages in an order of its own (`view_strip_layout`), while the open-views list keeps one slot for the Browser and each Browser pane keeps its own tab order. Closing the tab on screen picked its successor from those lists, so once they had parted from the strip (a drag reorders only the strip), × selected a tab nowhere near the closed one (an image page opened from a pull request page jumped to the first tab). The successor is read from `entries`, the row `shown` is drawn in (the strip, or the Browser's page row while its pages have one): the page that opened `shown` while that still holds (`browser_tab_opener`), else the nearest tab to its right that stays, else the nearest to its left. `leaving` names the tabs that close together with `shown`.
+    pub(crate) fn view_strip_successor(
+        &self,
+        entries: &[ViewStripEntry],
+        shown: ViewStripTabKey,
+        leaving: impl Fn(ViewStripTabKey) -> bool,
+    ) -> Option<ViewStripEntry> {
+        let stays = |entry: &&ViewStripEntry| entry.key() != shown && !leaving(entry.key());
+        let opener = self
+            .browser_tab_opener
+            .filter(|opener| ViewStripTabKey::Browser(opener.tab) == shown)
+            .and_then(|opener| {
+                entries
+                    .iter()
+                    .find(|entry| entry.key() == ViewStripTabKey::Browser(opener.opener))
+            })
+            .filter(stays);
+        if let Some(opener) = opener {
+            return Some(*opener);
+        }
+        let index = entries.iter().position(|entry| entry.key() == shown)?;
+        let (left, right) = entries.split_at(index);
+        right.iter().chain(left.iter().rev()).find(stays).copied()
+    }
+
+    /// Puts a tab of the strip on screen the way a click on it does.
+    pub(crate) fn show_view_strip_entry(
+        &mut self,
+        entry: ViewStripEntry,
+        window: &mut Window,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        match entry {
+            ViewStripEntry::View(mode) => {
+                self.open_view_tab(mode, window, cx);
+            }
+            // The page's pane is looked up again: closing a pane's last tab folds that pane away.
+            ViewStripEntry::Browser(tab) => {
+                if let Some(pane_id) =
+                    find_browser_leaf_id_for_tab(&self.browser_tabs.root, tab.tab_id)
+                {
+                    self.open_browser_tab_from_view_strip(pane_id, tab.tab_id, window, cx);
+                }
+            }
+        }
     }
 
     pub(crate) fn view_strip_tab_pinned(&self, key: ViewStripTabKey) -> bool {
@@ -256,9 +341,10 @@ impl GhostexGpuiApp {
 
     /// The open-views list keeps the views in the strip's stored order, pinned first, so what reads
     /// it in list order (the panel toggle's first tab, the saved state) sees them as drawn; closing
-    /// a tab reads the drawn order itself (`open_views_in_view_strip_order`). Every open view takes
-    /// part, one this project cannot show right now included, so a view that comes back has the
-    /// same neighbours in both. Browser takes part while the strip holds its tab (`browserPagesInViewRow`); drawn as
+    /// a tab reads the drawn row itself (`view_strip_successor`), and so does a view that leaves
+    /// the panel without its tab being closed (`open_views_in_view_strip_order`). Every open view
+    /// takes part, one this project cannot show right now included, so a view that comes back has
+    /// the same neighbours in both. Browser takes part while the strip holds its tab (`browserPagesInViewRow`); drawn as
     /// its pages, it keeps its own slot.
     fn sync_open_views_to_view_strip_order(&mut self) {
         let browser_in_strip = self.browser_pages_in_view_row;

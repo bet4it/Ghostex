@@ -576,10 +576,22 @@ impl GhostexGpuiApp {
             self.pending_parked_browser_opens.remove(project_id);
         }
         let active_profile_id = self.browser_profiles.active_profile_id();
+        let drawn_order = self
+            .project_view_states_by_project
+            .get(project_id)
+            .zip(self.parked_browser_tabs_by_project.get(project_id))
+            .map(|(state, tabs)| {
+                state
+                    .view_strip_layout
+                    .in_drawn_order(tabs.tab_ids_by_pane(), false, |tab_id| {
+                        ViewStripTabKey::Browser(*tab_id)
+                    })
+            })
+            .unwrap_or_default();
         let Some(parked_tabs) = self.parked_browser_tabs_by_project.get_mut(project_id) else {
             return;
         };
-        if !parked_tabs.close_tab(tab_id, active_profile_id) {
+        if !parked_tabs.close_tab(tab_id, active_profile_id, &drawn_order) {
             return;
         }
         self.persist_shell_layout_state();

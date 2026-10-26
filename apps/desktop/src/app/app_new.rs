@@ -194,6 +194,7 @@ impl GhostexGpuiApp {
                 browser_profiles: shell_layout_state.browser_profiles,
                 browser_tabs: shell_layout_state.browser_tabs,
                 browser_tabs_project_id: shell_layout_state.browser_tabs_project_id,
+                browser_tab_opener: None,
                 parked_browser_tabs_by_project: shell_layout_state.parked_browser_tabs_by_project,
                 parked_browser_runtimes_by_project: HashMap::new(),
                 pending_parked_browser_opens: HashMap::new(),
@@ -597,6 +598,7 @@ impl GhostexGpuiApp {
             this.ensure_claude_cloud_page_sweep(cx);
             this.start_sidebar_hover_reveal_polling(window, cx);
             this.start_command_action_status_polling(cx);
+            this.forget_browser_tab_opener_once_hidden(cx);
             this.start_command_pane_auto_minimize_polling(window, cx);
             this.start_prompt_editor_daemon_polling(cx);
             this.start_gpui_remote_gxserver_watchdog(cx);

@@ -204,11 +204,9 @@ impl GpuiProjectViewState {
             .filter(|mode| !matches!(mode, TitlebarMode::Agents | TitlebarMode::Browser))
             .map(|mode| ViewStripTabKey::View(*mode));
         let pages = tabs
-            .rendered_leaf_order()
+            .tab_ids_by_pane()
             .into_iter()
-            .filter_map(|pane_id| tabs.find_leaf(pane_id))
-            .flat_map(|leaf| &leaf.tab_group.tabs)
-            .map(|pane_tab| ViewStripTabKey::Browser(pane_tab.tab_id));
+            .map(ViewStripTabKey::Browser);
         let layout = &mut self.view_strip_layout;
         let drawn = layout.in_drawn_order(views.chain(pages).collect(), false, |key| *key);
         let open_views = &self.open_views;
