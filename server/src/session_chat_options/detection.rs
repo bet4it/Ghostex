@@ -434,6 +434,13 @@ pub fn detect_session_chat_terminal_state(
             repository, project_id, session_id, notice, styled,
         );
     }
+    if let (Some(notice), Some(capture)) = (notice.as_mut(), screen) {
+        crate::session_chat_claude_plan::enrich_claude_plan_notice(
+            notice,
+            &capture.text,
+            claude_session_path.as_deref(),
+        );
+    }
     if let Some(notice) = notice.as_mut().filter(|notice| {
         notice.kind == crate::session_chat_notice::SESSION_CHAT_NOTICE_TRUST_PROMPT
     }) {

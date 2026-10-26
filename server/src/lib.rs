@@ -85,6 +85,7 @@ pub(crate) mod session_chat_claude_feedback_card;
 pub(crate) mod session_chat_claude_fleet;
 pub(crate) mod session_chat_claude_interrupt;
 pub(crate) mod session_chat_claude_panel;
+pub(crate) mod session_chat_claude_plan;
 pub(crate) mod session_chat_claude_permission;
 pub(crate) mod session_chat_claude_popups;
 pub mod session_chat_claude_question_prep;

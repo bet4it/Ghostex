@@ -191,6 +191,18 @@ fn decorate_notice(raw: &Value, notice: &TerminalNotice) -> Value {
             object.remove("passthrough");
         }
     }
+    match notice
+        .plan
+        .as_deref()
+        .filter(|plan| !plan.trim().is_empty())
+    {
+        Some(plan) => {
+            object.insert("plan".to_string(), plan_presentation(plan));
+        }
+        None => {
+            object.remove("plan");
+        }
+    }
     match notice.dialog.as_ref() {
         Some(dialog) => {
             let mut decorated = raw
@@ -282,6 +294,23 @@ fn decorate_notice(raw: &Value, notice: &TerminalNotice) -> Value {
         }
     }
     Value::Object(object)
+}
+
+/// CDXC:SessionChat 2026-10-26 WHY: "Ready to code?" shows only a screenful of the plan in a pane the chat cannot scroll, so the card draws the plan file whole, as the side question card draws its answer: Markdown for the renderer, its file references, and the raw text Copy puts on the clipboard (GitHub #321).
+/// SEE-ALSO: server/src/session_chat_claude_plan.rs, apps/desktop/src/app/native_chat/notice.rs, apps/mobile/app/src/chat/native/cards/NoticeCard.tsx.
+fn plan_presentation(plan: &str) -> Value {
+    let markdown = crate::transcript::native_markdown::native_markdown(
+        &crate::transcript::line_breaks::agent_line_breaks(
+            plan,
+            crate::transcript::line_breaks::AgentLineBreaks::Every,
+        ),
+        false,
+    );
+    json!({
+        "text": plan,
+        "references": crate::transcript::markdown_links::markdown_references(&markdown),
+        "markdown": markdown,
+    })
 }
 
 /// The empty drafts a question set opens with.
