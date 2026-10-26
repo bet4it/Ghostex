@@ -3209,8 +3209,13 @@ sessions, so any client can control agents on any machine.
   available) or its Ghostex CLI, agent skills and Tools, and Install, Update and
   Uninstall run there through its own Ghostex. A machine that is not connected
   shows why and can't be picked; one whose Ghostex is too old says to update it
-  first. Turning agents on, their defaults and resume hooks, and Desktop control
-  (Fast Computer & Browser Use, SpaceO) are set up on each computer itself.
+  first. On a remote Mac, Integrations also installs and updates Desktop control
+  (Fast Computer & Browser Use and SpaceO; never on Linux or Windows). Their
+  Accessibility and Screen Recording permissions can only be allowed by someone
+  at that Mac, so until then the row says so. Turning agents on, their defaults
+  and resume hooks are set on each computer itself. On the phone, a computer's
+  Edit screen (swipe left on its card in Machines, then Edit) shows the same
+  Agent CLIs and Skills and tools with Install and Update.
 - **Web app**: the desktop's sidebar (with its session, group and project
   actions, the Git menu and Quick Access), chat and terminal running in a
   browser and talking to gxserver; remote machines, Settings and the commit

@@ -12,11 +12,18 @@ use crate::app::helpers::*;
 use crate::app::window::settings_modal::model::GxserverRpcReply;
 use crate::{GhostexGpuiApp, shared_settings};
 
-/// The keys each remote Settings path may carry, all text but `fresh`.
+/// The keys each remote Settings path may carry, all text but the `fresh` and
+/// `includeDesktopControl` switches.
 fn allowed_keys(path: &str) -> Option<&'static [&'static str]> {
     Some(match path {
         "/api/agentCliMaintenance" => &["action", "agentId", "operation", "methodId"],
-        "/api/managedTools" => &["action", "tool", "operation", "fresh"],
+        "/api/managedTools" => &[
+            "action",
+            "tool",
+            "operation",
+            "fresh",
+            "includeDesktopControl",
+        ],
         "/api/machineIntegrations" => &["action", "skillName"],
         _ => return None,
     })
@@ -36,7 +43,7 @@ pub(crate) fn settings_remote_params(path: &str, params: &Value) -> Option<Value
         }
         let allowed = match value {
             Value::String(text) => text.chars().count() <= 200,
-            Value::Bool(_) => key == "fresh",
+            Value::Bool(_) => matches!(key.as_str(), "fresh" | "includeDesktopControl"),
             _ => false,
         };
         if !allowed {

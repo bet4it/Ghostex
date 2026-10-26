@@ -33,20 +33,9 @@ pub(crate) async fn dispatch(
         "status" => status(paths).await,
         "installSkill" => {
             let skill = skill_param(params)?;
-            let source = {
-                let skill = skill.clone();
-                tokio::task::spawn_blocking(move || {
-                    crate::ghostex_cli::skills::resolve_ghostex_agent_skill_package_source(
-                        &skill,
-                        &[],
-                        &crate::ghostex_cli::args::Flags::default(),
-                    )
-                })
+            install_bundled_skill(paths, &skill)
                 .await
-                .map_err(internal)?
-                .map_err(|error| DomainStateError::bad_request(error.to_string()))?
-            };
-            install_skill_from(paths, &skill, &source, true).await?;
+                .map_err(DomainStateError::bad_request)?;
             status(paths).await
         }
         "uninstallSkill" => {
@@ -86,14 +75,37 @@ fn skill_unavailable_reason(skill: &str, platform: &str) -> Option<&'static str>
         .then_some(SPACEO_MACOS_ONLY_MESSAGE)
 }
 
+/// The Settings catalog's entry for a bundled skill (`name`, `description`, `tier`), which the
+/// desktop reads itself and a client without the catalog (the phone) reads here.
+fn catalog_skill(skill: &str) -> Option<Value> {
+    use ghostex_settings_catalog::modules::{exports, module};
+    exports(module::AGENT_SKILLS, ghostex_settings_catalog::Platform::current())
+        .into_iter()
+        .find(|(name, _)| *name == "VISIBLE_BUNDLED_GHOSTEX_AGENT_SKILLS")?
+        .1
+        .to_value()
+        .as_array()?
+        .iter()
+        .find(|entry| entry.get("skillName").and_then(Value::as_str) == Some(skill))
+        .cloned()
+}
+
 /// The skills' state as the desktop reads its own (`~/.agents/skills/<name>/SKILL.md`).
 fn skill_rows(home: &Path, platform: &str) -> Vec<Value> {
     let canonical = home.join(CANONICAL_AGENT_SKILLS_DIR);
     listed_skill_names()
         .into_iter()
         .map(|skill| {
+            let entry = catalog_skill(skill);
+            let text = |key: &str| {
+                entry
+                    .as_ref()
+                    .and_then(|entry| entry.get(key)?.as_str().map(str::to_string))
+            };
             json!({
                 "skillName": skill,
+                "name": text("name"),
+                "description": text("description"),
                 "installed": canonical.join(skill).join("SKILL.md").is_file(),
                 "unavailableReason": skill_unavailable_reason(skill, platform),
             })
@@ -115,6 +127,30 @@ async fn status(paths: &GxserverPaths) -> Result<Value, DomainStateError> {
         "ghostexCli": { "installed": cli_path.is_some(), "path": cli_path },
         "skills": skills,
     }))
+}
+
+/// Installs one bundled skill the way `ghostex <skill> install-skill` does: the package source the
+/// CLI resolves, GitHub main when it can be downloaded. Managed-tool installs use it for the skill a
+/// tool brings (managed_tools/desktop_control.rs).
+pub(crate) async fn install_bundled_skill(
+    paths: &GxserverPaths,
+    skill: &str,
+) -> Result<(), String> {
+    let owned = skill.to_string();
+    let source = tokio::task::spawn_blocking(move || {
+        crate::ghostex_cli::skills::resolve_ghostex_agent_skill_package_source(
+            &owned,
+            &[],
+            &crate::ghostex_cli::args::Flags::default(),
+        )
+    })
+    .await
+    .map_err(|error| error.to_string())?
+    .map_err(|error| error.to_string())?;
+    install_skill_from(paths, skill, &source, true)
+        .await
+        .map(|_| ())
+        .map_err(|error| error.message)
 }
 
 fn skill_param(params: &Map<String, Value>) -> Result<String, DomainStateError> {
@@ -255,6 +291,18 @@ mod tests {
         };
         assert_eq!(installed("ghostex-cli"), Some(true));
         assert_eq!(installed("ghostex-help"), Some(false));
+    }
+
+    #[test]
+    fn rows_carry_the_catalog_name_for_clients_without_it() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let rows = skill_rows(temp.path(), "linux");
+        let cli = rows
+            .iter()
+            .find(|row| row["skillName"] == "ghostex-cli")
+            .expect("cli row");
+        assert_eq!(cli["name"], "Ghostex CLI");
+        assert!(cli["description"].as_str().is_some_and(|text| !text.is_empty()));
     }
 
     #[test]

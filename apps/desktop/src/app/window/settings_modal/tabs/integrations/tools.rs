@@ -59,6 +59,11 @@ impl ManagedToolsState {
     pub(super) fn confirming_uninstall(&self) -> bool {
         self.confirm_uninstall.is_some()
     }
+
+    /// A list has come back.
+    pub(super) fn has_tools(&self) -> bool {
+        self.tools.is_some()
+    }
 }
 
 fn icon(tool: &str) -> &'static str {
@@ -69,6 +74,8 @@ fn icon(tool: &str) -> &'static str {
         "beads" => "modals/settings/layout-kanban.svg",
         "gh" => "modals/settings/brand-github.svg",
         "glab" => "modals/settings/brand-gitlab.svg",
+        "trycua" => "modals/settings/device-desktop.svg",
+        "spaceo" => "modals/settings/device-laptop.svg",
         _ => "modals/settings/tools.svg",
     }
 }
@@ -178,6 +185,13 @@ fn row_detail(tool: &Value) -> String {
     {
         return detail.to_string();
     }
+    // An installed Fast Computer & Browser Use or SpaceO still waiting for its macOS grants.
+    if let Some(note) = text(tool, "permissionNote") {
+        return match text(tool, "version") {
+            Some(version) => format!("Version {version}. {note}"),
+            None => note.to_string(),
+        };
+    }
     let owner = if text(tool, "source") == Some("ghostex") {
         "installed by Ghostex"
     } else {
@@ -214,7 +228,8 @@ impl IntegrationsTab {
             &self.store.clone(),
             machine.clone().as_deref(),
             "/api/managedTools",
-            json!({ "action": "list" }),
+            // A remote machine's list adds Fast Computer & Browser Use and SpaceO (remote_machine.rs).
+            json!({ "action": "list", "includeDesktopControl": machine.is_some() }),
             TIMEOUT,
             move |result, cx| {
                 let _ = this.update(cx, |page, cx| match result {
@@ -264,6 +279,8 @@ impl IntegrationsTab {
                 Some("succeeded") => {
                     let description = if operation == "uninstall" {
                         format!("Ghostex removed its copy of {name}.")
+                    } else if let Some(note) = text(tool, "permissionNote") {
+                        note.to_string()
                     } else if let Some(version) = text(tool, "version") {
                         format!("Version {version} is installed.")
                     } else {
@@ -506,11 +523,12 @@ impl IntegrationsTab {
                 None,
             )),
             Some(tools) => {
-                // PowerShell 7 has its own row in General > Terminal.
-                for tool in tools
-                    .iter()
-                    .filter(|tool| tool["supported"] == true && id(tool) != "powershell")
-                {
+                // PowerShell 7 has its own row in General > Terminal; a remote machine's Fast
+                // Computer & Browser Use and SpaceO have theirs under Desktop control.
+                for tool in tools.iter().filter(|tool| {
+                    tool["supported"] == true
+                        && !matches!(id(tool).as_str(), "powershell" | "trycua" | "spaceo")
+                }) {
                     rows.push(self.managed_tool_row(p, tool, cx));
                     let key = id(tool);
                     if self.managed.confirm_uninstall.as_deref() == Some(key.as_str())
@@ -529,6 +547,49 @@ impl IntegrationsTab {
             rows,
         )
         .map(IntoElement::into_any_element)
+    }
+
+    /// The rows of the managed tools `ids` names, in that order, with an unsupported one saying why
+    /// (a remote machine's Desktop control: Fast Computer & Browser Use and SpaceO).
+    pub(super) fn managed_rows_for(
+        &mut self,
+        p: &SettingsPalette,
+        ids: &[&str],
+        cx: &mut Context<Self>,
+    ) -> Vec<AnyElement> {
+        let tools = self.managed.tools.clone().unwrap_or_default();
+        let mut rows = Vec::new();
+        for wanted in ids {
+            let Some(tool) = tools.iter().find(|tool| id(tool) == *wanted) else {
+                continue;
+            };
+            if tool["supported"] != true {
+                rows.push(settings_list_item(
+                    p,
+                    Some(ListItemStatus::Neutral),
+                    Some(settings_icon(icon(wanted), 17.0, p.muted).into_any_element()),
+                    label(tool),
+                    Some(
+                        div()
+                            .child(
+                                text(tool, "unsupportedReason")
+                                    .unwrap_or("Not available on this machine.")
+                                    .to_string(),
+                            )
+                            .into_any_element(),
+                    ),
+                    None,
+                ));
+                continue;
+            }
+            rows.push(self.managed_tool_row(p, tool, cx));
+            if self.managed.confirm_uninstall.as_deref() == Some(*wanted)
+                && active_job(tool).is_none()
+            {
+                rows.push(self.managed_uninstall_confirmation(p, tool, cx));
+            }
+        }
+        rows
     }
 
     fn managed_uninstall_confirmation(
@@ -623,7 +684,9 @@ impl IntegrationsTab {
             .as_deref()
             .map(|version| format!(" (installed v{version})"))
             .unwrap_or_default();
-        let status = if tool["updateAvailable"] == true {
+        let status = if tool["updateAvailable"] == true
+            || (installed && text(tool, "permissionNote").is_some())
+        {
             ListItemStatus::Warning
         } else if installed {
             ListItemStatus::Success

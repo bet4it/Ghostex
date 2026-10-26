@@ -18,10 +18,13 @@ pub(crate) enum ToolId {
     Gh,
     Glab,
     PowerShell,
+    /// Fast Computer & Browser Use (Trycua's cua-driver), desktop_control.rs.
+    Trycua,
+    Spaceo,
 }
 
 impl ToolId {
-    pub(crate) const ALL: [ToolId; 8] = [
+    pub(crate) const ALL: [ToolId; 10] = [
         ToolId::Node,
         ToolId::Uv,
         ToolId::Homebrew,
@@ -30,6 +33,8 @@ impl ToolId {
         ToolId::Gh,
         ToolId::Glab,
         ToolId::PowerShell,
+        ToolId::Trycua,
+        ToolId::Spaceo,
     ];
 
     pub(crate) fn id(self) -> &'static str {
@@ -42,6 +47,8 @@ impl ToolId {
             ToolId::Gh => "gh",
             ToolId::Glab => "glab",
             ToolId::PowerShell => "powershell",
+            ToolId::Trycua => "trycua",
+            ToolId::Spaceo => "spaceo",
         }
     }
 
@@ -59,6 +66,8 @@ impl ToolId {
             ToolId::Gh => "GitHub CLI",
             ToolId::Glab => "GitLab CLI",
             ToolId::PowerShell => "PowerShell 7",
+            ToolId::Trycua => "Fast Computer & Browser Use",
+            ToolId::Spaceo => "SpaceO",
         }
     }
 
@@ -79,6 +88,12 @@ impl ToolId {
             ToolId::Glab => "Lets Add Project clone and list your GitLab repositories.",
             ToolId::PowerShell => {
                 "The current PowerShell. New terminals on Windows use it instead of Windows PowerShell 5.1."
+            }
+            ToolId::Trycua => {
+                "Trycua's cua-driver, which lets agents see and use that Mac's apps and browser in the background."
+            }
+            ToolId::Spaceo => {
+                "Gives each agent its own virtual display on that Mac, so agents use apps without taking over the screen."
             }
         }
     }
@@ -253,6 +268,11 @@ pub(crate) fn latest_version(tool: ToolId, fresh: bool) -> Option<Result<String,
         ToolId::Beads | ToolId::Gh | ToolId::Glab => super::binaries::latest_version(tool),
         ToolId::Homebrew => super::homebrew::latest_homebrew_version(),
         ToolId::SystemTools | ToolId::PowerShell => return None,
+        ToolId::Trycua | ToolId::Spaceo => super::desktop_control::latest_version(
+            tool,
+            &ghostex_paths::GhostexPaths::resolve().home_dir,
+            fresh,
+        )?,
     };
     if let Ok(mut cache) = LATEST.lock() {
         cache.insert(tool, (Instant::now(), answer.clone()));

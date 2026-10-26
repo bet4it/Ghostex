@@ -2,6 +2,7 @@
 //! computer: Node.js and npm, uv, Homebrew (macOS), Linux system tools, Beads, and the GitHub and
 //! GitLab CLIs, and (Windows) PowerShell 7. SEE-ALSO: docs/2026-09-29/one-click-installs/PLAN.md.
 pub(crate) mod binaries;
+pub(crate) mod desktop_control;
 pub(crate) mod download;
 pub(crate) mod endpoint;
 pub(crate) mod homebrew;

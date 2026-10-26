@@ -138,12 +138,20 @@ async fn read(definition: &'static Definition, home: &Path) -> Result<Value, Dom
         if is_active(&job.progress) {
             let mut state = job.state.clone();
             state["job"] = job.progress.clone();
+            if let Some(name) = crate::sidebar_hud::default_agent_name(&definition.agent_id) {
+                state["name"] = json!(name);
+            }
             return Ok(state);
         }
     }
     let mut state = read_state(definition, home).await?;
     if let Some(job) = previous {
         state["job"] = job.progress;
+    }
+    // CDXC:RemoteMachines 2026-10-26 WHY: the phone's machine screen lists agents by this answer
+    // alone, so it carries the built-in agent's display name.
+    if let Some(name) = crate::sidebar_hud::default_agent_name(&definition.agent_id) {
+        state["name"] = json!(name);
     }
     Ok(state)
 }

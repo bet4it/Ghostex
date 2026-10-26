@@ -4,7 +4,7 @@ use serde_json::{json, Map, Value};
 use std::path::{Path, PathBuf};
 
 use super::{
-    binaries, homebrew, jobs, node, paths, powershell, system_tools,
+    binaries, desktop_control, homebrew, jobs, node, paths, powershell, system_tools,
     tools::{self, Status, ToolId},
     uv,
 };
@@ -25,9 +25,13 @@ pub(crate) async fn dispatch(
         .unwrap_or("read");
     let fresh = params.get("fresh").and_then(Value::as_bool) == Some(true);
     if action == "list" {
+        // Fast Computer & Browser Use and SpaceO only for a client that draws them (desktop_control.rs).
+        let desktop_control =
+            params.get("includeDesktopControl").and_then(Value::as_bool) == Some(true);
         let tools = tokio::task::spawn_blocking(move || {
             ToolId::ALL
                 .into_iter()
+                .filter(|tool| desktop_control || !desktop_control::is_desktop_control(*tool))
                 .map(|tool| state(tool, &home, fresh))
                 .collect::<Vec<_>>()
         })
@@ -48,7 +52,7 @@ pub(crate) async fn dispatch(
                 .and_then(Value::as_str)
                 .ok_or_else(|| error("Choose install, update, reinstall or uninstall."))?
                 .to_string();
-            start(tool, &operation, &home).await
+            start(tool, &operation, &home, gx_paths.clone()).await
         }
         _ => Err(error("Unknown tool action.")),
     }
@@ -61,22 +65,25 @@ async fn read(tool: ToolId, home: &Path, fresh: bool) -> Result<Value, DomainSta
         .map_err(error)
 }
 
-pub(crate) fn status(tool: ToolId, home: &Path) -> Status {
-    match tool {
+/// The status, and for an installed desktop-control tool the grants it still lacks.
+fn status_and_grants(tool: ToolId, home: &Path) -> (Status, Option<desktop_control::Grants>) {
+    let status = match tool {
+        ToolId::Trycua | ToolId::Spaceo => return desktop_control::status(tool, home),
         ToolId::Node => node::status(home),
         ToolId::Uv => uv::status(home),
         ToolId::Homebrew => homebrew::homebrew_status(home),
         ToolId::SystemTools => system_tools::status(home),
         ToolId::PowerShell => powershell::status(),
         ToolId::Beads | ToolId::Gh | ToolId::Glab => binaries::status(tool, home),
-    }
+    };
+    (status, None)
 }
 
 /// The wire view of one tool (`ManagedToolState` in packages/shared/managed-tools.ts (deleted 2026-10-01)).
 pub(crate) fn state(tool: ToolId, home: &Path, fresh: bool) -> Value {
     let job = jobs::get(tool.id());
     let active = job.as_ref().is_some_and(jobs::Job::active);
-    let status = status(tool, home);
+    let (status, grants) = status_and_grants(tool, home);
     let mut value = json!({
         "id": tool.id(),
         "label": tool.label(),
@@ -111,6 +118,9 @@ pub(crate) fn state(tool: ToolId, home: &Path, fresh: bool) -> Value {
     if let Some(command) = &status.terminal_command {
         value["terminalCommand"] = json!(command);
     }
+    if let Some(note) = grants.as_ref().and_then(desktop_control::permission_note) {
+        value["permissionNote"] = json!(note);
+    }
     let actions: Vec<&str> = status
         .operations
         .iter()
@@ -136,7 +146,12 @@ pub(crate) fn state(tool: ToolId, home: &Path, fresh: bool) -> Value {
     value
 }
 
-async fn start(tool: ToolId, operation: &str, home: &Path) -> Result<Value, DomainStateError> {
+async fn start(
+    tool: ToolId,
+    operation: &str,
+    home: &Path,
+    gx_paths: GxserverPaths,
+) -> Result<Value, DomainStateError> {
     let current = read(tool, home, false).await?;
     let allowed = current["actions"]
         .as_array()
@@ -158,10 +173,23 @@ async fn start(tool: ToolId, operation: &str, home: &Path) -> Result<Value, Doma
         let _turn = jobs::INSTALL_LOCK.lock().await;
         jobs::set_status(tool.id(), "running");
         let log = jobs::log_for(tool.id());
-        let result =
-            tokio::task::spawn_blocking(move || run_operation(tool, &operation, &owned_home, &log))
+        let job_log = log.clone();
+        let uninstall = operation == "uninstall";
+        let mut result = tokio::task::spawn_blocking(move || {
+            run_operation(tool, &operation, &owned_home, &job_log)
+        })
+        .await
+        .unwrap_or_else(|error| Err(error.to_string()));
+        // A desktop-control tool brings its Ghostex skill, as this computer's own rows do.
+        if result.is_ok() && !uninstall && desktop_control::is_desktop_control(tool) {
+            let skill = desktop_control::ghostex_skill(tool);
+            result = crate::machine_integrations::install_bundled_skill(&gx_paths, skill)
                 .await
-                .unwrap_or_else(|error| Err(error.to_string()));
+                .map(|()| log.line(&format!("Installed the {skill} skill.")))
+                .map_err(|error| {
+                    format!("Installed, but the {skill} skill could not be installed: {error}")
+                });
+        }
         jobs::finish(tool.id(), &result);
     });
     read(tool, home, false).await
@@ -197,6 +225,9 @@ fn run_operation(tool: ToolId, operation: &str, home: &Path, log: &Log) -> Resul
         (ToolId::SystemTools, false) => return Err("Ghostex does not remove system tools.".into()),
         (ToolId::PowerShell, true) => powershell::install(log)?,
         (ToolId::PowerShell, false) => return Err("Ghostex does not remove PowerShell 7.".into()),
+        (ToolId::Trycua | ToolId::Spaceo, _) => {
+            desktop_control::run_operation(tool, operation, home, log)?
+        }
     }
     crate::agent_hooks::probing::refresh_cli_environment(home);
     Ok(())

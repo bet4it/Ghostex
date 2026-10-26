@@ -74,9 +74,11 @@ pub(super) fn remote_rpc(state: &str, path: &str, params: &Value) -> Result<Valu
             "methods": [{ "id": "mise", "label": "mise", "command": "mise use -g npm:@openai/codex@latest" }],
         })),
         ("/api/managedTools", _) => Ok(json!({ "tools": [
-            { "id": "node", "label": "Node.js and npm", "installed": true, "version": "22.11.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": false },
-            { "id": "uv", "label": "uv", "installed": false, "actions": ["install"], "installPlan": "Installs uv with its official installer." },
-            { "id": "gh", "label": "GitHub CLI", "installed": true, "version": "2.60.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": true, "latestVersion": "2.62.0" }
+            { "id": "node", "supported": true, "label": "Node.js and npm", "installed": true, "version": "22.11.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": false },
+            { "id": "uv", "supported": true, "label": "uv", "installed": false, "actions": ["install"], "installPlan": "Installs uv with its official installer." },
+            { "id": "gh", "supported": true, "label": "GitHub CLI", "installed": true, "version": "2.60.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": true, "latestVersion": "2.62.0" },
+            { "id": "trycua", "label": "Fast Computer & Browser Use", "supported": true, "installed": true, "version": "0.6.2", "source": "system", "actions": ["update", "reinstall", "uninstall"], "updateAvailable": false, "permissionNote": "Installed, but it can't control that Mac yet. Only someone at that Mac can allow Accessibility and Screen Recording: in Ghostex's Settings > Integrations there, or System Settings > Privacy & Security." },
+            { "id": "spaceo", "label": "SpaceO", "supported": true, "installed": false, "actions": ["install"], "installPlan": "Runs SpaceO's official installer from GitHub in the background." }
         ] })),
         ("/api/machineIntegrations", _) => Ok(json!({
             "platform": "linux",

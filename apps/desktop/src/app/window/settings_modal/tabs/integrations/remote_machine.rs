@@ -1,11 +1,10 @@
 //! The Integrations page with a remote machine picked (../machine_picker.rs): that machine's
 //! Ghostex CLI and bundled agent skills from its gxserver's `/api/machineIntegrations`, its Tools
-//! from its `/api/managedTools` (tools.rs), and what Desktop control means there. Skills install
+//! from its `/api/managedTools` (tools.rs), Fast Computer & Browser Use and SpaceO among them under
+//! Desktop control (CDXC:ManagedTools 2026-10-26 in server/src/managed_tools/desktop_control.rs:
+//! Macs only, and an install without its macOS grants says who must allow them). Skills install
 //! and uninstall through that gxserver; a skill the machine's platform can't run says so instead
 //! of offering an install.
-//!
-//! CDXC:RemoteMachines 2026-10-26 WHY:
-//! Fast Computer & Browser Use and SpaceO stay out of the remote view: they drive the screen of the machine they run on and need its Accessibility and Screen Recording grants, and their installers run in the desktop app (CDXC:ManagedTools 2026-09-29), so they are set up from Ghostex on that machine.
 use super::super::super::fields::{
     ButtonVariant, ListItemStatus, settings_button, settings_section,
 };
@@ -46,12 +45,14 @@ fn remote_skill<'a>(status: Option<&'a Value>, skill_name: &str) -> Option<&'a V
         .find(|skill| skill.get("skillName").and_then(Value::as_str) == Some(skill_name))
 }
 
-fn platform_label(platform: Option<&str>) -> &'static str {
+/// The managed tools the remote view shows under Desktop control (server/src/managed_tools/desktop_control.rs).
+const DESKTOP_CONTROL_TOOLS: [&str; 2] = ["trycua", "spaceo"];
+
+/// Which machines can have them.
+fn platform_note(platform: Option<&str>) -> &'static str {
     match platform {
-        Some("macos") => "macOS",
-        Some("windows") => "Windows",
-        Some("linux") => "Linux",
-        _ => "this platform",
+        Some("macos") | None => "Macs only.",
+        Some(_) => "Macs only, so not on this machine.",
     }
 }
 
@@ -243,27 +244,42 @@ impl IntegrationsTab {
                 settings_section(p, "Ghostex CLI", None, None, vec![row])
                     .map(|section| ("ghostexCli", section.into_any_element())),
             );
-            let row = integration_row(
-                p,
-                "remote-desktop-control",
-                Some(ListItemStatus::Neutral),
-                Some(ICON_DEVICE_DESKTOP),
-                RowTitle {
-                    label: format!("Set up on {machine} itself"),
-                    description: format!(
-                        "{} and SpaceO control the screen of the computer they run on and need its permissions, so they are installed from Ghostex on {machine}. SpaceO runs only on macOS; {machine} runs {}.",
-                        trycua_name(),
-                        platform_label(platform)
-                    ),
-                    badge: None,
-                    pill: None,
-                    link: None,
-                },
-                Vec::new(),
-            );
+            let mut rows = self.managed_rows_for(p, &DESKTOP_CONTROL_TOOLS, cx);
+            // A gxserver from before these tools lists the others without them.
+            if rows.is_empty() && self.managed.has_tools() {
+                rows.push(integration_row(
+                    p,
+                    "remote-desktop-control-old",
+                    Some(ListItemStatus::Warning),
+                    Some(ICON_DEVICE_DESKTOP),
+                    RowTitle {
+                        label: format!("Update Ghostex on {machine} first"),
+                        description: format!(
+                            "{machine} runs an older Ghostex that can't install {} or SpaceO from here. Update it in Settings > Remote, then come back.",
+                            trycua_name()
+                        ),
+                        badge: None,
+                        pill: None,
+                        link: None,
+                    },
+                    Vec::new(),
+                ));
+            }
             sections.extend(
-                settings_section(p, "Desktop control", None, None, vec![row])
-                    .map(|section| ("desktopControl", section.into_any_element())),
+                settings_section(
+                    p,
+                    "Desktop control",
+                    Some(
+                        format!(
+                            "Lets agents use {machine}'s apps and browser. Only someone at {machine} can allow Accessibility and Screen Recording after an install. {}",
+                            platform_note(platform)
+                        )
+                        .into(),
+                    ),
+                    None,
+                    rows,
+                )
+                .map(|section| ("desktopControl", section.into_any_element())),
             );
             if let Some(skills) = self.remote_skills_section(p, Some(status), &machine, cx) {
                 sections.push(("agentSkills", skills));
@@ -442,6 +458,9 @@ mod tests {
             Some("SpaceO is only available on macOS.")
         );
         assert!(remote_skill(Some(&status), "ghostex-help").is_none());
-        assert_eq!(platform_label(Some("linux")), "Linux");
+        assert_eq!(
+            platform_note(Some("linux")),
+            "Macs only, so not on this machine."
+        );
     }
 }
