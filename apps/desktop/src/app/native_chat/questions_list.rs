@@ -1,6 +1,8 @@
 //! The ? pill's list (chat_pills.rs draws the pill): every question form, page and chart in the
-//! chat, under the All / Html / Q&A / Charts filters, in folding sections (Unanswered, For later,
-//! Answered and Withdrawn for questions, then Pages and Charts), each row jumping to its card. The sections, their rows and their order are the core's (`openQuestions.sections`,
+//! chat, under the All / Html / Q&A / Charts filter (a small dropdown on the header's line), in
+//! folding sections (Unanswered, For later, Answered and Withdrawn for questions, then Pages and
+//! Charts), each row jumping to its card. The sections, their rows and their order are the core's
+//! (`openQuestions.sections`,
 //! packages/gx-chat-core/src/questions/open_questions.rs, where the user's decision lives); this
 //! opens the list on hover, folds its sections and draws it in the pills' menu window
 //! (`option_menu/pill_menu.rs`), in the Links card's section look (native_sidebar/links_list.rs).
@@ -29,9 +31,6 @@ pub(super) const QUESTIONS_MENU_WIDTH: f32 = 440.0;
 const SECTION_HEIGHT: f32 = 22.0;
 const ROW_HEIGHT: f32 = 26.0;
 const LIST_MAX: f32 = 380.0;
-/// The space the filters take below the header besides the control itself, which is the modal
-/// kit's and does not zoom with the chat.
-const FILTERS_GAP: f32 = 2.0;
 
 /// How long the pointer rests on the pill before the list opens, and how long it may be off both
 /// the pill and the list before a list it opened closes.
@@ -54,6 +53,8 @@ pub(super) struct QuestionList {
     /// The sections the reader folded or opened against their default.
     toggled: HashSet<String>,
     timer: Option<Task<()>>,
+    /// The filter dropdown's trigger, in screen space, which its pick list opens below.
+    filter_bounds: std::rc::Rc<std::cell::Cell<gpui::Bounds<gpui::Pixels>>>,
 }
 
 impl QuestionList {
@@ -62,23 +63,18 @@ impl QuestionList {
     }
 }
 
-/// The list's content height (unscaled, at the chat's `scale`) for `open` (the document's
+/// The list's content height (unscaled) for `open` (the document's
 /// `openQuestions`), or `None` when the chat has nothing to list.
-pub(super) fn questions_menu_height(open: &Value, list: &QuestionList, scale: f32) -> Option<f32> {
+pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option<f32> {
     if open["total"].as_u64().unwrap_or(0) == 0 {
         return None;
     }
     let sections = open["sections"].as_array().cloned().unwrap_or_default();
-    let filters = crate::app::window::native_modal_kit::palette::MODAL_CONTROL_HEIGHT
-        / scale.max(0.1)
-        + FILTERS_GAP
-        + super::chat_pills::MENU_SECTION_GAP;
     if sections.is_empty() {
         // The picked filter has nothing: one line says so.
         return Some(
             super::chat_pills::MENU_HEADER_HEIGHT
                 + super::chat_pills::MENU_SECTION_GAP
-                + filters
                 + ROW_HEIGHT,
         );
     }
@@ -96,17 +92,16 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList, scale: f3
     Some(
         super::chat_pills::MENU_HEADER_HEIGHT
             + super::chat_pills::MENU_SECTION_GAP
-            + filters
             + rows.min(LIST_MAX),
     )
 }
 
-/// What a row is, for its icon and its label: an HTML page, a Q&A form or a chart.
-fn kind_look(kind: &str) -> (&'static str, &'static str) {
+/// What a row is, by its icon: an HTML page, a Q&A form or a chart.
+fn kind_icon(kind: &str) -> &'static str {
     match kind {
-        "page" => ("titlebar/file-type-html.svg", "HTML"),
-        "chart" => ("titlebar/chart-bar.svg", "Chart"),
-        _ => ("titlebar/list-check.svg", "Q&A"),
+        "page" => "titlebar/file-type-html.svg",
+        "chart" => "titlebar/chart-bar.svg",
+        _ => "titlebar/list-check.svg",
     }
 }
 
@@ -215,59 +210,113 @@ impl NativeChatView {
     }
 
     pub(super) fn questions_menu_height(&self) -> Option<f32> {
-        let scale = ChatAppearance::current(&self.snapshot).scale;
-        questions_menu_height(&self.snapshot["openQuestions"], &self.question_list, scale)
+        questions_menu_height(&self.snapshot["openQuestions"], &self.question_list)
     }
 
-    /// All, Html, Q&A and Charts over the list, each with its count (the core picks the rows).
-    fn question_list_filters(&self, open: &Value, cx: &mut Context<Self>) -> AnyElement {
-        use crate::app::window::native_modal_kit::segmented_and_rail::{
-            ModalRailItem, modal_bordered_segmented_control,
-        };
+    /// The filter's small dropdown at the header's right end: the current pick and a chevron. It
+    /// opens the chat menus' own pick list below it (the one a panel's select opens), with each
+    /// filter's count.
+    ///
+    /// CDXC:SessionChat 2026-10-27 DECISION:
+    /// User, of Chat Resources: "remove pill on the right, the icon on the left is enough indicator. and instead of tabs up top just do a small dropdown (should be top right of the pop up aligned with the header there". The All / Html / Q&A / Charts tabs became this dropdown on the header's line, and rows carry only their kind icon (no HTML / Q&A / Chart label). The phone does the same in ChatPills.tsx.
+    fn question_list_filter_trigger(
+        &self,
+        open: &Value,
+        p: &ChatAppearance,
+        menu_origin: gpui::Point<gpui::Pixels>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
         let filters = open["filters"].as_array().cloned().unwrap_or_default();
         let picked = text(open, "filter");
-        let items: Vec<ModalRailItem> = filters
+        let label = filters
             .iter()
-            .map(|filter| ModalRailItem {
-                label: text(filter, "label").into(),
-                trailing: Some(filter["count"].as_u64().unwrap_or(0).to_string().into()),
-                dot: None,
+            .find(|filter| text(filter, "id") == picked)
+            .map(|filter| text(filter, "label"))
+            .unwrap_or_else(|| "All".to_string());
+        let bounds = self.question_list.filter_bounds.clone();
+        let measured = bounds.clone();
+        div()
+            .id("chat-questions-filter")
+            .role(gpui::Role::ComboBox)
+            .aria_label(format!("Show: {label}"))
+            .flex_shrink_0()
+            .relative()
+            .flex()
+            .items_center()
+            .gap(px(4.0 * s))
+            .h(px(20.0 * s))
+            .px(px(6.0 * s))
+            .rounded(px(5.0 * s))
+            .text_size(px(12.0 * s))
+            .text_color(p.card_muted)
+            .chat_cursor_pointer()
+            .hover(|style| {
+                style
+                    .bg(p.foreground.opacity(0.06))
+                    .text_color(p.foreground)
+            })
+            .child(label)
+            .child(
+                svg()
+                    .path("titlebar/chevron-down.svg")
+                    .size(px(11.0 * s))
+                    .text_color(p.card_muted),
+            )
+            .child(
+                gpui::canvas(
+                    move |rect: gpui::Bounds<gpui::Pixels>, _, _| {
+                        measured.set(gpui::Bounds::new(menu_origin + rect.origin, rect.size))
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .top_0()
+                .left_0()
+                .size_full(),
+            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.open_question_list_filters(cx)
+            }))
+            .into_any_element()
+    }
+
+    /// The filter's pick list, below its trigger with their right edges lined up, so it opens
+    /// leftwards inside the popup. Picking keeps the list up, so a list the hover
+    /// opened stays while the reader uses it.
+    fn open_question_list_filters(&mut self, cx: &mut Context<Self>) {
+        let open = &self.snapshot["openQuestions"];
+        let picked = text(open, "filter");
+        let rows: Vec<Value> = open["filters"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .map(|filter| {
+                json!({
+                    "label": filter["label"],
+                    "detail": filter["count"].as_u64().unwrap_or(0).to_string(),
+                    "checked": text(filter, "id") == picked,
+                    "keepOpen": true,
+                    "command": {"type": "questionListFilter", "filter": filter["id"]},
+                })
             })
             .collect();
-        let selected = filters
-            .iter()
-            .position(|filter| text(filter, "id") == picked)
-            .unwrap_or(0);
-        let ids: Vec<String> = filters.iter().map(|filter| text(filter, "id")).collect();
-        let ink = gpui::Rgba::from(ChatAppearance::current(&self.snapshot).foreground);
-        div()
-            .w_full()
-            .flex_shrink_0()
-            .pb(px(FILTERS_GAP))
-            .child(
-                modal_bordered_segmented_control(
-                    ink,
-                    gpui::Rgba { a: 0.14, ..ink },
-                    gpui::Rgba { a: 0.55, ..ink },
-                    "chat-questions-filters",
-                    &items,
-                    selected,
-                    move |this: &mut Self, index, _window, cx| {
-                        if let Some(id) = ids.get(index) {
-                            this.invoke(json!({"type": "questionListFilter", "filter": id}), cx);
-                        }
-                    },
-                    cx,
-                )
-                .w_full(),
-            )
-            .into_any_element()
+        self.question_list.by_hover = false;
+        self.question_list.timer = None;
+        let anchor = self.question_list.filter_bounds.get();
+        if let Some(menu) = self.option_menu.clone() {
+            menu.update(cx, |menu, cx| {
+                menu.open_select_list_right_aligned(rows, anchor, 160.0, 1, cx)
+            });
+        }
     }
 
     /// The list, drawn in the menu's window with this view's listeners.
     pub(super) fn questions_menu_body(
         &self,
         p: &ChatAppearance,
+        window: &Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let open = self.snapshot["openQuestions"].clone();
@@ -276,14 +325,14 @@ impl NativeChatView {
         }
         let sections = open["sections"].as_array().cloned().unwrap_or_default();
         let s = p.scale;
+        let trigger = self.question_list_filter_trigger(&open, p, window.bounds().origin, cx);
         let header = super::chat_pills::pill_menu_header(
             "titlebar/question-mark.svg",
             "Chat Resources",
             text(&open, "summary"),
-            None,
+            Some(trigger),
             p,
         );
-        let filters = self.question_list_filters(&open, cx);
         let mut list = div()
             .id("chat-questions-list")
             .flex()
@@ -324,15 +373,7 @@ impl NativeChatView {
                     "chat-questions",
                     "Chat Resources",
                     header,
-                    Some(
-                        div()
-                            .flex()
-                            .flex_col()
-                            .gap(px(super::chat_pills::MENU_SECTION_GAP * s))
-                            .child(filters)
-                            .child(list)
-                            .into_any_element(),
-                    ),
+                    Some(list.into_any_element()),
                     None,
                     p,
                 ))
@@ -409,7 +450,7 @@ impl NativeChatView {
             .filter_map(Value::as_str)
             .collect::<Vec<_>>()
             .join(" ");
-        let (icon, kind_label) = kind_look(&text(row, "kind"));
+        let icon = kind_icon(&text(row, "kind"));
         let (icon_color, title_color) = match section {
             "answered" => (p.success(), p.foreground),
             "withdrawn" => (p.muted, p.card_muted),
@@ -456,18 +497,6 @@ impl NativeChatView {
                     .text_color(title_color)
                     .when(section == "withdrawn", |title| title.line_through())
                     .child(title),
-            )
-            // What the row is, beside its title, so pages, forms and charts read apart in any
-            // section (an answered row's state is its green icon and its section).
-            .child(
-                div()
-                    .flex_shrink_0()
-                    .px(px(5.0 * s))
-                    .rounded(px(4.0 * s))
-                    .bg(p.foreground.opacity(0.07))
-                    .text_size(px(10.5 * s))
-                    .text_color(p.card_muted)
-                    .child(kind_label),
             )
             .when(!tags.is_empty(), |this| {
                 this.child(

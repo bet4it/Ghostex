@@ -66,7 +66,9 @@ pub(in crate::app::native_chat) struct ChatOptionMenu {
     pub(super) opening: bool,
     pub(super) closed: bool,
     /// Where each depth's panel was anchored, so a panel can reopen in place.
-    anchors: Vec<(Bounds<Pixels>, f32, bool)>,
+    /// Each open panel's anchor, width, whether it drops below its trigger, and whether a dropped
+    /// list lines its right edge up with the trigger's instead of its left.
+    anchors: Vec<(Bounds<Pixels>, f32, bool, bool)>,
     parent: *mut std::ffi::c_void,
     /// Opened at the pointer (right-click menus), drawn with `MenuMetrics::CONTEXT`.
     compact: bool,
@@ -148,7 +150,7 @@ impl ChatOptionMenu {
         rows: Vec<Value>,
         cx: &mut Context<Self>,
     ) {
-        let (Some(&(anchor, _, _)), Some(&handle)) =
+        let (Some(&(anchor, _, _, _)), Some(&handle)) =
             (self.anchors.get(depth), self.windows.get(depth))
         else {
             return;
@@ -347,7 +349,7 @@ impl ChatOptionMenu {
         depth: usize,
         cx: &mut Context<Self>,
     ) {
-        self.open_panel_at(rows, anchor, width, depth, false, cx);
+        self.open_panel_at(rows, anchor, width, depth, false, false, cx);
     }
 
     /// A select's list: below its trigger (above when there is no room), left edges aligned.
@@ -359,14 +361,28 @@ impl ChatOptionMenu {
         depth: usize,
         cx: &mut Context<Self>,
     ) {
-        self.open_panel_at(rows, anchor, width, depth, true, cx);
+        self.open_panel_at(rows, anchor, width, depth, true, false, cx);
+    }
+
+    /// A select's list opened from a pill menu's body (the Chat Resources filter), which the
+    /// chat draws: below its trigger like `open_dropdown`, but with its right edge on the
+    /// trigger's, so a trigger at a panel's right end opens its list leftwards, inside the panel.
+    pub(in crate::app::native_chat) fn open_select_list_right_aligned(
+        &mut self,
+        rows: Vec<Value>,
+        anchor: Bounds<Pixels>,
+        width: f32,
+        depth: usize,
+        cx: &mut Context<Self>,
+    ) {
+        self.open_panel_at(rows, anchor, width, depth, true, true, cx);
     }
 
     /// Reopens the panel at `depth` with new rows, re-placed against its original anchor.
     /// The Switch Account panel uses this when it grows past the room below its top edge.
     pub(super) fn reopen(&mut self, depth: usize, rows: Vec<Value>, cx: &mut Context<Self>) {
-        if let Some(&(anchor, width, below)) = self.anchors.get(depth) {
-            self.open_panel_at(rows, anchor, width, depth, below, cx);
+        if let Some(&(anchor, width, below, right)) = self.anchors.get(depth) {
+            self.open_panel_at(rows, anchor, width, depth, below, right, cx);
         }
     }
 
@@ -377,13 +393,14 @@ impl ChatOptionMenu {
         width: f32,
         depth: usize,
         below: bool,
+        right_aligned: bool,
         cx: &mut Context<Self>,
     ) {
         if self.closed || rows.is_empty() {
             return;
         }
         self.anchors.truncate(depth);
-        self.anchors.push((anchor, width, below));
+        self.anchors.push((anchor, width, below, right_aligned));
         for row in &mut rows {
             if let Some(action) = row["hotkeyAction"].as_str() {
                 row["detail"] = crate::app::hotkeys::gpui_configured_hotkey_label(action).into();
@@ -431,7 +448,9 @@ impl ChatOptionMenu {
             * scale)
         .min(available.size.height - px(24.0 * scale));
         let margin = px(12.0 * scale);
-        let x = if below || side == Some(MenuSide::Left) {
+        let x = if below && right_aligned {
+            anchor.right() - width
+        } else if below || side == Some(MenuSide::Left) {
             anchor.left()
         } else if depth == 0 {
             anchor.right() - width
