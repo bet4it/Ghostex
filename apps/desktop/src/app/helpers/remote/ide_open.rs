@@ -450,8 +450,7 @@ pub(crate) fn gpui_open_remote_path_in_vscode_remote_ssh(
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn()
-            .map(|_| ())
+            .spawn_reaped()
             .map_err(|_| "Configured editor could not open the remote target.".to_string())
     }
 }
@@ -486,8 +485,7 @@ pub(crate) fn gpui_open_remote_path_in_zed_remote_ssh(
             .stdin(std::process::Stdio::null())
             .stdout(std::process::Stdio::null())
             .stderr(std::process::Stdio::null())
-            .spawn()
-            .map(|_| ())
+            .spawn_reaped()
             .map_err(|_| "Configured editor could not open the remote target.".to_string())
     }
 }

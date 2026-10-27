@@ -143,8 +143,7 @@ pub(crate) fn gpui_spawn_completion_sound_player(path: &Path) -> Result<(), Stri
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "Could not start the sound preview player.".to_string())
 }
 
