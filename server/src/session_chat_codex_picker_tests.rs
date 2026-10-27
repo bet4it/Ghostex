@@ -159,3 +159,30 @@ fn the_agents_own_input_box_is_ready() {
         SessionChatComposerState::Ready
     );
 }
+
+#[test]
+fn codex_permissions_menu_reads_its_current_row() {
+    use super::codex_permissions::permissions_menu_current;
+    // Verbatim `/permissions` menu, Codex 0.164 (2026-10-27).
+    let menu = concat!(
+        "• Permission selection requested: Read Only\n",
+        "  Update Model Permissions\n",
+        "  1. Ask for approval     Read and edit workspace files and run commands, with approval required for internet access or edits outside the workspace\n",
+        "  2. Approve for me       Only ask for actions detected as potentially unsafe\n",
+        "  3. Full Access          Use with caution: Codex can edit files outside this workspace and access the internet without approval\n",
+        "› 4. Read Only (current)  Read workspace files, with approval required for edits or internet access\n",
+        "  enter select · esc back\n",
+    );
+    assert_eq!(
+        permissions_menu_current(menu),
+        Some(Some("read-only".to_string()))
+    );
+    let loading = "  Update Model Permissions\n  Loading permission profiles…\n";
+    assert_eq!(permissions_menu_current(loading), None);
+    let none_current = menu.replace(" (current)", "");
+    assert_eq!(permissions_menu_current(&none_current), Some(None));
+    assert_eq!(
+        permissions_menu_current("› Ask Codex to do anything\n"),
+        None
+    );
+}

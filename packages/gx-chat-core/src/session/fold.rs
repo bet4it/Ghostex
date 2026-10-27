@@ -345,10 +345,12 @@ pub fn merge_options_detail(
     let Some(incoming) = incoming else {
         return (current.cloned(), false);
     };
-    let stronger = ["model", "effort", "mode"].iter().any(|field| {
-        evidence_priority(choice_source(incoming, field))
-            > evidence_priority(current.and_then(|current| choice_source(current, field)))
-    });
+    let stronger = ["model", "effort", "mode", "permissions"]
+        .iter()
+        .any(|field| {
+            evidence_priority(choice_source(incoming, field))
+                > evidence_priority(current.and_then(|current| choice_source(current, field)))
+        });
     let mut kept_current = false;
     let chosen = match current {
         Some(current)

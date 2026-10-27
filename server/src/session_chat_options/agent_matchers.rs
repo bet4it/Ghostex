@@ -264,6 +264,171 @@ pub(super) fn codex_plan_mode_choice() -> SessionChatDetectedChoice {
     }
 }
 
+/// Codex's built-in permission modes: the chat's value, the name Codex prints for it, and the
+/// profile `/permissions` takes. Codex 0.164 lists them in this order.
+pub(crate) const CODEX_PERMISSION_MODES: [(&str, &str, &str); 4] = [
+    ("ask-for-approval", "Ask for approval", ":ask-for-approval"),
+    ("approve-for-me", "Approve for me", ":approve-for-me"),
+    ("full-access", "Full Access", ":danger-full-access"),
+    ("read-only", "Read Only", ":read-only"),
+];
+
+/// The chat value for a name Codex printed, or the name itself for a profile from the user's own
+/// config, which the menu does not list.
+pub(crate) fn codex_permissions_choice(
+    label: &str,
+    source: SessionChatOptionEvidence,
+) -> Option<SessionChatDetectedChoice> {
+    let label = label.trim();
+    if label.is_empty() {
+        return None;
+    }
+    let value = CODEX_PERMISSION_MODES
+        .iter()
+        .find(|(_, name, _)| *name == label)
+        .map_or(label, |(value, _, _)| value);
+    Some(SessionChatDetectedChoice {
+        value: value.to_string(),
+        label: label.to_string(),
+        source,
+    })
+}
+
+/// The `/permissions` argument for a chat value, `None` for a value the chat does not offer.
+pub(crate) fn codex_permissions_command(value: &str) -> Option<String> {
+    CODEX_PERMISSION_MODES
+        .iter()
+        .find(|(known, _, _)| *known == value)
+        .map(|(_, _, profile)| format!("/permissions {profile}"))
+}
+
+const CODEX_SESSION_TITLE_PREFIX: &str = ">_ OpenAI Codex (v";
+
+/// The permission mode one line of Codex's history names, when it is one of the lines Codex
+/// itself prints for it.
+fn match_codex_permissions_line(line: &str) -> Option<SessionChatDetectedChoice> {
+    let line = line.trim();
+    if line == "permissions: YOLO mode" {
+        return codex_permissions_choice("Full Access", SessionChatOptionEvidence::Terminal);
+    }
+    let text = line.strip_prefix("• ")?;
+    let label = text
+        .strip_prefix("Permission selection requested: ")
+        .or_else(|| text.strip_prefix("Permissions updated to "))?;
+    codex_permissions_choice(label, SessionChatOptionEvidence::Terminal)
+}
+
+/*
+CDXC:AgentScreenDetection 2026-10-27 WHY:
+Codex 0.164 shows its permission mode in the footer only when the user lists `permissions` or
+`approval-mode` in `tui.status_line`, and records it in the transcript only at the start of each
+turn (`turn_context`). Every way it changes mid-session (the `/permissions` menu, `/permissions
+<profile>`, the permission-mode keys) prints `• Permission selection requested: <name>` into the
+history, and a session started with `--yolo` prints `permissions: YOLO mode` under its title, so
+the newest such line since the last Codex title is the current mode. The scan stops at the title so
+a line an earlier Codex run printed into the same terminal never describes this one; nothing found
+leaves the transcript and the launch flags to answer.
+SEE-ALSO: `codex_permissions` (the Mode button) in packages/gx-chat-core/src/menus/option_catalog.rs, `drive_permissions_option` in server/src/session_chat_selection_options.rs.
+*/
+pub(crate) fn codex_permissions_on_screen(text: &str) -> Option<SessionChatDetectedChoice> {
+    match newest_codex_permissions_sign(text)? {
+        CodexPermissionsSign::Line(choice) => Some(choice),
+        CodexPermissionsSign::Title => None,
+    }
+}
+
+enum CodexPermissionsSign {
+    Line(SessionChatDetectedChoice),
+    Title,
+}
+
+/// The bottom-most permission line or Codex title on screen. The capture keeps Codex's colours,
+/// which split the title's words, so every line is read without them.
+fn newest_codex_permissions_sign(text: &str) -> Option<CodexPermissionsSign> {
+    for raw in text.lines().rev() {
+        let line = normalize_spaces(&strip_ansi_sgr(raw));
+        if line.contains(CODEX_SESSION_TITLE_PREFIX) {
+            return Some(CodexPermissionsSign::Title);
+        }
+        if let Some(choice) = match_codex_permissions_line(&line) {
+            return Some(CodexPermissionsSign::Line(choice));
+        }
+    }
+    None
+}
+
+/// Whether the newest permission sign on a Codex screen is a title Codex drew without its
+/// `permissions: YOLO mode` line. Codex adds that line under every title it draws (at start and
+/// after `/clear`) exactly when the session has Full Access, so such a title rules Full Access
+/// out, whatever the launch flags or an older reading said.
+pub(crate) fn codex_title_rules_out_full_access(text: &str) -> bool {
+    matches!(
+        newest_codex_permissions_sign(text),
+        Some(CodexPermissionsSign::Title)
+    )
+}
+
+/// The mode a Codex `turn_context` record ran with. Built-in profiles are named by id; a record
+/// without one (written before profiles existed) is read from its sandbox and approval policy.
+pub(crate) fn codex_turn_context_permissions(
+    payload: &Map<String, Value>,
+) -> Option<SessionChatDetectedChoice> {
+    let reviewer = payload.get("approvals_reviewer").and_then(Value::as_str);
+    let approval = payload.get("approval_policy").and_then(Value::as_str);
+    let profile = payload
+        .get("active_permission_profile")
+        .and_then(|profile| profile.get("id"))
+        .and_then(Value::as_str);
+    let sandbox = payload
+        .get("sandbox_policy")
+        .and_then(|policy| policy.get("type"))
+        .and_then(Value::as_str);
+    let label = match (profile, sandbox, approval, reviewer) {
+        (Some(":workspace"), _, Some("on-request"), Some("auto_review"))
+        | (None, Some("workspace-write"), Some("on-request"), Some("auto_review")) => {
+            "Approve for me"
+        }
+        (Some(":workspace"), _, Some("on-request"), _)
+        | (None, Some("workspace-write"), Some("on-request"), _) => "Ask for approval",
+        (Some(":read-only"), _, Some("on-request"), _)
+        | (None, Some("read-only"), Some("on-request"), _) => "Read Only",
+        (Some(":danger-full-access"), _, Some("never"), _)
+        | (None, Some("danger-full-access"), Some("never"), _) => "Full Access",
+        // A profile from the user's own config is named by its id.
+        (Some(id), _, _, _) if !id.starts_with(':') => id,
+        _ => return None,
+    };
+    codex_permissions_choice(label, SessionChatOptionEvidence::Transcript)
+}
+
+/// The mode a Codex command line starts in, when its flags name one whole: `--yolo`,
+/// `--approve-for-me`, or a sandbox together with an approval policy.
+pub(crate) fn codex_launch_permissions(
+    flag_values: &[(String, Option<String>)],
+) -> Option<SessionChatDetectedChoice> {
+    let mut sandbox = None;
+    let mut approval = None;
+    let mut named = None;
+    for (flag, value) in flag_values {
+        match (flag.as_str(), value.as_deref()) {
+            ("--yolo" | "--dangerously-bypass-approvals-and-sandbox", None) => {
+                named = Some("Full Access")
+            }
+            ("--approve-for-me", None) => named = Some("Approve for me"),
+            ("-s" | "--sandbox", Some(value)) => sandbox = Some(value),
+            ("-a" | "--ask-for-approval", Some(value)) => approval = Some(value),
+            _ => {}
+        }
+    }
+    let label = named.or(match (sandbox, approval) {
+        (Some("read-only"), Some("on-request")) => Some("Read Only"),
+        (Some("workspace-write"), Some("on-request")) => Some("Ask for approval"),
+        (Some("danger-full-access"), Some("never")) => Some("Full Access"),
+        _ => None,
+    })?;
+    codex_permissions_choice(label, SessionChatOptionEvidence::Launch)
+}
+
 // ---------------------------------------------------------------------------
 // Cursor Agent grammar
 //   <Title> · GPT-5.6 Sol 272K Medium · 26K used
@@ -527,6 +692,8 @@ pub(super) fn match_grok_segment(segment: &str) -> Option<SessionChatDetectedSel
         }),
         effort,
         mode: None,
+        permissions: None,
+        permissions_recorded_at: None,
         context_window: None,
         terminal_status_line: None,
         fast: None,
@@ -702,6 +869,8 @@ pub(super) fn match_antigravity_statusline(line: &str) -> Option<SessionChatDete
             label: label.to_string(),
             source: SessionChatOptionEvidence::Terminal,
         }),
+        permissions: None,
+        permissions_recorded_at: None,
         context_window: None,
         terminal_status_line: None,
         fast: None,

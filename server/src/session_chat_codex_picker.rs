@@ -20,6 +20,8 @@ pub(crate) use provider_model_picker::run_provider_model_picker_job;
 mod claude_effort_slider;
 #[path = "session_chat_claude_model_list.rs"]
 mod claude_model_list;
+#[path = "session_chat_codex_permissions.rs"]
+mod codex_permissions;
 #[path = "session_chat_selection_options.rs"]
 mod selection_options;
 use claude_model_list::{

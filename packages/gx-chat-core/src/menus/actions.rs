@@ -328,10 +328,17 @@ fn queue_effects(
 ) -> Vec<Effect> {
     let (selection, options, scope) = match queued {
         QueuedOption::Swallowed => return Vec::new(),
-        QueuedOption::SelectOptions { mode, fast_mode } => {
+        QueuedOption::SelectOptions {
+            mode,
+            fast_mode,
+            permissions,
+        } => {
             let mut options = serde_json::Map::new();
             if let Some(mode) = mode {
                 options.insert("mode".to_string(), Value::String(mode));
+            }
+            if let Some(permissions) = permissions {
+                options.insert("permissions".to_string(), Value::String(permissions));
             }
             if let Some(fast_mode) = fast_mode {
                 options.insert("fastMode".to_string(), Value::String(fast_mode));

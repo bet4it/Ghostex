@@ -205,7 +205,14 @@ pub fn detect_session_chat_selection(
             source: SessionChatOptionEvidence::Terminal,
         });
     }
-    if found.model.is_none() && found.effort.is_none() && found.mode.is_none() {
+    if agent == SessionChatOptionAgent::Codex {
+        found.permissions = codex_permissions_on_screen(text);
+    }
+    if found.model.is_none()
+        && found.effort.is_none()
+        && found.mode.is_none()
+        && found.permissions.is_none()
+    {
         return None;
     }
     if let Some(top) = topmost_match {
@@ -463,9 +470,23 @@ pub fn detect_session_chat_terminal_state(
         );
     }
     let launch = read_session_chat_launch_selection(repository, project_id, session_id, agent);
+    // Only a whole capture says the screen shows no permission line.
+    let terminal = if agent == Some(SessionChatOptionAgent::Codex) && screen.is_some() {
+        with_remembered_codex_permissions(project_id, session_id, terminal, transcript.as_ref())
+    } else {
+        terminal
+    };
     let options = merge_session_chat_option_selections(launch, transcript, statusline, terminal)
         .map(|mut selection| {
             crate::session_chat_hermes_status::restore_hermes_model_id(&mut selection);
+            if screen.is_some_and(|capture| codex_title_rules_out_full_access(&capture.text))
+                && selection
+                    .permissions
+                    .as_ref()
+                    .is_some_and(|choice| choice.value == "full-access")
+            {
+                selection.permissions = None;
+            }
             selection
         })
         .map(SessionChatDetectedOptions::new);

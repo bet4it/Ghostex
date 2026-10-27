@@ -144,6 +144,13 @@ pub struct SessionChatDetectedSelection {
     /// mode (`plan`, absent while Codex is in its default mode); both are
     /// available only on screen.
     pub mode: Option<SessionChatDetectedChoice>,
+    /// Codex's permission profile (what `/permissions` sets): `ask-for-approval`,
+    /// `approve-for-me`, `full-access`, `read-only`, or a profile from the user's own config
+    /// under its own name.
+    pub permissions: Option<SessionChatDetectedChoice>,
+    /// When the transcript recorded `permissions` (its `turn_context` record's own timestamp),
+    /// so a newer turn can replace a reading the screen no longer shows. Not sent to clients.
+    pub permissions_recorded_at: Option<String>,
     /// Cursor's model context-window label, for example `272K` or `1M`.
     pub context_window: Option<String>,
     /// The agent's whole footer — every normalized line from the statusline
@@ -225,6 +232,16 @@ impl SessionChatDetectedOptions {
                     "value": mode.value,
                     "label": mode.label,
                     "source": mode.source.as_str(),
+                }),
+            );
+        }
+        if let Some(permissions) = self.selection.permissions.as_ref() {
+            map.insert(
+                "permissions".to_string(),
+                json!({
+                    "value": permissions.value,
+                    "label": permissions.label,
+                    "source": permissions.source.as_str(),
                 }),
             );
         }

@@ -1316,6 +1316,15 @@ Ghostex then switches the session straight back to the mode you had, so only you
 change it. Plan mode you pick yourself (the Mode button, `/plan`, or Shift+Tab in
 the terminal) stays on. From the CLI:
 `ghostex select-session-chat-model <session> --mode bypass|auto|manual|accept-edits|plan`.
+Codex chats have a Mode button too, for what Codex is allowed to do: Ask for
+approval (it asks before editing outside the project or using the
+internet), Approve for me (an automatic reviewer approves safe actions and only
+unsafe ones come to you), Full Access (no approvals at all) or Read Only. The
+check follows the mode Codex is in, also when you change it with `/permissions`
+in the terminal, and a pick applies to the running session right away, even
+while Codex is working. A session started with Agent approvals set to accept all
+starts in Full Access. Plan mode stays in the options menu. From the CLI:
+`ghostex select-session-chat-model <session> --permissions ask-for-approval|approve-for-me|full-access|read-only`.
 `/resume` works from the chat. In Claude Code and Codex chats it opens a Resume a
 conversation card listing the agent's own conversations: type to search, Up and
 Down move, Enter resumes the highlighted one, Escape cancels, or click a row (tap it
@@ -3325,6 +3334,12 @@ its usage, follow-ups and Bring to this computer all stay on it. New Thread
 highlights the account of the project's last cloud session first. The row always sits under the
 project of the repository's main folder, even when started from a worktree.
 
+- **The Cloud button**: while the work area shows a cloud session, the header
+  has a **Cloud** button whose menu holds only cloud actions: **Show Terminal**
+  (and back to the chat or claude.ai page), **Open on claude.ai**, **Copy
+  claude.ai Link**, **Account** (which saved Claude account it runs on, pickable
+  until it starts), **Start a Copy on Another Account…** while its account is out
+  of usage, and **Bring to This Computer**.
 - **The row**: a plain cloud icon after the title; hover it for the account,
   branch and latest status. Clicking it opens the session, whose chat pane is its
   claude.ai page; the row's menu has **Open on claude.ai** (the page in Ghostex's
@@ -3334,12 +3349,6 @@ project of the repository's main folder, even when started from a worktree.
   for ("Needs you: paste the ticket's title and description"). What reaches
   GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") shows there
   too, with a blue dot and a notification.
-- **The Cloud button**: while the work area shows a cloud session, the header
-  has a **Cloud** button whose menu holds only cloud actions: **Show Terminal**
-  (and back to the chat or claude.ai page), **Open on claude.ai**, **Copy
-  claude.ai Link**, **Account** (which saved Claude account it runs on, pickable
-  until it starts), **Start a Copy on Another Account…** while its account is out
-  of usage, and **Bring to This Computer**.
 - **Its terminal**: shows the conversation (your messages and Claude's replies,
   including a question it asks with options) and what Claude needs (open it with
   **Cloud** > **Show Terminal**). Type a reply
@@ -3458,15 +3467,6 @@ while you look at the session and goes away once every question is answered (fro
 the form, the page, or Voice mode), or the agent withdraws or asks them again.
 Voice mode can read these questions to you and answer them by their tag ("answer
 Q335 with the first option").
-Every copy shows a small "Copied!" bubble at the pointer for a moment, whether
-it came from a terminal, a chat message, a copy button, or a menu. Copy Sound is
-off by default. Enable it under Settings > Notifications > Sounds to also hear a
-short sound when copying from a terminal, a chat message, the chat composer
-(including its right-click Copy menu), a copy button, or a menu (`copySound`).
-
-The Notifications bell sits in the sidebar's top row, just before the sidebar
-menu button, and shows how many notifications are unread. Click it to open the Notifications
-panel: one row per session, newest first, saying whether the agent finished a
 A question form or question page you want to answer another time can be put off
 with For later on its card: it stops counting as unanswered (no pink dot, no count
 on the chat's ? pill, no notification) but stays answerable, and Back to
@@ -3479,6 +3479,15 @@ On the computer the list opens when you rest the pointer on the pill, and a clic
 on the pill still steps to the previous unanswered question; on the phone a tap
 opens it. The pill stays while the chat has any question, with its dot only while
 one is unanswered.
+Every copy shows a small "Copied!" bubble at the pointer for a moment, whether
+it came from a terminal, a chat message, a copy button, or a menu. Copy Sound is
+off by default. Enable it under Settings > Notifications > Sounds to also hear a
+short sound when copying from a terminal, a chat message, the chat composer
+(including its right-click Copy menu), a copy button, or a menu (`copySound`).
+
+The Notifications bell sits in the sidebar's top row, just before the sidebar
+menu button, and shows how many notifications are unread. Click it to open the Notifications
+panel: one row per session, newest first, saying whether the agent finished a
 turn or needs your input, with the last thing it said. Click a row to jump to
 that session and mark it read; hover a row to dismiss it; the header has Next
 unread, Mark all read, and Clear all. Hover a header button to see its configured

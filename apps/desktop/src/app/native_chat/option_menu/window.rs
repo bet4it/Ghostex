@@ -750,10 +750,21 @@ impl NativeChatView {
             return;
         }
         self.menu_side = Some(MenuSide::Left);
+        // Codex's modes say what each one allows under its name (Claude's rows carry no line).
+        let described_modes = kind == "mode"
+            && rows
+                .iter()
+                .any(|row| row["description"].is_string() && row["heading"] != true);
         self.show_chat_menu(
             rows,
             trigger,
-            if kind == "model" { 256.0 } else { 240.0 },
+            if kind == "model" {
+                256.0
+            } else if described_modes {
+                400.0
+            } else {
+                240.0
+            },
             window,
             cx,
         );
