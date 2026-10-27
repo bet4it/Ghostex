@@ -201,6 +201,38 @@ pub(crate) fn cached_github_viewer_login() -> Option<String> {
     cache.viewer_login.as_ref()?.value.clone()
 }
 
+#[cfg(test)]
+pub(crate) fn seed_work_feeds(
+    linear: &[(&LinearFeedRequest, LinearFeed)],
+    github: &[(&str, GithubFeed)],
+    viewer_login: Option<&str>,
+) {
+    let mut cache = cache().lock().unwrap();
+    let now = Instant::now();
+    for (request, feed) in linear {
+        cache.linear.insert(
+            request.cache_key(),
+            Cached {
+                value: Ok(feed.clone()),
+                fetched_at: now,
+            },
+        );
+    }
+    for (cwd, feed) in github {
+        cache.github.insert(
+            cwd.to_string(),
+            Cached {
+                value: Ok(feed.clone()),
+                fetched_at: now,
+            },
+        );
+    }
+    cache.viewer_login = Some(Cached {
+        value: viewer_login.map(str::to_string),
+        fetched_at: now,
+    });
+}
+
 /// Whether any of these feeds is missing or stale.
 pub(crate) fn work_feeds_stale(linear: &[LinearFeedRequest], github_cwds: &[String]) -> bool {
     let Ok(cache) = cache().lock() else {

@@ -41,6 +41,8 @@ mod settings;
 mod start_pull_request;
 mod start_work;
 mod team_flow;
+#[cfg(test)]
+mod tests;
 mod tracker;
 
 pub(crate) use branch::*;
