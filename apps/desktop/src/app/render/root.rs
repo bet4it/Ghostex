@@ -1023,6 +1023,11 @@ impl Render for GhostexGpuiApp {
                     this.set_voice_agent_call_mode(action.push_to_talk, cx);
                 }),
             )
+            .on_action(
+                cx.listener(|this, action: &ClaudeCloudMenuPicked, _window, cx| {
+                    this.run_claude_cloud_menu_pick(action, cx);
+                }),
+            )
             .on_action(cx.listener(|this, _: &VoiceCallAllSessions, _window, cx| {
                 this.voice_call_all_sessions(cx);
             }))

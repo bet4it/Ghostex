@@ -1,5 +1,5 @@
 //! Starting a cloud session on claude.ai, sending it follow-ups, and what its terminal client
-//! reads: the `get`, `start`, `send` and `attach` actions of `/api/claudeCloud`.
+//! reads: the `get`, `start` and `send` actions of `/api/claudeCloud`.
 
 use std::collections::HashSet;
 use std::path::Path;
@@ -89,22 +89,8 @@ pub(super) fn runner_for(
 }
 
 /// What the terminal client and other callers read about a cloud session.
-pub(super) fn answer(state: &AppState, db: &rusqlite::Connection, record: &CloudRecord) -> Value {
-    let mut value = record.to_value();
-    // The client runs `claude --cloud <link>` itself to attach, on the same account.
-    let account = record
-        .raw
-        .get("accountId")
-        .and_then(Value::as_str)
-        .and_then(|account_id| crate::accounts::launch::claude_account_argv(db, account_id).ok());
-    let claude = match account {
-        Some(argv) => argv,
-        None => crate::accounts::helpers::executable(&state.paths.home_dir, "claude")
-            .map(|path| vec![path.to_string_lossy().into_owned()])
-            .unwrap_or_else(|| vec!["claude".to_string()]),
-    };
-    value["claudeArgv"] = json!(claude);
-    value
+pub(super) fn answer(record: &CloudRecord) -> Value {
+    record.to_value()
 }
 
 fn text(params: &Map<String, Value>, key: &str) -> Option<String> {
@@ -191,7 +177,7 @@ fn start_inner(
     let repository = DomainRepository::new(&db, state.metadata.server_id.as_str());
     let (session, mut record) = load(&repository, project_id, session_id)?;
     if !matches!(record.state, CloudState::Draft | CloudState::Failed) {
-        return Ok(answer(state, &db, &record));
+        return Ok(answer(&record));
     }
     let task = text(params, "task")
         .or_else(|| text(&record.raw, "task"))
@@ -265,7 +251,7 @@ fn start_inner(
     }
     save(state, &db, &repository, project_id, session_id, &record)?;
     super::poller::wake_claude_cloud_poller();
-    Ok(answer(state, &db, &record))
+    Ok(answer(&record))
 }
 
 /// `send {projectId, sessionId, text}`: one follow-up message to the running cloud session.
@@ -298,7 +284,7 @@ pub(crate) fn send_to_cloud_session(
     Ok(json!({ "ok": true }))
 }
 
-/// `get {projectId, sessionId}`: the record, and how the client runs `claude` on its account.
+/// `get {projectId, sessionId}`: the record.
 pub(crate) fn read_cloud_session(
     state: &AppState,
     params: &Map<String, Value>,
@@ -308,26 +294,5 @@ pub(crate) fn read_cloud_session(
     let db = open(state)?;
     let repository = DomainRepository::new(&db, state.metadata.server_id.as_str());
     let (_, record) = load(&repository, &project_id, &session_id)?;
-    Ok(answer(state, &db, &record))
-}
-
-/// `attach {projectId, sessionId, live}`: what the client's `claude --cloud <link>` found. `live`
-/// means the terminal shows the cloud session itself, so the row opens the terminal instead of
-/// the claude.ai page (gx-core `session_claude_cloud_page`).
-pub(crate) fn record_attach(
-    state: &AppState,
-    params: &Map<String, Value>,
-) -> Result<Value, DomainStateError> {
-    let project_id = text(params, "projectId").unwrap_or_default();
-    let session_id = text(params, "sessionId").unwrap_or_default();
-    let live = params.get("live").and_then(Value::as_bool) == Some(true);
-    let db = open(state)?;
-    let repository = DomainRepository::new(&db, state.metadata.server_id.as_str());
-    let (_, mut record) = load(&repository, &project_id, &session_id)?;
-    let value = if live { "live" } else { "unavailable" };
-    if record.raw.get("attach").and_then(Value::as_str) != Some(value) {
-        record.raw.insert("attach".to_string(), json!(value));
-        save(state, &db, &repository, &project_id, &session_id, &record)?;
-    }
-    Ok(json!({ "ok": true }))
+    Ok(answer(&record))
 }

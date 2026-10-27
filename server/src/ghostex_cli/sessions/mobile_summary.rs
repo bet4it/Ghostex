@@ -662,7 +662,7 @@ fn to_mobile_session_summary(session: &Value) -> Value {
     insert_non_null(&mut map, "work", s("work"));
     // CDXC:SessionLinks 2026-10-24 WHY: the same second-whitelist trap: the phone's chat strip and its links sheet read the session's links from here.
     insert_non_null(&mut map, "links", s("links"));
-    // CDXC:ClaudeCloud 2026-10-23 WHY: the same second-whitelist trap: the phone's row needs the Claude cloud record (state, claude.ai link, attach) to mark the row and open the session's page on a tap.
+    // CDXC:ClaudeCloud 2026-10-23 WHY: the same second-whitelist trap: the phone's row needs the Claude cloud record (state, claude.ai link) to mark the row and open the session's page on a tap.
     insert_non_null(&mut map, "claudeCloud", s("claudeCloud"));
     /*
      * CDXC:SessionChat 2026-08-21-b:

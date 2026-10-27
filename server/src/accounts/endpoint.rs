@@ -452,6 +452,24 @@ pub(crate) fn dispatch(
             super::recovery::retry_now(state, &repository, &db, &session)?;
             changed_sessions.push(session);
         }
+        // A Claude cloud session keeps its account in its cloud record and runs no local agent
+        // (claude_cloud/account_pick.rs).
+        "select"
+            if get_session(&repository, params)?
+                .pointer("/runtimeSettings/claudeCloud")
+                .is_some_and(Value::is_object) =>
+        {
+            let session = get_session(&repository, params)?;
+            if let Some(selected) = crate::claude_cloud::select_cloud_account(
+                state,
+                &db,
+                &repository,
+                &session,
+                required(params, "accountId")?,
+            ) {
+                selected?;
+            }
+        }
         "sessionPolicy" | "select" | "stopRecovery" => {
             let session = get_session(&repository, params)?;
             let project = repository
@@ -913,7 +931,9 @@ fn state_value(
         let project = repository
             .get_project(required(params, "projectId")?)?
             .ok_or_else(|| DomainStateError::not_found("Project not found."))?;
-        if let Some(p) = launch::provider(&project, &session) {
+        if let Some(cloud) = crate::claude_cloud::cloud_session_accounts(&session) {
+            value["session"] = cloud;
+        } else if let Some(p) = launch::provider(&project, &session) {
             let account_id =
                 super::session_identity::display_account_id(registry, p, &session, home);
             value["session"] = json!({"provider":p,"accountId":account_id,"override":session.pointer("/runtimeSettings/accountPolicyOverride"),"policy":launch::effective_policy(registry,p,&session),"recovery":session.pointer("/runtimeSettings/accountRecovery"),"accountSwitch":session.pointer("/runtimeSettings/accountSwitch")});

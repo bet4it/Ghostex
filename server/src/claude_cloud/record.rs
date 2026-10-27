@@ -173,7 +173,6 @@ pub(crate) fn presentation_cloud_value(session: &Value) -> Option<Value> {
     let record = session_cloud_record(session)?;
     let mut value = json!({ "state": record.state.as_str() });
     for key in [
-        "attach",
         "accountId",
         "accountName",
         "accountEmail",

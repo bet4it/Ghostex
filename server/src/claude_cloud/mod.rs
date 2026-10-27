@@ -2,6 +2,7 @@
 //! on the web), started through the cloud runner (crate::cloud_runner). Split by concern; see
 //! each file.
 
+mod account_pick;
 mod accounts;
 mod bring_back;
 mod chat;
@@ -16,6 +17,7 @@ mod remote;
 mod start;
 mod work;
 
+pub(crate) use account_pick::{cloud_session_accounts, select_cloud_account};
 pub(crate) use chat::send_chat_text;
 pub(crate) use endpoint::claude_cloud_action;
 pub(crate) use poller::{notification_text, start_claude_cloud_poller, wake_claude_cloud_poller};

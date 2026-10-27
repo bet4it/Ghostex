@@ -3313,11 +3313,14 @@ agent dims it) and choose the Claude account it runs on. It opens in Chat View
 session starts on claude.ai from the project's GitHub repository on a new
 `claude/…` branch. On the computer the chat pane then shows the session's own
 claude.ai page, signed in as the session's account, where you read and answer
-Claude; the web page shows its terminal instead. On the phone, tapping the row
-opens the session's claude.ai page, and **Open Terminal** in its long-press menu
-shows the conversation in its terminal. The account is final for that session: its usage,
-follow-ups and Bring to this computer all stay on it. New Thread highlights the
-account of the project's last cloud session first. The row always sits under the
+Claude and type follow-ups in claude.ai's own message box; the web page shows its
+terminal instead. On the phone, tapping the row opens the session's claude.ai
+page, and **Open Terminal** in its long-press menu shows the conversation in its
+terminal. Until its task is sent you can move the session to another saved
+Claude account (the header's **Cloud** menu > **Account**, or the row's **Switch
+Account**); once it starts on claude.ai the account is final for that session:
+its usage, follow-ups and Bring to this computer all stay on it. New Thread
+highlights the account of the project's last cloud session first. The row always sits under the
 project of the repository's main folder, even when started from a worktree.
 
 - **The row**: a plain cloud icon after the title; hover it for the account,
@@ -3329,8 +3332,15 @@ project of the repository's main folder, even when started from a worktree.
   for ("Needs you: paste the ticket's title and description"). What reaches
   GitHub ("Pushed 3 commits to claude/…", "Pull request #12 opened") shows there
   too, with a blue dot and a notification.
+- **The Cloud button**: while the work area shows a cloud session, the header
+  has a **Cloud** button whose menu holds only cloud actions: **Show Terminal**
+  (and back to the chat or claude.ai page), **Open on claude.ai**, **Copy
+  claude.ai Link**, **Account** (which saved Claude account it runs on, pickable
+  until it starts), **Start a Copy on Another Account…** while its account is out
+  of usage, and **Bring to This Computer**.
 - **Its terminal**: shows the conversation (your messages and Claude's replies,
-  including a question it asks with options) and what Claude needs. Type a reply
+  including a question it asks with options) and what Claude needs (open it with
+  **Cloud** > **Show Terminal**). Type a reply
   or follow-up and press Enter to send it. A question with options or a
   permission request can only be answered on the claude.ai page; the terminal
   says so. A message sent to the session from its chat or with `ghostex agents

@@ -461,10 +461,6 @@ pub struct PresentationClaudeCloud {
     /// Why the start failed.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
-    /// `live` once the session's terminal shows the cloud session itself (`claude --cloud <link>`
-    /// attached), `unavailable` while Claude does not allow attaching for the account.
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub attach: Option<String>,
     /// The Saved Claude account the session runs on; its claude.ai page opens in that account's
     /// Browser profile.
     #[serde(default, skip_serializing_if = "Option::is_none")]

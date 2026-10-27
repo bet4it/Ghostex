@@ -711,10 +711,15 @@ fn full_menu(
         row.menu_facts.agent_name.as_deref(),
         row.agent_icon.as_deref(),
     );
+    // A Claude cloud session moves to another account until it starts on claude.ai
+    // (CDXC:ClaudeCloud in server/src/claude_cloud/account_pick.rs).
+    let cloud_account_open = row.claude_cloud.as_ref().is_some_and(|cloud| {
+        !group.is_remote && matches!(cloud.state.as_str(), "draft" | "failed")
+    });
     if !caps.is_browser_session
         && !group.is_stale
-        && !in_box
-        && matches!(account_provider, Some("claude") | Some("codex"))
+        && ((!in_box && matches!(account_provider, Some("claude") | Some("codex")))
+            || cloud_account_open)
     {
         advanced.push(MenuItem {
             label: Some("Switch Account".to_string()),

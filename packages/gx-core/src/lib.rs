@@ -70,6 +70,10 @@ pub use crate::attention::{
 };
 pub use crate::change::{ChangeSummary, IgnoredReason, SideStateChanges};
 pub use crate::claude_cloud::{
+    claude_cloud_menu, ClaudeCloudMenuAccount, ClaudeCloudMenuEntry, ClaudeCloudMenuPick,
+    ClaudeCloudMenuRow,
+};
+pub use crate::claude_cloud::{
     claude_cloud_page_account, claude_cloud_session_link, close_keeps_claude_cloud_row,
     is_claude_cloud_agent, is_claude_cloud_run_location, is_claude_cloud_session,
     is_running_claude_cloud_page, project_last_cloud_account, session_claude_cloud_page,
