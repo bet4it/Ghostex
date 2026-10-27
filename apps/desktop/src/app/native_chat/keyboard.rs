@@ -433,6 +433,24 @@ impl NativeChatView {
                 window.prevent_default();
                 return;
             }
+            // A card whose rows are its buttons has no Cancel button any more (CDXC:SessionChat
+            // 2026-10-27 in the chat core's terminal_prompts.rs), so Escape on a dialog with no
+            // "No" row still closes it the way that button did.
+            let dialog = &notice["dialog"];
+            if secondary
+                && notice["numbered"] == true
+                && dialog["actions"]
+                    .as_array()
+                    .is_some_and(|actions| actions.iter().any(|action| action == "cancel"))
+            {
+                this.invoke(
+                    json!({"type":"answer","answer":{"kind":"terminalDialog","dialogId":dialog["id"],"dialogAction":"cancel"}}),
+                    cx,
+                );
+                cx.stop_propagation();
+                window.prevent_default();
+                return;
+            }
         }
         // The approval card's Allow and Deny carry these two keys as hints (approval.rs).
         if this.snapshot["questionCard"]["visible"] == true

@@ -1703,7 +1703,12 @@ wait until it finishes without a delivery warning.
 To compact before sending a new prompt, press `⌥Enter` on macOS or `Alt+Enter` on Windows and Linux in the chat box,
 Option-click Send (Alt-click on Windows and Linux), or right-click Send and choose Compact & Send. Ghostex sends `/compact` first,
 then puts your written prompt in the queue above the input to send after compaction.
-In narrow chats, notice cards hide Show terminal output; Open terminal remains available.
+Approval and dialog cards (Claude Code, Codex and the other agents) list the
+agent's choices as numbered rows: press a row's number or click it. Cmd+Enter
+(Ctrl+Enter on Windows and Linux) picks the row highlighted in the terminal and
+Esc picks No, or closes a dialog that has no No row. Show terminal output opens
+what the agent printed above its question. In narrow chats, notice cards hide
+Show terminal output; Open terminal remains available.
 Ghostex trusts each project and worktree folder for you before it starts an
 agent there, so sessions never stop at the agent's own "Do you trust this
 folder?" question. It marks the folder trusted the way the agent would if you

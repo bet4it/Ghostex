@@ -23,6 +23,7 @@ pub mod later;
 pub mod model;
 pub mod notice_choices;
 pub mod notice_state;
+pub mod notice_tail;
 pub mod notice_tone;
 pub mod open_questions;
 pub mod permission_card;

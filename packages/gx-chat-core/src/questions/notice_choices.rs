@@ -74,3 +74,36 @@ fn strip_label_suffix(label: &str) -> String {
     }
     body[..open].trim_end().to_string()
 }
+
+/// The row's label without the agent's own key hint at its end: Codex's "Yes, proceed (y)" and
+/// "No, and tell Codex what to do differently (esc)", Claude's "No (esc)". A hint is a single
+/// letter or digit, or a key name, in brackets.
+///
+/// CDXC:SessionChat 2026-10-27 DECISION: User, on an approval card that showed each key up to
+/// three times ("bruv please let's not show the hotkey multiple places"), picked "numbers only"
+/// (Q680): a card's rows carry their number badge as the only hint, so the agent's own key hints
+/// are dropped from every row label, the ⌘Enter and Esc keycaps and the "Press a number, or click
+/// a row" line go (notice.rs), and so do the Confirm and Cancel buttons under numbered rows
+/// (terminal_prompts.rs). ⌘Enter and Esc keep working, unlabelled.
+pub fn without_key_hint(label: &str) -> &str {
+    let trimmed = label.trim_end();
+    let Some(body) = trimmed.strip_suffix(')') else {
+        return label;
+    };
+    let Some(open) = body.rfind(" (") else {
+        return label;
+    };
+    let hint = &body[open + 2..];
+    let single = {
+        let mut characters = hint.chars();
+        matches!((characters.next(), characters.next()), (Some(only), None) if only.is_ascii_alphanumeric())
+    };
+    let key_name = ["esc", "enter", "return", "tab", "space"]
+        .iter()
+        .any(|name| hint.eq_ignore_ascii_case(name));
+    if single || key_name {
+        body[..open].trim_end()
+    } else {
+        label
+    }
+}

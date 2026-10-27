@@ -164,6 +164,24 @@ fn decorate_notice(raw: &Value, notice: &TerminalNotice) -> Value {
             .collect();
     }
     object.remove("approvalCommand");
+    // The open terminal output shows only what is above the prompt the card draws (notice_tail.rs);
+    // a permission prompt opens with its tool's header ("Bash command").
+    let header = raw
+        .get("permissionRequest")
+        .and_then(|request| request.get("source"))
+        .and_then(Value::as_str);
+    match notice
+        .screen_tail
+        .as_deref()
+        .and_then(|tail| crate::questions::notice_tail::above_the_prompt(tail, notice, header))
+    {
+        Some(tail) => {
+            object.insert("screenTail".to_string(), json!(tail));
+        }
+        None => {
+            object.remove("screenTail");
+        }
+    }
     // A Claude Code permission prompt read whole is drawn as the card's `approval` details, which
     // show its command already.
     let approval = raw.get("permissionRequest").and_then(|request| {
@@ -249,6 +267,12 @@ fn decorate_notice(raw: &Value, notice: &TerminalNotice) -> Value {
                     row.insert(
                         "collapsedLabel".to_string(),
                         json!(collapsed_choice_label(&label)),
+                    );
+                    row.insert(
+                        "label".to_string(),
+                        json!(crate::questions::notice_choices::without_key_hint(
+                            &choice.label
+                        )),
                     );
                     row.insert(
                         "answer".to_string(),

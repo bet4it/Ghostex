@@ -77,8 +77,17 @@ pub fn terminal_dialog_presentation(dialog: &TerminalDialog) -> Value {
     let device_code = copy.as_ref().is_some_and(|copy| {
         copy["title"] == crate::questions::terminal_dialog_copy::CODEX_DEVICE_CODE_TITLE
     });
+    // Rows the card numbers (dialog_rows.rs) are its buttons: Confirm and Cancel under them only
+    // repeated a row (CDXC:SessionChat 2026-10-27 on `highlighted_row`).
+    let numbered_rows = dialog.picker.is_none()
+        && (!dialog.rows.is_empty()
+            || (dialog.actions.iter().any(|action| action == "yes")
+                && dialog.actions.iter().any(|action| action == "no")));
     let visible_actions = dialog.actions.iter().filter(|action| {
         let action = action.as_str();
+        if numbered_rows && side_question.is_none() && matches!(action, "confirm" | "cancel") {
+            return false;
+        }
         if device_code && matches!(action, "up" | "down") {
             return false;
         }
@@ -162,8 +171,10 @@ pub fn terminal_dialog_presentation(dialog: &TerminalDialog) -> Value {
 
 /*
 CDXC:SessionChat 2026-10-15 DECISION:
-User picked: show ↑ Previous / ↓ Next on every Claude panel the server offers them for (blocks or not; a card whose rows are numbered choices drops them, per the option D decision in dialog_rows.rs), and label Confirm with the highlighted row's text ("Install for you (user scope)", "Disable plugin") so it is never a blind Enter. Before, `/plugin`'s install step offered only Confirm, which always installed at user scope.
-SEE-ALSO: server/src/session_chat_claude_dialog.rs (option rows on tabbed panels), apps/desktop/src/app/native_chat/notice.rs, apps/mobile/app/src/chat/native/cards/NoticeCard.tsx.
+User picked: show ↑ Previous / ↓ Next on every Claude panel the server offers them for (blocks or not; a card whose rows are numbered choices drops them, per the option D decision in dialog_rows.rs). Labelling Confirm with the highlighted row's text is superseded below for cards with rows.
+CDXC:SessionChat 2026-10-27 DECISION:
+User, on the Codex approval card ("bruv please let's not show the hotkey multiple places"), answered Q680 "numbers only", Q681 "remove both" and Q682 "lines above the prompt". This replaces the 2026-10-15 rule "label Confirm with the highlighted row's text" wherever the card numbers the rows: the rows are the buttons, so the Confirm and Cancel buttons under them go, the number badge is each row's only hint (the agent's own "(y)", "(p)", "(esc)" and the ⌘Enter and Esc keycaps go), and ⌘Enter and Esc keep working unlabelled. A panel whose choice is not a row (a `❯` line read as blocks) keeps its Confirm named after that line, since nothing else answers it. The open terminal output shows only the lines above the prompt (notice_tail.rs).
+SEE-ALSO: packages/gx-chat-core/src/questions/notice_choices.rs (`without_key_hint`), apps/desktop/src/app/native_chat/notice.rs, apps/desktop/src/app/native_chat/keyboard.rs, apps/mobile/app/src/chat/native/cards/NoticeCard.tsx.
 */
 /// What Enter would pick: the selected row, or the `❯` line of a panel read as blocks, without
 /// its mark, number, description or stats, cut to a button's length.
