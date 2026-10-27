@@ -174,6 +174,9 @@ fn row_detail(tool: &Value) -> String {
             None => format!("{running} {name}…"),
         };
     }
+    if let Some(reason) = text(tool, "notAnswering") {
+        return format!("{name} isn't answering. {reason}");
+    }
     if tool["installed"] != true {
         return match text(tool, "detail") {
             Some(detail) => format!("{description} {detail}"),
@@ -428,6 +431,12 @@ impl IntegrationsTab {
                             let name = label(&state);
                             let version = text(&state, "version").unwrap_or_default().to_string();
                             match state["updateAvailable"].as_bool() {
+                                _ if text(&state, "notAnswering").is_some() => page.managed_toast(
+                                    "warning",
+                                    &format!("{name} isn't answering"),
+                                    text(&state, "notAnswering").unwrap_or_default(),
+                                    cx,
+                                ),
                                 Some(true) => page.managed_toast(
                                     "info",
                                     &format!("{name} update available"),
@@ -684,7 +693,10 @@ impl IntegrationsTab {
             .as_deref()
             .map(|version| format!(" (installed v{version})"))
             .unwrap_or_default();
-        let status = if tool["updateAvailable"] == true
+        // GitHub #336: a tool whose check didn't answer in time gets a Retry and nothing else.
+        let not_answering = !busy && text(tool, "notAnswering").is_some();
+        let status = if not_answering
+            || tool["updateAvailable"] == true
             || (installed && text(tool, "permissionNote").is_some())
         {
             ListItemStatus::Warning
@@ -695,7 +707,26 @@ impl IntegrationsTab {
         };
 
         let mut controls: Vec<AnyElement> = Vec::new();
-        if !installed {
+        if not_answering {
+            let click_key = key.clone();
+            controls.push(settings_button(
+                p,
+                SharedString::from(format!("tool-{key}-retry")),
+                if checking { "Checking…" } else { "Retry" },
+                Some(if checking {
+                    SPINNER
+                } else {
+                    "modals/settings/refresh.svg"
+                }),
+                ButtonVariant::Outline,
+                checking,
+                Some(format!("Checking {name} again…").into()),
+                move |page: &mut Self, _window, cx| {
+                    page.check_managed_tool(click_key.clone(), cx);
+                },
+                cx,
+            ));
+        } else if !installed {
             let terminal = text(tool, "terminalCommand").map(str::to_string);
             // A terminal install opens a terminal on this computer, so a remote machine's waits for one there.
             let remote_terminal = terminal.is_some() && self.shown_machine.is_some();

@@ -5,12 +5,15 @@ pub(crate) mod binaries;
 pub(crate) mod desktop_control;
 pub(crate) mod download;
 pub(crate) mod endpoint;
+pub(crate) mod flight;
 pub(crate) mod homebrew;
 pub(crate) mod jobs;
 pub(crate) mod node;
 pub(crate) mod paths;
 pub(crate) mod platform;
 pub(crate) mod powershell;
+#[cfg(all(test, unix))]
+mod probe_tests;
 pub(crate) mod run;
 pub(crate) mod system_tools;
 pub(crate) mod tools;

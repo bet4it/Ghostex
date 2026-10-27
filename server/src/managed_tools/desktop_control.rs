@@ -9,10 +9,9 @@
 //! User (Q610), asked whether Fast Computer & Browser Use and SpaceO should be installable on a remote Mac from the machine picker: "Allow it on a remote Mac." This supersedes the 2026-09-29 reason in apps/desktop/src/app/helpers/os_cli/cli_settings_actions.rs for keeping them out of gxserver ("Trycua controls the desktop it runs on"): a Mac's own gxserver runs the official installers here. They are never offered for Linux or Windows, and only the `list` that asks for them (`includeDesktopControl`) shows them, since this computer's Settings already draws its own Desktop control rows.
 //! SEE-ALSO: apps/desktop/src/app/helpers/os_cli/cli_settings_actions.rs and spaceo_job.rs (the same official commands, which this computer's own Desktop control rows run as desktop jobs; change both together), apps/desktop/src/app/window/settings_modal/tabs/integrations/remote_machine.rs, apps/mobile/app (the machine screen).
 use std::{
-    io::Read,
     path::{Path, PathBuf},
     process::Stdio,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use serde_json::Value;
@@ -79,33 +78,14 @@ pub(crate) fn permission_note(grants: &Grants) -> Option<String> {
 /// Runs `program args` with a deadline and returns its stdout whatever its exit code (`spaceo
 /// doctor` exits 1 when it found something to fix, with its JSON complete).
 fn probe(program: &Path, args: &[&str], timeout: Duration) -> Option<String> {
+    probed(program, args, timeout).ok()
+}
+
+/// `probe`, telling a program that ran past `timeout` (stopped with everything it started) apart.
+fn probed(program: &Path, args: &[&str], timeout: Duration) -> Result<String, run::Unfinished> {
     let mut command = crate::platform::process::background_command(program);
-    command
-        .args(args)
-        .env("PATH", run::job_path(&[]))
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    let mut child = command.spawn().ok()?;
-    let mut stdout = child.stdout.take()?;
-    let reader = std::thread::spawn(move || {
-        let mut text = String::new();
-        let _ = stdout.read_to_string(&mut text);
-        text
-    });
-    let deadline = Instant::now() + timeout;
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) => break,
-            Ok(None) if Instant::now() < deadline => std::thread::sleep(Duration::from_millis(50)),
-            _ => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return None;
-            }
-        }
-    }
-    reader.join().ok()
+    command.args(args).env("PATH", run::job_path(&[]));
+    run::output_within(command, timeout).map(|output| output.stdout)
 }
 
 /// The JSON object in a command's output (Trycua may print a notice before it).
@@ -222,27 +202,35 @@ pub(crate) fn status(tool: ToolId, home: &Path) -> (Status, Option<Grants>) {
         status.operations = vec!["install"];
         return (status, None);
     };
-    let (version, grants) = if trycua {
-        (
-            tools::version_of(&executable, &["--version"]),
-            trycua_grants(&executable),
-        )
+    status.source = Some(Source::System);
+    status.operations = vec!["update", "reinstall", "uninstall"];
+    // A tool that doesn't say its version isn't asked for its grants either (GitHub #336).
+    let grants = if trycua {
+        status.read_version(&executable, &["--version"]);
+        status
+            .not_answering
+            .is_none()
+            .then(|| trycua_grants(&executable))
     } else {
-        let version =
-            probe(&executable, &["version", "--json"], Duration::from_secs(3)).and_then(|text| {
-                json_object(&text)
+        let args = ["version", "--json"];
+        match probed(&executable, &args, Duration::from_secs(3)) {
+            Ok(text) => {
+                status.version = json_object(&text)
                     .and_then(|value| value.get("version")?.as_str().map(str::to_string))
-                    .or_else(|| tools::version_in(&text))
-            });
-        let doctor = probe(&executable, &["doctor", "--json"], Duration::from_secs(10))
-            .and_then(|text| json_object(&text));
-        (version, spaceo_grants_from_doctor(doctor.as_ref()))
+                    .or_else(|| tools::version_in(&text));
+                let doctor = probe(&executable, &["doctor", "--json"], Duration::from_secs(10))
+                    .and_then(|text| json_object(&text));
+                Some(spaceo_grants_from_doctor(doctor.as_ref()))
+            }
+            Err(run::Unfinished::TimedOut(limit)) => {
+                status.not_answering = Some(tools::not_answering(&executable, &args, limit));
+                None
+            }
+            Err(run::Unfinished::Start) => Some(spaceo_grants_from_doctor(None)),
+        }
     };
     status.executable = Some(executable);
-    status.source = Some(Source::System);
-    status.version = version;
-    status.operations = vec!["update", "reinstall", "uninstall"];
-    (status, Some(grants))
+    (status, grants)
 }
 
 /// The newest release: Trycua's own update check, SpaceO's latest GitHub release tag.

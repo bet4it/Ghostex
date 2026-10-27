@@ -93,6 +93,7 @@ fn linux_rpc(state: &str, path: &str, params: &Value) -> Result<Value, String> {
             { "id": "node", "supported": true, "label": "Node.js and npm", "installed": true, "version": "22.11.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": false },
             { "id": "uv", "supported": true, "label": "uv", "installed": false, "actions": ["install"], "installPlan": "Installs uv with its official installer." },
             { "id": "gh", "supported": true, "label": "GitHub CLI", "installed": true, "version": "2.60.0", "managed": true, "actions": ["update", "reinstall", "uninstall"], "updateAvailable": true, "latestVersion": "2.62.0" },
+            { "id": "glab", "supported": true, "label": "GitLab CLI", "installed": true, "source": "system", "actions": [], "notAnswering": "`glab --version` didn't answer within 5 seconds, so Ghostex stopped it." },
             { "id": "trycua", "label": "Fast Computer & Browser Use", "supported": true, "installed": true, "version": "0.6.2", "source": "system", "actions": ["update", "reinstall", "uninstall"], "updateAvailable": false, "permissionNote": "Installed, but it can't control that Mac yet. Only someone at that Mac can allow Accessibility and Screen Recording: in Ghostex's Settings > Integrations there, or System Settings > Privacy & Security." },
             { "id": "spaceo", "label": "SpaceO", "supported": true, "installed": false, "actions": ["install"], "installPlan": "Runs SpaceO's official installer from GitHub in the background." }
         ] })),

@@ -1,9 +1,7 @@
 use std::{
     env, fs,
-    io::Read,
     path::{Path, PathBuf},
-    process::{Command, Stdio},
-    thread,
+    process::Command,
     time::Duration,
 };
 
@@ -274,7 +272,10 @@ fn run_login_shell_path_probe(shell_path: &str, home_dir: &Path, timeout: Durati
         "PATH",
         crate::managed_tools::paths::process_path_without_tools(),
     );
-    let Some(stdout) = run_command_stdout_with_timeout(command, timeout) else {
+    // An interactive shell stays in our process group (`output_within_caller_group`).
+    let Some(stdout) = successful_stdout(crate::managed_tools::run::output_within_caller_group(
+        command, timeout,
+    )) else {
         return Vec::new();
     };
     stdout
@@ -292,44 +293,23 @@ fn apply_hook_command_environment(command: &mut Command, home_dir: &Path) {
     }
 }
 
+/// Stdout of a command that exited successfully within `timeout`. A command that runs longer is
+/// stopped with every process it started (`managed_tools::run::output_within`), so a looping
+/// wrapper or shim leaves nothing behind (GitHub #336).
 pub(crate) fn run_command_stdout_with_timeout(
-    mut command: Command,
+    command: Command,
     timeout: Duration,
 ) -> Option<String> {
-    crate::platform::process::NoConsoleWindow::no_console_window(&mut command)
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::null());
-    let mut child = command.spawn().ok()?;
-    let started = std::time::Instant::now();
-    loop {
-        match child.try_wait() {
-            Ok(Some(status)) => {
-                if !status.success() {
-                    return None;
-                }
-                let mut stdout = String::new();
-                if let Some(mut child_stdout) = child.stdout.take() {
-                    let _ = child_stdout.read_to_string(&mut stdout);
-                }
-                let _ = child.wait();
-                return Some(stdout);
-            }
-            Ok(None) => {
-                if started.elapsed() >= timeout {
-                    let _ = child.kill();
-                    let _ = child.wait();
-                    return None;
-                }
-                thread::sleep(Duration::from_millis(10));
-            }
-            Err(_) => {
-                let _ = child.kill();
-                let _ = child.wait();
-                return None;
-            }
-        }
-    }
+    successful_stdout(crate::managed_tools::run::output_within(command, timeout))
+}
+
+fn successful_stdout(
+    result: Result<crate::managed_tools::run::Finished, crate::managed_tools::run::Unfinished>,
+) -> Option<String> {
+    result
+        .ok()
+        .filter(|output| output.status.success())
+        .map(|output| output.stdout)
 }
 
 fn split_path(value: Option<&str>) -> Vec<String> {

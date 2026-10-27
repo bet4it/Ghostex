@@ -1,10 +1,16 @@
 //! `POST /api/managedTools`: the tools Ghostex installs for the user, their state and their jobs.
 
 use serde_json::{json, Map, Value};
-use std::path::{Path, PathBuf};
+use std::{
+    path::{Path, PathBuf},
+    sync::LazyLock,
+    time::{Duration, Instant},
+};
 
 use super::{
-    binaries, desktop_control, homebrew, jobs, node, paths, powershell, system_tools,
+    binaries, desktop_control,
+    flight::Flights,
+    homebrew, jobs, node, paths, powershell, system_tools,
     tools::{self, Status, ToolId},
     uv,
 };
@@ -29,10 +35,20 @@ pub(crate) async fn dispatch(
         let desktop_control =
             params.get("includeDesktopControl").and_then(Value::as_bool) == Some(true);
         let tools = tokio::task::spawn_blocking(move || {
-            ToolId::ALL
+            // Every tool is checked at once, and the list answers without one that is stuck.
+            let checks: Vec<_> = ToolId::ALL
                 .into_iter()
                 .filter(|tool| desktop_control || !desktop_control::is_desktop_control(*tool))
-                .map(|tool| state(tool, &home, fresh))
+                .map(|tool| (tool, checked_state(tool, &home, fresh)))
+                .collect();
+            let deadline = Instant::now() + STATE_WAIT;
+            checks
+                .into_iter()
+                .map(|(tool, check)| {
+                    check
+                        .wait_until(deadline)
+                        .unwrap_or_else(|| still_checking(tool))
+                })
                 .collect::<Vec<_>>()
         })
         .await
@@ -60,9 +76,58 @@ pub(crate) async fn dispatch(
 
 async fn read(tool: ToolId, home: &Path, fresh: bool) -> Result<Value, DomainStateError> {
     let home = home.to_path_buf();
-    tokio::task::spawn_blocking(move || state(tool, &home, fresh))
-        .await
-        .map_err(error)
+    tokio::task::spawn_blocking(move || {
+        checked_state(tool, &home, fresh)
+            .wait_until(Instant::now() + STATE_WAIT)
+            .unwrap_or_else(|| still_checking(tool))
+    })
+    .await
+    .map_err(error)
+}
+
+/// How long a list or read waits for one tool's check. Its version check stops at
+/// `run::PROBE_TIMEOUT`; the rest is the latest-release lookup, which can be slow on a bad network.
+const STATE_WAIT: Duration = Duration::from_secs(12);
+
+static CHECKS: LazyLock<Flights<ToolId, Value>> = LazyLock::new(Flights::new);
+
+/// The check of `tool` running now, or a new one: a tool is never checked twice at once.
+fn checked_state(
+    tool: ToolId,
+    home: &Path,
+    fresh: bool,
+) -> std::sync::Arc<super::flight::Flight<Value>> {
+    let home = home.to_path_buf();
+    CHECKS.join(tool, move || state(tool, &home, fresh))
+}
+
+/// A tool whose check did not finish in `STATE_WAIT`: shown as not answering, with its job, while
+/// the check goes on (a Retry joins it).
+///
+/// CDXC:ManagedTools 2026-10-27 WHY:
+/// GitHub #336: one tool's endless version check kept the whole Tools list on "Tool status is being
+/// checked." The list shows every tool that answered and marks this one, so the rest of the page
+/// works and Retry asks again.
+pub(super) fn still_checking(tool: ToolId) -> Value {
+    let mut value = json!({
+        "id": tool.id(),
+        "label": tool.label(),
+        "description": tool.description(),
+        "supported": true,
+        "installed": false,
+        "installPlan": "",
+        "needsPassword": false,
+        "actions": [],
+        "notAnswering": format!(
+            "Checking {} took longer than {} seconds.",
+            tool.label(),
+            STATE_WAIT.as_secs()
+        ),
+    });
+    if let Some(job) = jobs::get(tool.id()) {
+        value["job"] = job.view();
+    }
+    value
 }
 
 /// The status, and for an installed desktop-control tool the grants it still lacks.
@@ -108,6 +173,9 @@ pub(crate) fn state(tool: ToolId, home: &Path, fresh: bool) -> Value {
     }
     if let Some(detail) = &status.detail {
         value["detail"] = json!(detail);
+    }
+    if let Some(reason) = &status.not_answering {
+        value["notAnswering"] = json!(reason);
     }
     if let Some(reason) = &status.install_blocker {
         value["unavailableReason"] = json!(reason);
