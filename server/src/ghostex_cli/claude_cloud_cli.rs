@@ -4,7 +4,7 @@
 
 use std::io::{BufRead, Write};
 use std::sync::mpsc;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
 use crate::ghostex_cli::{
     args::{parse_args, Flags},
@@ -266,51 +266,6 @@ impl Input {
     }
 }
 
-/// Runs `claude --cloud <link>` in this terminal on the session's account. Returns whether it
-/// stayed attached (Claude allows attaching for the account) rather than refusing at once.
-///
-/// CDXC:ClaudeCloud 2026-10-23 WHY: Claude Code 2.1.301 answers "Attaching to an existing cloud session is not enabled for your account." and exits at once (verified 2026-10-23); the help still lists the flag, so it is a per-account switch. The client tries once per start of the terminal: a refusal shows the status screen and the row keeps opening the claude.ai page, and an attach that stays up turns the row into an ordinary terminal session from then on.
-fn try_attach(record: &Value, report: &dyn Fn(bool)) -> bool {
-    let Some(argv) = record["claudeArgv"].as_array() else {
-        return false;
-    };
-    let argv: Vec<String> = argv
-        .iter()
-        .filter_map(|part| part.as_str().map(str::to_string))
-        .collect();
-    let Some((program, wrapper)) = argv.split_first() else {
-        return false;
-    };
-    let url = text(record, "url");
-    if url.is_empty() {
-        return false;
-    }
-    let started = Instant::now();
-    let Ok(mut child) = std::process::Command::new(program)
-        .args(wrapper)
-        .args(["--cloud", url])
-        .spawn()
-    else {
-        return false;
-    };
-    let mut reported = false;
-    loop {
-        match child.try_wait() {
-            Ok(Some(_)) | Err(_) => break,
-            Ok(None) => {}
-        }
-        if !reported && started.elapsed() > Duration::from_secs(8) {
-            report(true);
-            reported = true;
-        }
-        std::thread::sleep(Duration::from_millis(200));
-    }
-    if !reported {
-        report(false);
-    }
-    reported
-}
-
 /// How long the client waits for typing before it looks at the session again.
 const REFRESH: Duration = Duration::from_secs(5);
 /// The newest messages the screen shows; the claude.ai page has the rest.
@@ -417,9 +372,17 @@ fn running_key(record: &Value) -> String {
     .join("|")
 }
 
-/// The client a Claude cloud session's terminal runs: asks for the task, starts the session,
-/// attaches when Claude allows it, and otherwise shows the session's conversation, what Claude
-/// needs and its status, and sends what the user types as follow-ups.
+/// The client a Claude cloud session's terminal runs: asks for the task, starts the session, then
+/// shows the session's conversation, what Claude needs and its status, and sends what the user
+/// types as follow-ups.
+///
+/// CDXC:ClaudeCloud 2026-10-27 WHY: the client no longer runs `claude --cloud <link>` on its own
+/// once the session runs. Claude Code refuses that attach on accounts where Claude has not turned it
+/// on ("Attaching to an existing cloud session is not enabled for your account.", printed in red in
+/// this terminal on every start), and where it works it turns the row into a plain terminal
+/// session, while the desktop's view of a running cloud session is its claude.ai page in the chat
+/// pane. Attaching stays where the user asks for it: the Work page's Open in terminal
+/// (app/work_view/bridge.rs).
 fn attach(flags: &Flags) -> CliResult<()> {
     let (project_id, session_id) = own_session()?;
     let call = |params: Value| -> CliResult<Value> {
@@ -429,7 +392,6 @@ fn attach(flags: &Flags) -> CliResult<()> {
         call_gxserver_rpc("/api/claudeCloud", &params, flags)
     };
     let mut input = Input::new();
-    let mut attach_tried = false;
     // The screen on show, so it is drawn again only when the session changed.
     let mut shown: Option<String> = None;
     // What became of the last line the user typed, kept on screen until the next one.
@@ -444,16 +406,6 @@ fn attach(flags: &Flags) -> CliResult<()> {
             }
         };
         let state = text(&record, "state").to_string();
-        if state == "running" && !attach_tried && !input.reading {
-            attach_tried = true;
-            let report = |live: bool| {
-                let _ = call(json!({ "action": "attach", "live": live }));
-            };
-            if try_attach(&record, &report) {
-                shown = None;
-                continue;
-            }
-        }
         let key = format!(
             "{state}|{}|{}",
             text(&record, "error"),
