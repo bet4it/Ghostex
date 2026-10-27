@@ -81,6 +81,9 @@ pub(crate) struct FocusPerformCounters {
 impl GhostexGpuiApp {
     /// A message the runtime's `handleSidebarMessage` used to answer and the store answers now.
     /// Returns whether it was one of them.
+    ///
+    /// CDXC:SessionSleep 2026-10-27 WHY:
+    /// Local Space and workspace restores select a session without asking to wake it. Carry their keepSleeping intent into the same Click to Wake guard that project activation uses; dropping it turns a restore into an explicit wakeSession request.
     pub(crate) fn gx_store_perform_focus_message(
         &mut self,
         message: &Value,
@@ -91,6 +94,7 @@ impl GhostexGpuiApp {
                 if let Some(session_id) = message.get("sessionId").and_then(Value::as_str) {
                     let options = RowFocusOptions {
                         keep_view: message.get("keepView") == Some(&Value::Bool(true)),
+                        keep_sleeping: message.get("keepSleeping") == Some(&Value::Bool(true)),
                         ..RowFocusOptions::default()
                     };
                     self.gx_store_focus_session_row(session_id, options, cx);
