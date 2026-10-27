@@ -19,7 +19,8 @@ macro_rules! light_tokens {
             "--gx-accent:#2563eb;--gx-warn:#a16207;--gx-good:#047857;--gx-bad:#b91c1c;--gx-code-bg:#f4f4f5;",
             "--gx-card:#ffffff;--gx-footer:#ffffff;--gx-option:#ffffff;",
             "--gx-card-border:#e7e7e7;--gx-option-border:#e7e7e7;",
-            "--gx-card-muted:#71717b;--gx-control:#18181b"
+            "--gx-card-muted:#71717b;--gx-control:#18181b;",
+            "--gx-tip-bg:#fcfcfc;--gx-tip-fg:#292929;--gx-tip-border:rgba(0,0,0,0.12)"
         )
     };
 }
@@ -67,7 +68,10 @@ pub(super) const THEME_STYLE: &str = concat!(
     // The question card's palette, the chat card's (apps/desktop/src/app/native_chat/appearance.rs).
     "--gx-card:#161616;--gx-footer:#141414;--gx-option:#121212;",
     "--gx-card-border:rgba(255,255,255,0.08);--gx-option-border:rgba(255,255,255,0.06);",
-    "--gx-card-muted:#b4b8bf;--gx-control:#e5e5e5}",
+    "--gx-card-muted:#b4b8bf;--gx-control:#e5e5e5;",
+    // The app's tooltip bubble without window glass (apps/desktop/src/app/helpers/titlebar/chrome_colors.rs
+    // `apply_gpui_component_theme`: the menu colour, darkened in dark mode; its border and text).
+    "--gx-tip-bg:#0a0a0a;--gx-tip-fg:#fcfcfc;--gx-tip-border:rgba(255,255,255,0.12)}",
     "@media (prefers-color-scheme: light){:where(:root:not([data-gx-theme=dark])){",
     light_tokens!(),
     "}}",
@@ -148,7 +152,7 @@ pub(crate) const PAGE_STATE_MARKER: &str = "<!--gx-page-state-->";
 pub(super) const PAGE_API: &str = r#"<script>(function(){var st=null,draft={},dirty=false,timer=0,posting=false,changes=0,pause=0,base=location.pathname.replace(/\/+$/,"");
 function later(wait){return Math.min(wait?wait*2:1000,10000);}
 function note(){if(!st||!st.answered||!document.body||document.getElementById("gx-answered"))return;var b=document.createElement("div");b.id="gx-answered";b.setAttribute("role","status");b.setAttribute("style","margin:0 0 12px;padding:8px 12px;border-radius:8px;font:500 12.5px/1.4 var(--font-sans);color:var(--success);background:color-mix(in srgb,var(--success) 12%,transparent);border:1px solid color-mix(in srgb,var(--success) 32%,transparent)");var when="";try{when=st.answeredAt?" on "+new Date(st.answeredAt).toLocaleString():"";}catch(e){}b.textContent="Answered"+when+". The agent has your answers.";var slot=document.querySelector("[data-gx-answered]"),kit=document.querySelector("gx-questions");if(slot)slot.appendChild(b);else if(kit){b.style.margin="0";kit.insertBefore(b,kit.firstChild);}else document.body.insertBefore(b,document.body.firstChild);}
-function layoutNotice(){if(!st||!st.oldLayout||st.noticeDismissed||!document.body||document.getElementById("gx-layout-notice"))return;var b=document.createElement("div");b.id="gx-layout-notice";b.setAttribute("role","status");var t=document.createElement("span");t.innerHTML="<b>Made with an older ghostex-visuals skill.</b> This page uses the old layout. Ghostex keeps the skill up to date on its own, so the agent&#39;s next page gets the new look.";var x=document.createElement("button");x.type="button";x.textContent="\u00d7";x.setAttribute("aria-label","Close this notice");x.title="Close";x.addEventListener("click",function(){b.remove();st.noticeDismissed=true;fetch(base+"/notice",{method:"POST",body:"{}",keepalive:true}).catch(function(){});});b.append(t,x);document.body.insertBefore(b,document.body.firstChild);}
+function layoutNotice(){if(!st||!st.oldLayout||st.noticeDismissed||!document.body||document.getElementById("gx-layout-notice"))return;var b=document.createElement("div");b.id="gx-layout-notice";b.setAttribute("role","status");var t=document.createElement("span");t.innerHTML="<b>Made with an older ghostex-visuals skill.</b> This page uses the old layout. Ghostex keeps the skill up to date on its own, so the agent&#39;s next page gets the new look.";var x=document.createElement("button");x.type="button";x.textContent="\u00d7";x.setAttribute("aria-label","Close this notice");x.setAttribute("data-gx-tip","Close");x.addEventListener("click",function(){b.remove();st.noticeDismissed=true;fetch(base+"/notice",{method:"POST",body:"{}",keepalive:true}).catch(function(){});});b.append(t,x);document.body.insertBefore(b,document.body.firstChild);}
 function post(leaving){if(!dirty||(st&&st.answered))return;clearTimeout(timer);var body=JSON.stringify({draft:draft});if(leaving){if(navigator.sendBeacon)navigator.sendBeacon(base+"/draft",body);return;}if(posting)return;posting=true;var at=changes;
 fetch(base+"/draft",{method:"POST",body:body,keepalive:true}).then(function(r){posting=false;if(r.status>=500)throw r;pause=0;if(changes===at)dirty=false;else post();}).catch(function(){posting=false;pause=later(pause);clearTimeout(timer);timer=setTimeout(post,pause);});}
 function save(part,value){if(st&&st.answered)return;if(value==null)delete draft[part];else draft[part]=value;changes++;dirty=true;clearTimeout(timer);timer=setTimeout(post,300);}

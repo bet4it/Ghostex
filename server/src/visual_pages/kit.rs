@@ -193,14 +193,15 @@ gx-question.gx-answered .gx-choice[aria-checked=true] .gx-mark{border-color:var(
 .gx-skip-all{display:inline-flex;align-items:center;gap:6px;margin-left:auto;height:28px;box-sizing:border-box;padding:0 11px;font:inherit;font-size:13px;font-weight:500;border-radius:8px;border:1px solid transparent;background:color-mix(in srgb,var(--gx-fg) 9%,transparent);color:var(--gx-text);cursor:pointer}
 .gx-skip-all:hover{background:color-mix(in srgb,var(--gx-fg) 14%,transparent)}
 .gx-send-button,.gx-skip-all{position:relative}
-.gx-send-button[data-tip]::after,.gx-skip-all[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);right:0;white-space:nowrap;padding:4px 8px;border-radius:6px;border:1px solid var(--gx-line-strong);background:var(--gx-bg);color:var(--gx-text);font:500 12px/16px var(--font-mono);opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
-.gx-send-button[data-tip]:hover:not(:disabled)::after,.gx-skip-all[data-tip]:hover::after{opacity:1;transition-delay:.15s}
 .gx-skip-all+.gx-send-button{margin-left:0}
 .gx-send-status{flex:1;min-width:0;font-size:12.5px;color:var(--gx-muted)}
 .gx-send-status.gx-error{color:var(--destructive)}
-.gx-send-info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:none;color:var(--gx-muted);font:inherit;cursor:default}
-.gx-send-info::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:0;width:max-content;max-width:240px;padding:4px 8px;border-radius:6px;border:1px solid var(--gx-line-strong);background:var(--gx-bg);color:var(--gx-text);font:500 12px/16px var(--font-mono);text-align:left;opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
-.gx-send-info:hover::after,.gx-send-info:focus-visible::after{opacity:1;transition-delay:.15s}
+.gx-send-info{display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:none;color:var(--gx-muted);font:inherit;cursor:default}
+#gx-tip{position:fixed;left:0;top:0;z-index:2147483647;margin:0;inset:auto;display:flex;align-items:center;gap:16px;box-sizing:border-box;max-width:min(280px,calc(100vw - 16px));padding:8px 11px;border-radius:8px;border:1px solid var(--gx-tip-border);background:var(--gx-tip-bg);color:var(--gx-tip-fg);font:500 12.5px/1.4 Inter,var(--font-sans);letter-spacing:0;text-align:left;white-space:normal;box-shadow:0 4px 6px -1px rgba(0,0,0,.1),0 2px 4px -2px rgba(0,0,0,.1);pointer-events:none;opacity:0;visibility:hidden;transition:opacity .12s ease,visibility 0s linear .12s}
+#gx-tip.gx-tip-on{opacity:1;visibility:visible;transition:opacity .12s ease}
+#gx-tip .gx-tip-label{min-width:0}
+#gx-tip .gx-tip-keys{display:flex;flex:none;align-items:center;gap:3px}
+#gx-tip kbd{min-width:17px;box-sizing:border-box;padding:0 4px;border-radius:4px;border:1px solid color-mix(in srgb,var(--gx-tip-fg) 8%,transparent);background:color-mix(in srgb,var(--gx-tip-fg) 10%,transparent);color:color-mix(in srgb,var(--gx-tip-fg) 82%,transparent);font:600 11px/16px Inter,var(--font-sans);text-align:center}
 </style>"#;
 
 /// The kit's behaviour: turns the first `<gx-questions>` into a working form once the page has
@@ -210,6 +211,41 @@ var OTHER="Other / none of these",SKIPPED="skipped";
 var TILE_ICON='<svg class="gx-q-wait" viewBox="0 0 16 16" aria-hidden="true"><path d="M2.5 4.5 3.6 5.6 5.5 3.6M2.5 10.5l1.1 1.1 1.9-2M8 4.6h5.5M8 10.6h5.5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></svg><svg class="gx-q-done" viewBox="0 0 16 16" aria-hidden="true"><path d="M3 3.5h10a1 1 0 0 1 1 1v6a1 1 0 0 1-1 1H7l-3 2.5V11.5H3a1 1 0 0 1-1-1v-6a1 1 0 0 1 1-1Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/><path d="M6.6 6.2a1.5 1.5 0 1 1 2.1 1.4c-.5.2-.7.5-.7 1" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/><circle cx="8" cy="10" r=".7" fill="currentColor"/></svg><span class="gx-q-badge gx-ask"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M3.4 3.6a1.7 1.7 0 1 1 2.4 1.5c-.5.25-.8.55-.8 1.1" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><circle cx="5" cy="8.1" r=".8" fill="currentColor"/></svg></span><span class="gx-q-badge gx-check"><svg viewBox="0 0 10 10" aria-hidden="true"><path d="M2 5.2 4.2 7.4 8 2.8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg></span>';
 function el(tag,cls,text){var e=document.createElement(tag);if(cls)e.className=cls;if(text!=null)e.textContent=text;return e;}
 function kids(node){return Array.prototype.slice.call(node.childNodes);}
+/* Tooltips: any element with `data-gx-tip` (and optional `data-gx-tip-keys`, key caps split by spaces) gets the app's tooltip bubble on hover or keyboard focus, never the browser's own `title` box. One bubble in the top layer, placed above its control (below when there is no room) and kept inside the window; found through shadow roots too, so the floating window's picture viewer uses it. */
+var tip=null,tipFor=null,tipNext=null,tipTimer=0;
+function tipTarget(e){var path=e.composedPath?e.composedPath():[e.target];for(var i=0;i<path.length;i++){var n=path[i];if(n&&n.nodeType===1&&n.hasAttribute("data-gx-tip"))return n;}return null;}
+function showTip(target){
+  var label=target.getAttribute("data-gx-tip");if(!label||target.disabled||!document.body)return;
+  if(!tip){tip=document.createElement("div");tip.id="gx-tip";tip.setAttribute("role","tooltip");if(tip.showPopover)tip.setAttribute("popover","manual");}
+  if(!tip.isConnected)document.body.append(tip);
+  tip.textContent="";tip.append(el("span","gx-tip-label",label));
+  var keys=(target.getAttribute("data-gx-tip-keys")||"").trim();
+  if(keys){var caps=el("span","gx-tip-keys");keys.split(/\s+/).forEach(function(k){caps.append(el("kbd",null,k));});tip.append(caps);}
+  if(tip.showPopover&&!tip.matches(":popover-open"))try{tip.showPopover();}catch(x){}
+  var r=target.getBoundingClientRect(),w=tip.offsetWidth,h=tip.offsetHeight,vw=document.documentElement.clientWidth||innerWidth,vh=innerHeight,m=8,gap=6;
+  var x=Math.min(Math.max(r.left+r.width/2-w/2,m),Math.max(m,vw-w-m)),y=r.top-gap-h;
+  if(y<m)y=Math.min(r.bottom+gap,Math.max(m,vh-h-m));
+  tip.style.left=Math.round(x)+"px";tip.style.top=Math.round(y)+"px";
+  if(tipFor&&tipFor!==target)tipFor.removeAttribute("aria-describedby");
+  tipFor=target;target.setAttribute("aria-describedby","gx-tip");
+  requestAnimationFrame(function(){if(tipFor===target)tip.classList.add("gx-tip-on");});
+}
+function hideTip(){clearTimeout(tipTimer);tipNext=null;if(tipFor){tipFor.removeAttribute("aria-describedby");tipFor=null;}if(tip)tip.classList.remove("gx-tip-on");}
+/* Followed on every move, not only `pointerover`: Chromium skips the boundary events when the pointer jumps onto a control in another shadow root (the picture viewer's buttons). */
+function hover(e){
+  if(e.pointerType==="touch")return;var t=tipTarget(e);if(t===tipFor||(t&&t===tipNext))return;hideTip();
+  if(t){tipNext=t;tipTimer=setTimeout(function(){tipNext=null;showTip(t);},350);}
+}
+document.addEventListener("pointerover",hover,true);
+document.addEventListener("pointermove",hover,true);
+document.addEventListener("pointerout",function(e){if(!e.relatedTarget)hideTip();},true);
+document.addEventListener("focusin",function(e){var t=tipTarget(e);if(t&&t.matches(":focus-visible"))showTip(t);},true);
+document.addEventListener("focusout",function(e){if(tipTarget(e)===tipFor)hideTip();},true);
+["pointerdown","scroll","wheel"].forEach(function(name){addEventListener(name,hideTip,true);});
+document.addEventListener("keydown",function(e){if(e.key==="Escape")hideTip();},true);
+/* A control whose tip text changes while it shows (the picture viewer's Copy) redraws it. */
+window.__ghostexTips={refresh:function(target){if(target&&target===tipFor)showTip(target);}};
+
 function labelText(node){var c=node.cloneNode(true);c.querySelectorAll("small").forEach(function(s){s.remove();});return c.textContent.replace(/\s+/g," ").trim();}
 /* The choices of a question that has mockups tied to it, in the order those mockups appear on the page, so the list below always reads like the variants above it. A mockup matches a choice by its value or label (a bare letter is only known once the choices are lettered, so it cannot rank); choices no mockup names keep their order after the matched ones. */
 function inVariantOrder(els,key,tag){
@@ -303,7 +339,7 @@ function bindOptions(questions,changed){
     pick.addEventListener("click",function(){c.button.click();});
     note.addEventListener("input",changed);
     found.push({
-      sync:function(){var on=c.on();node.classList.toggle("gx-picked",on);pick.setAttribute("aria-pressed",on?"true":"false");pick.textContent=on?"\u2713 Picked":"Pick";pick.title=on?"Click again to clear":"Pick \""+c.label+"\"";pick.disabled=c.button.disabled;},
+      sync:function(){var on=c.on();node.classList.toggle("gx-picked",on);pick.setAttribute("aria-pressed",on?"true":"false");pick.textContent=on?"\u2713 Picked":"Pick";pick.setAttribute("data-gx-tip",on?"Click again to clear":"Pick \u201c"+c.label+"\u201d");pick.disabled=c.button.disabled;},
       collect:function(out){var written=note.value.trim();if(written)out[key]=written;},
       restore:function(answers){if(typeof answers[key]==="string")note.value=answers[key];},
       lock:function(){note.readOnly=true;if(!note.value)note.hidden=true;}});
@@ -321,12 +357,12 @@ function setup(root){
   options=bindOptions(questions,changed);syncOptions();
   var bar=el("div","gx-send"),button=el("button","gx-send-button"),label=el("span",null,root.getAttribute("submit")||"Send answers"),status=el("span","gx-send-status"),info=el("button","gx-send-info");
   /* The sentence about blank questions is an (i) icon with the quick tooltip, not a line of text beside the buttons (the SessionChat 2026-10-24 DECISION in apps/desktop/src/app/native_chat/ask_card.rs `ask_info_hint`). Any status message replaces the icon. */
-  info.type="button";info.setAttribute("aria-label","Questions you leave blank are sent as skipped.");info.setAttribute("data-tip","Questions you leave blank are sent as skipped.");info.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg>';status.append(info);
+  info.type="button";info.setAttribute("aria-label","Questions you leave blank are sent as skipped.");info.setAttribute("data-gx-tip","Questions you leave blank are sent as skipped.");info.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"/><path d="M12 9h.01"/><path d="M11 12h1v4h1"/></svg>';status.append(info);
   var mac=/Mac|iPhone|iPad/.test(navigator.platform||"");
-  /* The shortcuts show in a quick tooltip (CSS, data-tip), not on the buttons. */
-  button.setAttribute("data-tip","Send answers · "+(mac?"⌘↵":"Ctrl+Enter"));
+  /* The shortcuts show in the kit's tooltip as key caps, the keys this platform uses, not on the buttons. */
+  button.setAttribute("data-gx-tip","Send answers");button.setAttribute("data-gx-tip-keys",mac?"⌘ Enter":"Ctrl Enter");
   /* Skip all: sends at once with every question as skipped and no notes, whatever is picked or typed (see the SessionChat DECISION on SKIPPED in packages/gx-visual/src/questions.rs). */
-  var skipAll=el("button","gx-skip-all");skipAll.type="button";skipAll.append(el("span",null,"Skip all"));skipAll.setAttribute("data-tip","Skip all · "+(mac?"⌘⇧↵":"Ctrl+Shift+Enter"));
+  var skipAll=el("button","gx-skip-all");skipAll.type="button";skipAll.append(el("span",null,"Skip all"));skipAll.setAttribute("data-gx-tip","Skip all");skipAll.setAttribute("data-gx-tip-keys",mac?"⌘ ⇧ Enter":"Ctrl Shift Enter");
   button.type="button";button.append(label);bar.append(status,skipAll,button);root.append(bar);
   skipAll.addEventListener("click",function(){
     if(button.disabled)return;
@@ -334,7 +370,7 @@ function setup(root){
     /* Once sent, the page shows what went: no picks and no notes. */
     send(out,function(){restore({});root.querySelectorAll("textarea").forEach(function(t){t.value="";});});
   });
-  function lock(){questions.forEach(function(q){q.lock();});options.forEach(function(o){o.lock();});syncOptions();button.disabled=true;skipAll.remove();label.textContent="Sent";button.removeAttribute("data-tip");status.classList.remove("gx-error");status.textContent="Sent to the agent.";}
+  function lock(){questions.forEach(function(q){q.lock();});options.forEach(function(o){o.lock();});syncOptions();button.disabled=true;skipAll.remove();label.textContent="Sent";button.removeAttribute("data-gx-tip");button.removeAttribute("data-gx-tip-keys");status.classList.remove("gx-error");status.textContent="Sent to the agent.";}
   if(!window.ghostex){button.disabled=true;skipAll.remove();status.textContent="This Ghostex can't send answers from a page; type them in the chat.";return;}
   if(ghostex.answered){restore(ghostex.answers||{});lock();return;}
   var saved=ghostex.__draft&&ghostex.__draft("kit");if(saved&&typeof saved==="object"){restore(saved);syncOptions();}
