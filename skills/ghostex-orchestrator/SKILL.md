@@ -72,6 +72,10 @@ ghostex orchestrator start-thread --title "<its task, 3 to 6 words>" --task "<br
   and point to the file. Use `--body-file <path>` instead of `--task` for multi-line briefs.
 - Ghostex adds the goal, the standing instructions, your memory notes and the reporting rules to
   every brief. Do not repeat them.
+- When a thread's task is a Linear ticket or a GitHub issue, link it to the thread right after
+  `start-thread`: `ghostex link add <ABC-123|url|#123|owner/repo#123> --session <thread-ref>`
+  (add `--issue` for a bare `#123` that is an issue, not a PR). A ticket named only in the brief
+  does not link by itself; it only shows under the thread's Suggested links.
 - Threads that need the same files run one after another. Use `--worktree` only when running them
   in parallel really matters; the thread then works on its own branch in its own folder. Without it
   the thread works in the project folder.

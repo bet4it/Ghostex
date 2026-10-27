@@ -109,7 +109,8 @@ impl StoredSessionLinks {
     /// Judges the Linear tickets that joined by a mention before the 2026-10-27 rule (no
     /// `via`) again: one the user wrote (`user_mentions`) stays and is marked
     /// `MENTIONED_BY_USER`, one anyone pinned stays, the rest leave without going onto `removed`,
-    /// so the user writing it later still links it. Returns whether the list changed.
+    /// so one an agent named shows under Suggested again and the user writing it later still links
+    /// it. Returns whether the list changed.
     ///
     /// CDXC:SessionLinks 2026-10-27 WHY:
     /// The SPX tickets on the orchestrator came from other agents' reports and the agent's own replies (CDXC:SessionLinks 2026-10-27 in transcript_scan.rs). A ticket linked under the new rule is marked and never judged again, so a transcript read only in part (the first read stops after 20,000 rows) cannot drop one the user named long ago; only the unmarked ones get this one second look.
