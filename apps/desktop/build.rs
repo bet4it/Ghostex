@@ -60,6 +60,9 @@ fn emit_cef_component_version() {
     }
     println!("cargo:rerun-if-changed={}", bindings.display());
     println!("cargo:rustc-env=GHOSTEX_CEF_COMPONENT_VERSION={component_version}");
+    // The exact string libcef reports (cef_version_full), checked against a libcef.so found
+    // outside the component store (src/cef_library_version.rs).
+    println!("cargo:rustc-env=GHOSTEX_CEF_VERSION={raw_version}");
 }
 
 /*
