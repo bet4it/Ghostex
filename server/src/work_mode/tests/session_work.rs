@@ -12,7 +12,7 @@ fn linear_session(session_id: &str, cwd: &str, branch: &str, manual: Value) -> (
     let project_id = format!("PCharLin{session_id}");
     let fingerprint = linear_key_fingerprint(&format!("lin-key-{session_id}"));
     remember_project_linear_key(&project_id, Some(fingerprint));
-    remember_project_work_tracker(&project_id, WorkTracker::Linear);
+    remember_project_work_tracker(&project_id, WorkSourceId::Linear);
     seed_linear_team_keys(fingerprint, &["ACM"]);
     seed_linear_issue(
         fingerprint,
@@ -57,6 +57,19 @@ fn a_linear_branch_links_its_ticket_and_the_card_shows_its_linear_project() {
               "stateType": "started",
               "stateName": "In Progress",
               "url": "https://linear.app/acme/issue/ACM-12"
+            }
+          ],
+          "tickets": [
+            {
+              "key": "linear:ACM-12",
+              "kind": "linear",
+              "label": "ACM-12",
+              "title": "Title of ACM-12",
+              "state": "started",
+              "stateName": "In Progress",
+              "stateGroup": "progress",
+              "url": "https://linear.app/acme/issue/ACM-12",
+              "source": "branch"
             }
           ],
           "linearProject": {
@@ -121,6 +134,46 @@ fn hand_set_linear_and_github_links_publish_what_is_known_about_each() {
               "title": "Crash on start",
               "state": "open",
               "url": "https://github.com/acme/app/issues/3"
+            }
+          ],
+          "tickets": [
+            {
+              "key": "linear:ACM-12",
+              "kind": "linear",
+              "label": "ACM-12",
+              "title": "Title of ACM-12",
+              "state": "started",
+              "stateName": "In Progress",
+              "stateGroup": "progress",
+              "url": "https://linear.app/acme/issue/ACM-12",
+              "source": "user"
+            },
+            {
+              "key": "linear:ACM-13",
+              "kind": "linear",
+              "label": "ACM-13",
+              "state": "notFound",
+              "stateName": "Not found",
+              "finished": true,
+              "source": "user"
+            },
+            {
+              "key": "linear:ACM-14",
+              "kind": "linear",
+              "label": "ACM-14",
+              "loading": true,
+              "source": "user"
+            },
+            {
+              "key": "issue:acme/app#3",
+              "kind": "issue",
+              "label": "#3",
+              "title": "Crash on start",
+              "state": "open",
+              "stateName": "Open",
+              "stateGroup": "todo",
+              "url": "https://github.com/acme/app/issues/3",
+              "source": "user"
             }
           ],
           "linearProject": {
@@ -190,7 +243,7 @@ fn a_github_branch_links_its_issue_and_no_linear_project() {
         project_id,
         Some(linear_key_fingerprint("lin-key-gh-branch")),
     );
-    remember_project_work_tracker(project_id, WorkTracker::Github);
+    remember_project_work_tracker(project_id, WorkSourceId::Github);
     set_branch(cwd, "leandro/7-dark-mode");
     seed_work_github(
         cwd,
@@ -221,6 +274,20 @@ fn a_github_branch_links_its_issue_and_no_linear_project() {
               "state": "closed",
               "url": "https://github.com/acme/web/issues/7"
             }
+          ],
+          "tickets": [
+            {
+              "key": "issue:acme/web#7",
+              "kind": "issue",
+              "label": "#7",
+              "title": "Dark mode",
+              "state": "closed",
+              "stateName": "Closed",
+              "stateGroup": "closed",
+              "url": "https://github.com/acme/web/issues/7",
+              "finished": true,
+              "source": "branch"
+            }
           ]
         }),
     );
@@ -249,7 +316,7 @@ fn a_github_branch_links_its_issue_and_no_linear_project() {
 fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loading_link() {
     let cwd = "/gx-char/session/github-unread";
     let project_id = "PCharGhUnread";
-    remember_project_work_tracker(project_id, WorkTracker::Github);
+    remember_project_work_tracker(project_id, WorkSourceId::Github);
     set_branch(cwd, "main");
     // The repo is known, but the issue was never read.
     seed_work_github(cwd, Some("acme/web"), Vec::new(), Vec::new());
@@ -258,7 +325,19 @@ fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loadin
     let session = session(project_id, "S9", json!({ "githubIssues": [9] }));
     assert_published(
         &presentation_session_work(&project, &session).unwrap(),
-        json!({ "handSet": true, "githubIssues": [{ "number": 9 }] }),
+        json!({
+          "handSet": true,
+          "githubIssues": [{ "number": 9 }],
+          "tickets": [
+            {
+              "key": "issue:acme/web#9",
+              "kind": "issue",
+              "label": "#9",
+              "loading": true,
+              "source": "user"
+            }
+          ]
+        }),
     );
     assert_published(
         &presentation_session_links(&project, &session).unwrap(),

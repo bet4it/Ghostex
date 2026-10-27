@@ -129,7 +129,7 @@ pub(crate) fn project_presentation_project(project: &Value) -> Value {
 pub(crate) fn insert_issues_workflow_fields(
     output: &mut Map<String, Value>,
     parts: crate::work_mode::IssuesWorkflowParts,
-    tracker: crate::work_mode::WorkTracker,
+    tracker: crate::work_mode::WorkSourceId,
 ) {
     if !parts.any() {
         return;

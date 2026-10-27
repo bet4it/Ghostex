@@ -264,6 +264,9 @@ export interface GxserverPresentationSessionWork {
     url?: string;
     checks?: 'passing' | 'failing' | 'pending';
   };
+  /** Every linked ticket, whatever its source, in the session links' shape. */
+  tickets?: GxserverPresentationSessionLink[];
+  /** Kept while the phone app still reads it (CDXC:WorkMode 2026-10-27 on `PresentationSessionWork.linear_issues`). */
   linearIssues?: Array<{
     /** `SPX-1245`. */
     identifier: string;
@@ -288,13 +291,16 @@ export interface GxserverPresentationSessionWork {
 export interface GxserverPresentationSessionLink {
   /** `pr:owner/repo#318`, `issue:owner/repo#305` or `linear:GHX-142`. */
   key: string;
-  kind: 'pullRequest' | 'issue' | 'linear';
+  /** `pullRequest`, `issue` or `linear`; a kind a client does not know draws a fallback icon. */
+  kind: string;
   /** `#318`, `repo#12` (another repo) or `GHX-142`. */
   label: string;
   title?: string;
   /** A PR's `open|draft|merged|closed`, an issue's `open|closed`, a Linear ticket's state type. */
   state?: string;
   stateName?: string;
+  /** A ticket's Work page group: `backlog`, `todo`, `progress`, `review`, `done`, `canceled` or `closed`. */
+  stateGroup?: string;
   checks?: 'passing' | 'failing' | 'pending';
   review?: 'reviewRequired' | 'approved' | 'changesRequested';
   url?: string;

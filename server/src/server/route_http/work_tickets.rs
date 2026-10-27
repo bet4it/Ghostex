@@ -6,9 +6,9 @@ use serde_json::{json, Map, Value};
 use crate::domain::DomainStateError;
 use crate::protocol::rpc_success;
 use crate::work_mode::{
-    create_linear_issue, default_linear_team_id, list_linear_projects, list_linear_teams,
-    project_linear_api_key, project_linear_identifiers, resolve_work_mode_project,
-    start_work_on_ticket, NewLinearTicket,
+    default_linear_team_id, list_linear_projects, list_linear_teams, project_linear_api_key,
+    project_linear_identifiers, resolve_work_mode_project, start_work_on_ticket, work_source,
+    TicketDraft, TicketScope, WorkSourceId,
 };
 
 use super::super::work_mode_sync::spawn_work_mode_refresh;
@@ -148,22 +148,30 @@ fn create_linear_ticket(
         }
     };
     let description = text(params, "description");
-    let linear_project_id = text(params, "linearProjectId");
-    let ticket = create_linear_issue(
-        &api_key,
-        &NewLinearTicket {
-            team_id: &team_id,
-            title: &title,
-            description: description.as_deref(),
-            linear_project_id: linear_project_id.as_deref(),
-            assign_to_me: params.get("assignToMe").and_then(Value::as_bool) != Some(false),
-        },
-    )
-    .map_err(DomainStateError::bad_request)?;
+    let mut extra = Map::new();
+    extra.insert("teamId".to_string(), json!(team_id));
+    if let Some(linear_project_id) = text(params, "linearProjectId") {
+        extra.insert("linearProjectId".to_string(), json!(linear_project_id));
+    }
+    let created = work_source(WorkSourceId::Linear)
+        .create(
+            &TicketScope {
+                project_id: &project_id,
+                cwd: None,
+                linear_api_key: Some(&api_key),
+            },
+            &TicketDraft {
+                title: &title,
+                description: description.as_deref(),
+                assign_to_me: params.get("assignToMe").and_then(Value::as_bool) != Some(false),
+                extra: &extra,
+            },
+        )
+        .map_err(DomainStateError::bad_request)?;
     Ok(json!({
-        "identifier": ticket.identifier,
-        "url": ticket.url,
-        "branchName": ticket.branch_name,
+        "identifier": created.ticket.id,
+        "url": created.url,
+        "branchName": created.branch_name,
     }))
 }
 

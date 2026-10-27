@@ -60,7 +60,7 @@ pub(crate) fn refresh_work_caches(paths: &GxserverPaths, projects: &[Value], ses
     for (project_id, project) in &projects_by_id {
         let tracker = project_work_tracker(paths, &workspaces, project, projects);
         remember_project_work_tracker(project_id, tracker);
-        if tracker == WorkTracker::Github {
+        if tracker == WorkSourceId::Github {
             github_tracker_projects.push(project_id);
         }
     }

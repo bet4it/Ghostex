@@ -36,6 +36,8 @@ pub enum SessionLinkKind {
     PullRequest,
     Issue,
     Linear,
+    /// A ticket of a source this client does not know: drawn with the generic ticket icon.
+    Other,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -89,6 +91,8 @@ pub enum SessionLinkGlyph {
     Github,
     /// Every Linear ticket: the Linear logo.
     Linear,
+    /// A ticket of any other source.
+    Ticket,
     ChecksPassing,
     ChecksFailing,
     ChecksPending,
@@ -113,7 +117,8 @@ fn kind_of(text: &str) -> SessionLinkKind {
     match text {
         "pullRequest" => SessionLinkKind::PullRequest,
         "issue" => SessionLinkKind::Issue,
-        _ => SessionLinkKind::Linear,
+        "linear" => SessionLinkKind::Linear,
+        _ => SessionLinkKind::Other,
     }
 }
 
@@ -323,6 +328,14 @@ impl SessionLink {
                     },
                 )
             }
+            SessionLinkKind::Other => (
+                SessionLinkGlyph::Ticket,
+                match state {
+                    _ if self.finished => SessionLinkTone::Done,
+                    Some(_) => SessionLinkTone::Open,
+                    None => SessionLinkTone::Draft,
+                },
+            ),
         }
     }
 
@@ -338,7 +351,7 @@ impl SessionLink {
 
     /// The state in words: "Open", "Draft", "Merged", "Closed", or the Linear team's own name.
     pub fn state_label(&self) -> Option<String> {
-        if self.kind == SessionLinkKind::Linear {
+        if matches!(self.kind, SessionLinkKind::Linear | SessionLinkKind::Other) {
             return self.state_name.clone();
         }
         let state = self.state.as_deref()?;
@@ -996,6 +1009,24 @@ mod tests {
             ..SessionLinks::default()
         };
         assert_eq!(ticket.badge_label(), Some(("SPX-123".to_string(), 0)));
+    }
+
+    #[test]
+    fn a_ticket_of_an_unknown_source_draws_the_generic_ticket_icon() {
+        let mut ticket = link("jira:ABC-12", "todo", false);
+        ticket.kind = kind_of("jira");
+        ticket.state_name = Some("Todo".to_string());
+        assert_eq!(
+            ticket.glyph(),
+            (SessionLinkGlyph::Ticket, SessionLinkTone::Open)
+        );
+        assert_eq!(ticket.state_label().as_deref(), Some("Todo"));
+        ticket.finished = true;
+        assert_eq!(
+            ticket.glyph(),
+            (SessionLinkGlyph::Ticket, SessionLinkTone::Done)
+        );
+        assert_eq!(kind_of("linear"), SessionLinkKind::Linear);
     }
 
     #[test]

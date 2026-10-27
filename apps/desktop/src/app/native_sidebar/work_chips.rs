@@ -165,7 +165,7 @@ impl GhostexGpuiApp {
                 trailing: None,
                 url: first.url.clone(),
                 action: None,
-                work_item: work_item(json!({ "linearIssue": first.identifier })),
+                work_item: work_item(json!({ "source": "linear", "ticketId": first.identifier })),
                 tooltip: work
                     .linear_issues
                     .iter()
@@ -204,7 +204,7 @@ impl GhostexGpuiApp {
                 trailing: None,
                 url: first.url.clone(),
                 action: None,
-                work_item: work_item(json!({ "githubIssue": first.number })),
+                work_item: work_item(json!({ "source": "github", "ticketId": first.number })),
                 tooltip: work
                     .github_issues
                     .iter()

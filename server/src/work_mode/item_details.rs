@@ -21,45 +21,37 @@ const DETAIL_TTL: Duration = Duration::from_secs(45);
 const MAX_COMMENTS: usize = 30;
 const MAX_TEXT_CHARS: usize = 20_000;
 
-/// The item a request names.
+/// The item a request names: a source's ticket, or a PR (the code host's).
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) enum WorkItemRef {
-    Linear(String),
-    GithubIssue(u64),
+    Ticket(TicketRef),
     /// A PR number (as text) or URL.
     PullRequest(String),
 }
 
 impl WorkItemRef {
-    pub(crate) fn from_params(params: &Map<String, Value>) -> Option<Self> {
-        if let Some(identifier) = params
-            .get("linearIssue")
-            .and_then(Value::as_str)
-            .and_then(normalize_linear_identifier)
-        {
-            return Some(Self::Linear(identifier));
+    /// `source` + `ticketId`, or `pullRequest`.
+    pub(crate) fn from_params(params: &Map<String, Value>) -> Result<Self, String> {
+        if let Some(ticket) = TicketRef::from_params(params) {
+            return ticket.map(Self::Ticket);
         }
-        if let Some(number) = params.get("githubIssue").and_then(|value| {
-            value.as_u64().or_else(|| {
-                value
-                    .as_str()
-                    .and_then(|text| text.trim().trim_start_matches('#').parse().ok())
+        let Some(value) = params.get("pullRequest").filter(|value| !value.is_null()) else {
+            return Err(
+                "Pass source and ticketId (linear SPX-1245, github 218) or pullRequest (412 or its URL)."
+                    .to_string(),
+            );
+        };
+        value
+            .as_u64()
+            .map(|number| number.to_string())
+            .or_else(|| {
+                let text = value.as_str()?.trim().trim_start_matches('#');
+                let valid = text.parse::<u64>().is_ok_and(|number| number > 0)
+                    || (text.starts_with("https://") && text.contains("/pull/"));
+                valid.then(|| text.to_string())
             })
-        }) {
-            return Some(Self::GithubIssue(number));
-        }
-        params.get("pullRequest").and_then(|value| {
-            value
-                .as_u64()
-                .map(|number| number.to_string())
-                .or_else(|| {
-                    value
-                        .as_str()
-                        .map(|text| text.trim().trim_start_matches('#').to_string())
-                })
-                .filter(|selector| !selector.is_empty())
-                .map(Self::PullRequest)
-        })
+            .map(Self::PullRequest)
+            .ok_or_else(|| "pullRequest must be a PR number or URL.".to_string())
     }
 }
 
@@ -74,7 +66,7 @@ fn detail_cache() -> &'static Mutex<HashMap<String, Cached>> {
 }
 
 /// Reads through the detail cache.
-fn cached_detail(
+pub(crate) fn cached_detail(
     key: String,
     force: bool,
     fetch: impl FnOnce() -> Result<Value, String>,
@@ -119,17 +111,16 @@ pub(crate) fn read_work_item(
         .and_then(|id| projects.iter().find(|input| input.project_id == id))
         .and_then(|input| input.repo.clone());
     let wanted_key_matches = |item: &Value| match item_ref {
-        WorkItemRef::Linear(identifier) => {
-            item.get("linearIssue").and_then(Value::as_str) == Some(identifier.as_str())
-        }
-        WorkItemRef::GithubIssue(number) => {
-            item.get("githubIssue").and_then(Value::as_u64) == Some(*number)
-                && match &wanted_repo {
-                    Some(repo) => {
-                        item.get("key").and_then(Value::as_str)
-                            == Some(format!("issue:{repo}#{number}").as_str())
+        WorkItemRef::Ticket(ticket) => {
+            item.get("source").and_then(Value::as_str) == Some(ticket.source.as_wire())
+                && item.get("ticketId").and_then(Value::as_str) == Some(ticket.id.as_str())
+                && match (&wanted_repo, ticket.source) {
+                    // A Linear key names one ticket wherever it is worked.
+                    (_, WorkSourceId::Linear) => true,
+                    (Some(repo), _) => {
+                        item.get("key").and_then(Value::as_str) == Some(ticket.key(repo).as_str())
                     }
-                    None => project_id
+                    (None, _) => project_id
                         .is_none_or(|id| item.get("projectId").and_then(Value::as_str) == Some(id)),
                 }
         }
@@ -163,6 +154,11 @@ pub(crate) fn read_work_item(
                 .find_map(|input| input.linear_api_key.clone())
         });
     let gh = gh_cli_is_available();
+    let scope = TicketScope {
+        project_id: project.map_or("", |input| input.project_id.as_str()),
+        cwd: cwd.as_deref(),
+        linear_api_key: linear_key.as_deref(),
+    };
 
     // The PR to read: the item's folded one, or the request's own.
     let mut pull_request_selector = item
@@ -200,8 +196,10 @@ pub(crate) fn read_work_item(
     let team_ticket = project.and_then(|input| {
         let repo = input.repo.as_deref().map(str::to_ascii_lowercase);
         let ticket = match ticket_ref {
-            WorkItemRef::Linear(identifier) => Some(identifier.clone()),
-            WorkItemRef::GithubIssue(number) => repo.map(|repo| format!("{repo}#{number}")),
+            WorkItemRef::Ticket(ticket) => match ticket.source {
+                WorkSourceId::Linear => Some(ticket.id.clone()),
+                WorkSourceId::Github => repo.map(|repo| format!("{repo}#{}", ticket.id)),
+            },
             WorkItemRef::PullRequest(selector) => pull_request_url_parts(selector)
                 .map(|(repo, number)| format!("{}#{number}", repo.to_ascii_lowercase()))
                 .or_else(|| repo.map(|repo| format!("{repo}#{selector}"))),
@@ -210,85 +208,58 @@ pub(crate) fn read_work_item(
     });
 
     let mut errors: Vec<String> = Vec::new();
-    let mut linear: Option<Value> = None;
-    let mut github_issue: Option<Value> = None;
+    let mut ticket: Option<Value> = None;
     let mut pull_request: Option<Value> = None;
     let mut team: Option<Value> = None;
 
     // The Linear issue first: it can name the PR (Linear's GitHub integration).
-    std::thread::scope(|scope| {
+    std::thread::scope(|threads| {
         let team_task = team_ticket.as_ref().map(|(workspace_id, ticket)| {
-            scope.spawn(move || {
+            threads.spawn(move || {
                 crate::team_sync::read_team_ticket(paths, workspace_id, ticket, force)
             })
         });
-        let linear_task = match (ticket_ref, linear_key.as_deref()) {
-            (WorkItemRef::Linear(identifier), Some(api_key)) => {
-                let identifier = identifier.clone();
-                let api_key = api_key.to_string();
-                Some(scope.spawn(move || {
-                    cached_detail(
-                        format!("linear:{}:{identifier}", linear_key_fingerprint(&api_key)),
-                        force,
-                        || fetch_linear_issue_detail(&api_key, &identifier),
-                    )
+        let ticket_task = match ticket_ref {
+            WorkItemRef::Ticket(wanted) if work_source(wanted.source).can_read(&scope) => {
+                Some(threads.spawn(move || {
+                    work_source(wanted.source).read_detail(&scope, &wanted.id, force)
                 }))
             }
             _ => None,
         };
-        let issue_task = match (ticket_ref, cwd.as_deref(), gh) {
-            (WorkItemRef::GithubIssue(number), Some(cwd), true) => {
-                let number = *number;
-                let cwd = cwd.to_string();
-                Some(scope.spawn(move || {
-                    cached_detail(format!("issue:{cwd}#{number}"), force, || {
-                        fetch_github_issue_detail(&cwd, number)
-                    })
-                }))
-            }
-            _ => None,
-        };
-        // Started now only when the PR is already known; otherwise after the Linear answer.
+        // Started now only when the PR is already known; otherwise after the ticket's answer.
         let early_pr = pull_request_selector
             .clone()
             .filter(|_| gh)
             .map(|selector| {
                 let cwd = cwd.clone().unwrap_or_default();
-                scope.spawn(move || {
+                threads.spawn(move || {
                     cached_detail(format!("pr:{cwd}:{selector}"), force, || {
                         fetch_pull_request_detail(&cwd, &selector)
                     })
                 })
             });
-        if let Some(task) = linear_task {
+        if let (Some(task), WorkItemRef::Ticket(wanted)) = (ticket_task, ticket_ref) {
+            let name = wanted.source.name();
             match task
                 .join()
-                .unwrap_or_else(|_| Err("Linear read failed.".to_string()))
+                .unwrap_or_else(|_| Err(format!("{name} read failed.")))
             {
-                Ok(value) => linear = Some(value),
-                Err(error) => errors.push(format!("Linear: {error}")),
-            }
-        }
-        if let Some(task) = issue_task {
-            match task
-                .join()
-                .unwrap_or_else(|_| Err("gh failed.".to_string()))
-            {
-                Ok(value) => github_issue = Some(value),
-                Err(error) => errors.push(format!("GitHub: {error}")),
+                Ok(value) => ticket = Some(value),
+                Err(error) => errors.push(format!("{name}: {error}")),
             }
         }
         let late_pr = if early_pr.is_none() && gh {
-            pull_request_selector = linear
+            pull_request_selector = ticket
                 .as_ref()
-                .and_then(|linear| linear.get("pullRequestUrls"))
+                .and_then(|ticket| ticket.get("pullRequestUrls"))
                 .and_then(Value::as_array)
                 .and_then(|urls| urls.first())
                 .and_then(Value::as_str)
                 .map(str::to_string);
             pull_request_selector.clone().map(|selector| {
                 let cwd = cwd.clone().unwrap_or_default();
-                scope.spawn(move || {
+                threads.spawn(move || {
                     cached_detail(format!("pr:{cwd}:{selector}"), force, || {
                         fetch_pull_request_detail(&cwd, &selector)
                     })
@@ -346,35 +317,22 @@ pub(crate) fn read_work_item(
                 .flatten()
                 .filter_map(Value::as_str)
             {
-                push_ticket(&mut pr_tickets, WorkItemRef::Linear(identifier.to_string()));
+                push_ticket(
+                    &mut pr_tickets,
+                    WorkItemRef::Ticket(TicketRef::new(WorkSourceId::Linear, identifier)),
+                );
             }
         }
         // No ticket was known before the PR was read: read the first one it names now.
         if matches!(ticket_ref, WorkItemRef::PullRequest(_)) {
-            match pr_tickets.first() {
-                Some(WorkItemRef::Linear(identifier)) => {
-                    if let Some(api_key) = linear_key.as_deref() {
-                        match cached_detail(
-                            format!("linear:{}:{identifier}", linear_key_fingerprint(api_key)),
-                            force,
-                            || fetch_linear_issue_detail(api_key, identifier),
-                        ) {
-                            Ok(value) => linear = Some(value),
-                            Err(error) => errors.push(format!("Linear: {error}")),
-                        }
+            if let Some(WorkItemRef::Ticket(first)) = pr_tickets.first() {
+                let source = work_source(first.source);
+                if source.can_read(&scope) {
+                    match source.read_detail(&scope, &first.id, force) {
+                        Ok(value) => ticket = Some(value),
+                        Err(error) => errors.push(format!("{}: {error}", first.source.name())),
                     }
                 }
-                Some(WorkItemRef::GithubIssue(number)) => {
-                    if let (Some(cwd), true) = (cwd.as_deref(), gh) {
-                        match cached_detail(format!("issue:{cwd}#{number}"), force, || {
-                            fetch_github_issue_detail(cwd, *number)
-                        }) {
-                            Ok(value) => github_issue = Some(value),
-                            Err(error) => errors.push(format!("GitHub: {error}")),
-                        }
-                    }
-                }
-                _ => {}
             }
         }
     }
@@ -385,24 +343,14 @@ pub(crate) fn read_work_item(
 
     // A ticket the list does not have (closed, or someone else's team): its row from the details.
     if item.is_none() {
-        item = synthesized_item(
-            item_ref,
-            project,
-            linear.as_ref(),
-            github_issue.as_ref(),
-            pull_request.as_ref(),
-        );
+        item = synthesized_item(item_ref, project, ticket.as_ref(), pull_request.as_ref());
     }
 
     let mut texts: Vec<String> = Vec::new();
     let mut links: Vec<Value> = Vec::new();
-    for source in [
-        linear.as_ref(),
-        github_issue.as_ref(),
-        pull_request.as_ref(),
-    ]
-    .into_iter()
-    .flatten()
+    for source in [ticket.as_ref(), pull_request.as_ref()]
+        .into_iter()
+        .flatten()
     {
         if let Some(body) = source
             .get("description")
@@ -420,9 +368,9 @@ pub(crate) fn read_work_item(
             );
         }
     }
-    if let Some(attachments) = linear
+    if let Some(attachments) = ticket
         .as_ref()
-        .and_then(|linear| linear.get("attachments"))
+        .and_then(|ticket| ticket.get("attachments"))
         .and_then(Value::as_array)
     {
         for attachment in attachments {
@@ -479,8 +427,7 @@ pub(crate) fn read_work_item(
     let mut facts = team_flow_facts(
         ticket_ref,
         local_sessions.len() + cloud_sessions.len(),
-        linear.as_ref(),
-        github_issue.as_ref(),
+        ticket.as_ref(),
         pull_request.as_ref(),
     );
     if let Some(team) = &team {
@@ -509,8 +456,7 @@ pub(crate) fn read_work_item(
 
     json!({
         "item": item,
-        "linear": linear,
-        "githubIssue": github_issue,
+        "ticket": ticket,
         "pullRequest": pull_request,
         "tickets": pr_tickets.iter().map(work_item_ref_label).collect::<Vec<_>>(),
         "media": media,
@@ -526,26 +472,13 @@ pub(crate) fn read_work_item(
 
 /// A ticket's own record through the details cache (what the page just read): the Linear issue,
 /// the GitHub issue or the PR, for a cloud session's task (cloud_work.rs).
-pub(crate) fn work_ticket_detail(
-    linear_api_key: Option<&str>,
-    cwd: &str,
-    ticket: &WorkTicket,
-) -> Result<Value, String> {
-    match ticket {
-        WorkTicket::Linear(identifier) => {
-            let api_key = linear_api_key.ok_or_else(|| {
-                "Set a Linear API key first (Settings, or ghostex issues linear-key).".to_string()
-            })?;
-            cached_detail(
-                format!("linear:{}:{identifier}", linear_key_fingerprint(api_key)),
-                false,
-                || fetch_linear_issue_detail(api_key, identifier),
-            )
+pub(crate) fn work_ticket_detail(scope: &TicketScope, item: &WorkItemRef) -> Result<Value, String> {
+    match item {
+        WorkItemRef::Ticket(ticket) => {
+            work_source(ticket.source).read_detail(scope, &ticket.id, false)
         }
-        WorkTicket::Github(number) => cached_detail(format!("issue:{cwd}#{number}"), false, || {
-            fetch_github_issue_detail(cwd, *number)
-        }),
-        WorkTicket::PullRequest(selector) => {
+        WorkItemRef::PullRequest(selector) => {
+            let cwd = scope.cwd.unwrap_or_default();
             cached_detail(format!("pr:{cwd}:{selector}"), false, || {
                 fetch_pull_request_detail(cwd, selector)
             })
@@ -556,8 +489,7 @@ pub(crate) fn work_ticket_detail(
 /// `SPX-1245` or `#218`, as the team flow's ticket step names it.
 fn work_item_ref_label(ticket: &WorkItemRef) -> String {
     match ticket {
-        WorkItemRef::Linear(identifier) => identifier.clone(),
-        WorkItemRef::GithubIssue(number) => format!("#{number}"),
+        WorkItemRef::Ticket(ticket) => ticket.label(),
         WorkItemRef::PullRequest(selector) => selector.clone(),
     }
 }
@@ -565,8 +497,7 @@ fn work_item_ref_label(ticket: &WorkItemRef) -> String {
 fn synthesized_item(
     item_ref: &WorkItemRef,
     project: Option<&WorkProjectInput>,
-    linear: Option<&Value>,
-    github_issue: Option<&Value>,
+    ticket: Option<&Value>,
     pull_request: Option<&Value>,
 ) -> Option<Value> {
     let text = |value: Option<&Value>, key: &str| {
@@ -584,44 +515,37 @@ fn synthesized_item(
         "projectName": project.map(|input| input.name.clone()),
     });
     match item_ref {
-        WorkItemRef::Linear(identifier) => {
-            let status = linear_status(
-                text(linear, "stateType").as_deref(),
-                text(linear, "stateName").as_deref(),
-            );
-            item["key"] = json!(format!("linear:{identifier}"));
-            item["kind"] = json!("linearIssue");
-            item["id"] = json!(identifier);
-            item["linearIssue"] = json!(identifier);
-            item["title"] = json!(text(linear, "title").unwrap_or_else(|| identifier.clone()));
-            item["url"] = json!(text(linear, "url"));
-            item["status"] = json!({ "group": status.group, "name": status.name });
-            item["branchName"] = json!(text(linear, "branchName"));
-            if let Some(linear) = linear {
-                for key in ["assignee", "linearProject", "cycle", "labels"] {
-                    if let Some(value) = linear.get(key) {
+        WorkItemRef::Ticket(wanted) => {
+            let state = ticket.and_then(|ticket| ticket.get("state"));
+            item["key"] =
+                json!(wanted.key(project.map(|p| p.project_id.as_str()).unwrap_or_default()));
+            item["kind"] = json!("ticket");
+            item["source"] = json!(wanted.source.as_wire());
+            item["ticketId"] = json!(wanted.id);
+            item["id"] = json!(wanted.label());
+            item["title"] = json!(text(ticket, "title").unwrap_or_else(|| wanted.untitled()));
+            item["url"] = json!(text(ticket, "url"));
+            item["status"] = json!({
+                "group": text(state, "group").unwrap_or_else(|| "todo".to_string()),
+                "name": text(state, "name").unwrap_or_else(|| "Open".to_string()),
+            });
+            if wanted.source == WorkSourceId::Linear {
+                item["branchName"] = json!(text(ticket, "branchName"));
+            }
+            if let Some(ticket) = ticket {
+                for key in ["assignee", "cycle", "labels"] {
+                    if let Some(value) = ticket.get(key) {
                         item[key] = value.clone();
                     }
                 }
-                item["assignedToMe"] = json!(linear
+                if let Some(value) = ticket.get("project") {
+                    item[wanted.source.project_field()] = value.clone();
+                }
+                item["assignedToMe"] = json!(ticket
                     .pointer("/assignee/isMe")
                     .and_then(Value::as_bool)
                     .unwrap_or(false));
             }
-        }
-        WorkItemRef::GithubIssue(number) => {
-            let closed = text(github_issue, "state").as_deref() == Some("closed");
-            item["key"] = json!(format!(
-                "issue:{}#{number}",
-                project.map(|p| p.project_id.as_str()).unwrap_or_default()
-            ));
-            item["kind"] = json!("githubIssue");
-            item["id"] = json!(format!("#{number}"));
-            item["githubIssue"] = json!(number);
-            item["title"] =
-                json!(text(github_issue, "title").unwrap_or_else(|| format!("Issue #{number}")));
-            item["url"] = json!(text(github_issue, "url"));
-            item["status"] = json!({ "group": if closed { "closed" } else { "todo" }, "name": if closed { "Closed" } else { "Open" } });
         }
         WorkItemRef::PullRequest(selector) => {
             let number = pull_request
@@ -647,8 +571,7 @@ fn synthesized_item(
 fn team_flow_facts(
     item_ref: &WorkItemRef,
     sessions: usize,
-    linear: Option<&Value>,
-    github_issue: Option<&Value>,
+    ticket: Option<&Value>,
     pull_request: Option<&Value>,
 ) -> TeamFlowFacts {
     let text = |value: Option<&Value>, key: &str| {
@@ -658,10 +581,10 @@ fn team_flow_facts(
             .map(str::to_string)
     };
     let ticket_id = match item_ref {
-        WorkItemRef::Linear(identifier) => Some(identifier.clone()),
-        WorkItemRef::GithubIssue(number) => Some(format!("#{number}")),
+        WorkItemRef::Ticket(ticket) => Some(ticket.label()),
         WorkItemRef::PullRequest(_) => None,
     };
+    let state = ticket.and_then(|ticket| ticket.get("state"));
     let count = |key: &str| {
         pull_request
             .and_then(|pr| pr.pointer(&format!("/checksSummary/{key}")))
@@ -670,8 +593,15 @@ fn team_flow_facts(
     };
     TeamFlowFacts {
         ticket_id,
-        ticket_state_name: text(linear, "stateName").or_else(|| text(github_issue, "state")),
-        ticket_state_type: text(linear, "stateType"),
+        // A GitHub step names the state as `gh` does (`open`, `closed`).
+        ticket_state_name: match ticket
+            .and_then(|ticket| ticket.get("source"))
+            .and_then(Value::as_str)
+        {
+            Some("github") => text(state, "type"),
+            _ => text(state, "name"),
+        },
+        ticket_state_type: text(state, "type"),
         session_count: sessions,
         pull_request_number: pull_request
             .and_then(|pr| pr.get("number"))
@@ -707,7 +637,7 @@ fn cut(text: &str, limit: usize) -> String {
     }
 }
 
-fn fetch_linear_issue_detail(api_key: &str, identifier: &str) -> Result<Value, String> {
+pub(crate) fn fetch_linear_issue_detail(api_key: &str, identifier: &str) -> Result<Value, String> {
     let body = linear_graphql(
         api_key,
         &format!(
@@ -796,33 +726,43 @@ fn linear_issue_detail_of(identifier: &str, body: &Value) -> Result<Value, Strin
                     )
                 })
         });
-    Ok(json!({
-        "identifier": text("/identifier").unwrap_or_else(|| identifier.to_string()),
-        "title": text("/title"),
-        "url": text("/url"),
-        "description": text("/description").map(|description| cut(&description, MAX_TEXT_CHARS)),
+    let fields = json!({
         "updatedAt": text("/updatedAt"),
         "createdAt": text("/createdAt"),
         "branchName": text("/branchName"),
         "priority": text("/priorityLabel"),
-        "stateName": text("/state/name"),
-        "stateType": text("/state/type"),
         "assignee": assignee,
-        "creator": issue.pointer("/creator/displayName").or_else(|| issue.pointer("/creator/name")),
+        "author": issue.pointer("/creator/displayName").or_else(|| issue.pointer("/creator/name")),
         "team": issue.get("team"),
-        "linearProject": issue.get("project").filter(|project| project.is_object()),
+        "project": issue.get("project").filter(|project| project.is_object()),
         "cycle": cycle,
         "labels": issue.pointer("/labels/nodes").and_then(Value::as_array).map(|labels| {
             labels.iter().filter_map(|label| label.get("name").and_then(Value::as_str)).collect::<Vec<_>>()
         }),
-        "comments": comments,
-        "commentCount": comments.len(),
         "attachments": attachments,
         "pullRequestUrls": pull_request_urls,
+    });
+    let ticket = TicketRef::new(
+        WorkSourceId::Linear,
+        text("/identifier").unwrap_or_else(|| identifier.to_string()),
+    );
+    Ok(ticket_detail_value(TicketDetail {
+        ticket: &ticket,
+        title: text("/title"),
+        url: text("/url"),
+        description: text("/description").map(|description| cut(&description, MAX_TEXT_CHARS)),
+        status: linear_status(
+            text("/state/type").as_deref(),
+            text("/state/name").as_deref(),
+        ),
+        state: text("/state/type"),
+        fields: fields.as_object().cloned().unwrap_or_default(),
+        comment_count: comments.len(),
+        comments,
     }))
 }
 
-fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value, String> {
+pub(crate) fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value, String> {
     let number_text = number.to_string();
     let output = run_gh_command(
         Some(cwd),
@@ -861,22 +801,32 @@ fn github_issue_detail_of(number: u64, issue: &Value) -> Value {
                 .collect()
         })
         .unwrap_or_default();
-    json!({
-        "number": number,
-        "title": issue.get("title"),
-        "url": issue.get("url"),
-        "state": issue.get("state").and_then(Value::as_str).map(str::to_ascii_lowercase),
-        "body": cut(issue.get("body").and_then(Value::as_str).unwrap_or_default(), MAX_TEXT_CHARS),
-        "author": issue.pointer("/author/login"),
-        "assignees": issue.get("assignees").and_then(Value::as_array).map(|people| {
-            people.iter().filter_map(|person| person.get("login").and_then(Value::as_str)).collect::<Vec<_>>()
-        }),
-        "labels": issue.get("labels").and_then(Value::as_array).map(|labels| {
-            labels.iter().filter_map(|label| label.get("name").and_then(Value::as_str)).collect::<Vec<_>>()
-        }),
-        "commentCount": issue.get("comments").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
-        "comments": comments,
-        "updatedAt": issue.get("updatedAt"),
+    let text = |key: &str| issue.get(key).and_then(Value::as_str).map(str::to_string);
+    let state = text("state").map(|state| state.to_ascii_lowercase());
+    let closed = state.as_deref() == Some("closed");
+    ticket_detail_value(TicketDetail {
+        ticket: &TicketRef::new(WorkSourceId::Github, number.to_string()),
+        title: text("title"),
+        url: text("url"),
+        description: Some(cut(&text("body").unwrap_or_default(), MAX_TEXT_CHARS)),
+        status: WorkItemStatus {
+            group: if closed { "closed" } else { "todo" },
+            name: if closed { "Closed" } else { "Open" }.to_string(),
+        },
+        state,
+        fields: json!({
+            "author": issue.pointer("/author/login"),
+            "updatedAt": issue.get("updatedAt"),
+        })
+        .as_object()
+        .cloned()
+        .unwrap_or_default(),
+        comment_count: issue
+            .get("comments")
+            .and_then(Value::as_array)
+            .map(Vec::len)
+            .unwrap_or(0),
+        comments,
     })
 }
 
@@ -1149,6 +1099,7 @@ mod tests {
         } } })
     }
 
+    #[track_caller]
     fn assert_published(actual: &Value, expected: Value) {
         assert!(
             *actual == expected,
@@ -1169,27 +1120,21 @@ mod tests {
         assert_published(
             &linear_issue_detail_of("ACM-1", &answer).unwrap(),
             json!({
-              "identifier": "ACM-1",
-              "title": "Checkout fails on Safari",
-              "url": "https://linear.app/acme/issue/ACM-1",
-              "description": "Steps: open checkout.",
               "updatedAt": "2026-10-20T09:00:00.000Z",
               "createdAt": "2026-10-01T09:00:00.000Z",
               "branchName": "leandro/acm-1-checkout",
               "priority": "High",
-              "stateName": "In Review",
-              "stateType": "started",
               "assignee": {
                 "name": "Leandro",
                 "avatarUrl": "https://avatars/l.png",
                 "isMe": true
               },
-              "creator": "Ana",
+              "author": "Ana",
               "team": {
                 "key": "ACM",
                 "name": "Acme"
               },
-              "linearProject": {
+              "project": {
                 "name": "Checkout revamp",
                 "url": "https://linear.app/acme/project/checkout"
               },
@@ -1197,21 +1142,6 @@ mod tests {
               "labels": [
                 "Bug"
               ],
-              "comments": [
-                {
-                  "author": "Ana",
-                  "avatarUrl": null,
-                  "body": "Repro on 17.2",
-                  "createdAt": "2026-10-02T09:00:00.000Z"
-                },
-                {
-                  "author": null,
-                  "avatarUrl": "https://avatars/l.png",
-                  "body": "On it",
-                  "createdAt": "2026-10-03T09:00:00.000Z"
-                }
-              ],
-              "commentCount": 2,
               "attachments": [
                 {
                   "title": "PR 40",
@@ -1228,7 +1158,33 @@ mod tests {
               ],
               "pullRequestUrls": [
                 "https://github.com/acme/app/pull/40"
-              ]
+              ],
+              "source": "linear",
+              "id": "ACM-1",
+              "label": "ACM-1",
+              "title": "Checkout fails on Safari",
+              "url": "https://linear.app/acme/issue/ACM-1",
+              "description": "Steps: open checkout.",
+              "state": {
+                "group": "review",
+                "name": "In Review",
+                "type": "started"
+              },
+              "comments": [
+                {
+                  "author": "Ana",
+                  "avatarUrl": null,
+                  "body": "Repro on 17.2",
+                  "createdAt": "2026-10-02T09:00:00.000Z"
+                },
+                {
+                  "author": null,
+                  "avatarUrl": "https://avatars/l.png",
+                  "body": "On it",
+                  "createdAt": "2026-10-03T09:00:00.000Z"
+                }
+              ],
+              "commentCount": 2
             }),
         );
         assert_eq!(
@@ -1260,22 +1216,100 @@ mod tests {
         assert_published(
             &detail,
             json!({
-              "number": 218,
+              "author": "yahia",
+              "updatedAt": "2026-10-21T09:00:00Z",
+              "source": "github",
+              "id": "218",
+              "label": "#218",
               "title": "Arabic plan cards",
               "url": "https://github.com/acme/web/issues/218",
-              "state": "open",
-              "body": "Cards overflow.",
-              "author": "yahia",
-              "assignees": [
-                "octo-me"
-              ],
-              "labels": [
-                "bug",
-                "rtl"
-              ],
-              "commentCount": 32,
-              "updatedAt": "2026-10-21T09:00:00Z"
+              "description": "Cards overflow.",
+              "state": {
+                "group": "todo",
+                "name": "Open",
+                "type": "open"
+              },
+              "commentCount": 32
             }),
+        );
+    }
+
+    #[test]
+    fn a_linear_tickets_details_hand_its_new_pr_to_the_sidebar_card() {
+        let api_key = "lin-key-details-share";
+        let fingerprint = linear_key_fingerprint(api_key);
+        seed_linear_issue(
+            fingerprint,
+            "ACM-8",
+            Some(LinearIssueInfo {
+                identifier: "ACM-8".to_string(),
+                title: Some("Checkout".to_string()),
+                url: None,
+                state_type: Some("started".to_string()),
+                state_name: Some("In Progress".to_string()),
+                project_name: None,
+                project_url: None,
+                pull_request_urls: Vec::new(),
+            }),
+        );
+        let ticket = linear_issue_detail_of(
+            "ACM-8",
+            &linear_answer(
+                "ACM-8",
+                json!([{ "title": "PR 77", "subtitle": null, "url": "https://github.com/acme/app/pull/77", "sourceType": "github" }]),
+            ),
+        )
+        .unwrap();
+        let project = WorkProjectInput {
+            project_id: "PCharShare".to_string(),
+            name: "Share app".to_string(),
+            path: None,
+            project: json!({ "projectId": "PCharShare" }),
+            sessions: Vec::new(),
+            linear_api_key: Some(api_key.to_string()),
+            repo: None,
+            workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
+            tracker: WorkSourceId::Linear,
+        };
+        assert!(share_work_item_with_sidebar(
+            &[project],
+            &json!({ "ticket": ticket })
+        ));
+        assert_eq!(
+            cached_linear_issue(fingerprint, "ACM-8")
+                .unwrap()
+                .pull_request_urls,
+            vec!["https://github.com/acme/app/pull/77".to_string()]
+        );
+    }
+
+    #[test]
+    fn the_team_flow_names_a_ticket_state_as_its_tracker_does() {
+        let github = github_issue_detail_of(218, &json!({ "state": "OPEN" }));
+        let linear = linear_issue_detail_of("ACM-1", &linear_answer("ACM-1", json!([]))).unwrap();
+        let facts = |ticket: &Value, id: TicketRef| {
+            let facts = team_flow_facts(&WorkItemRef::Ticket(id), 0, Some(ticket), None);
+            (
+                facts.ticket_id,
+                facts.ticket_state_name,
+                facts.ticket_state_type,
+            )
+        };
+        assert_eq!(
+            facts(&github, TicketRef::new(WorkSourceId::Github, "218")),
+            (
+                Some("#218".to_string()),
+                Some("open".to_string()),
+                Some("open".to_string())
+            )
+        );
+        assert_eq!(
+            facts(&linear, TicketRef::new(WorkSourceId::Linear, "ACM-1")),
+            (
+                Some("ACM-1".to_string()),
+                Some("In Review".to_string()),
+                Some("started".to_string())
+            )
         );
     }
 
@@ -1290,15 +1324,19 @@ mod tests {
             linear_api_key: None,
             repo: Some("acme/app".to_string()),
             workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
-            tracker: WorkTracker::Linear,
+            tracker: WorkSourceId::Linear,
         };
         let linear = linear_issue_detail_of("ACM-1", &linear_answer("ACM-1", json!([]))).unwrap();
-        let github_issue = json!({ "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218", "state": "closed" });
+        let github_issue = github_issue_detail_of(
+            218,
+            &json!({ "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218", "state": "CLOSED" }),
+        );
+        let ticket = |source, id: &str| WorkItemRef::Ticket(TicketRef::new(source, id));
         let rows = json!({
-            "linear": synthesized_item(&WorkItemRef::Linear("ACM-1".to_string()), Some(&project), Some(&linear), None, None),
-            "linearUnread": synthesized_item(&WorkItemRef::Linear("ACM-2".to_string()), None, None, None, None),
-            "githubIssue": synthesized_item(&WorkItemRef::GithubIssue(218), Some(&project), None, Some(&github_issue), None),
-            "githubUnread": synthesized_item(&WorkItemRef::GithubIssue(219), None, None, None, None),
+            "linear": synthesized_item(&ticket(WorkSourceId::Linear, "ACM-1"), Some(&project), Some(&linear), None),
+            "linearUnread": synthesized_item(&ticket(WorkSourceId::Linear, "ACM-2"), None, None, None),
+            "githubIssue": synthesized_item(&ticket(WorkSourceId::Github, "218"), Some(&project), Some(&github_issue), None),
+            "githubUnread": synthesized_item(&ticket(WorkSourceId::Github, "219"), None, None, None),
         });
         assert_published(
             &rows,
@@ -1313,9 +1351,10 @@ mod tests {
                 "projectId": "PCharDetails",
                 "projectName": "Details app",
                 "key": "linear:ACM-1",
-                "kind": "linearIssue",
+                "kind": "ticket",
+                "source": "linear",
+                "ticketId": "ACM-1",
                 "id": "ACM-1",
-                "linearIssue": "ACM-1",
                 "title": "Checkout fails on Safari",
                 "url": "https://linear.app/acme/issue/ACM-1",
                 "status": {
@@ -1328,11 +1367,11 @@ mod tests {
                   "avatarUrl": "https://avatars/l.png",
                   "isMe": true
                 },
+                "cycle": "Cycle 12",
                 "linearProject": {
                   "name": "Checkout revamp",
                   "url": "https://linear.app/acme/project/checkout"
-                },
-                "cycle": "Cycle 12"
+                }
               },
               "linearUnread": {
                 "sessions": [],
@@ -1342,9 +1381,10 @@ mod tests {
                 "projectId": null,
                 "projectName": null,
                 "key": "linear:ACM-2",
-                "kind": "linearIssue",
+                "kind": "ticket",
+                "source": "linear",
+                "ticketId": "ACM-2",
                 "id": "ACM-2",
-                "linearIssue": "ACM-2",
                 "title": "ACM-2",
                 "url": null,
                 "status": {
@@ -1361,9 +1401,10 @@ mod tests {
                 "projectId": "PCharDetails",
                 "projectName": "Details app",
                 "key": "issue:PCharDetails#218",
-                "kind": "githubIssue",
+                "kind": "ticket",
+                "source": "github",
+                "ticketId": "218",
                 "id": "#218",
-                "githubIssue": 218,
                 "title": "Arabic plan cards",
                 "url": "https://github.com/acme/web/issues/218",
                 "status": {
@@ -1379,9 +1420,10 @@ mod tests {
                 "projectId": null,
                 "projectName": null,
                 "key": "issue:#219",
-                "kind": "githubIssue",
+                "kind": "ticket",
+                "source": "github",
+                "ticketId": "219",
                 "id": "#219",
-                "githubIssue": 219,
                 "title": "Issue #219",
                 "url": null,
                 "status": {
@@ -1408,7 +1450,7 @@ mod tests {
             linear_api_key: Some(api_key.to_string()),
             repo: Some("acme/app".to_string()),
             workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
-            tracker: WorkTracker::Linear,
+            tracker: WorkSourceId::Linear,
         };
         let answer = linear_answer(
             "ACM-5",
@@ -1428,12 +1470,12 @@ mod tests {
             &projects,
             &WorkFeedPlan::default(),
             Some("PCharRead"),
-            &WorkItemRef::Linear("ACM-5".to_string()),
+            &WorkItemRef::Ticket(TicketRef::new(WorkSourceId::Linear, "ACM-5")),
             false,
         );
         let wanted: Map<String, Value> = [
             "item",
-            "githubIssue",
+            "ticket",
             "pullRequest",
             "tickets",
             "media",
@@ -1443,7 +1485,6 @@ mod tests {
         .into_iter()
         .map(|key| (key.to_string(), read[key].clone()))
         .collect();
-        assert_eq!(read["linear"]["identifier"], json!("ACM-5"));
         assert_published(
             &Value::Object(wanted),
             json!({
@@ -1457,9 +1498,10 @@ mod tests {
                 "projectId": "PCharRead",
                 "projectName": "Read app",
                 "key": "linear:ACM-5",
-                "kind": "linearIssue",
+                "kind": "ticket",
+                "source": "linear",
+                "ticketId": "ACM-5",
                 "id": "ACM-5",
-                "linearIssue": "ACM-5",
                 "title": "Checkout fails on Safari",
                 "url": "https://linear.app/acme/issue/ACM-5",
                 "status": {
@@ -1472,13 +1514,71 @@ mod tests {
                   "avatarUrl": "https://avatars/l.png",
                   "isMe": true
                 },
+                "cycle": "Cycle 12",
                 "linearProject": {
                   "name": "Checkout revamp",
                   "url": "https://linear.app/acme/project/checkout"
-                },
-                "cycle": "Cycle 12"
+                }
               },
-              "githubIssue": null,
+              "ticket": {
+                "updatedAt": "2026-10-20T09:00:00.000Z",
+                "createdAt": "2026-10-01T09:00:00.000Z",
+                "branchName": "leandro/acm-1-checkout",
+                "priority": "High",
+                "assignee": {
+                  "name": "Leandro",
+                  "avatarUrl": "https://avatars/l.png",
+                  "isMe": true
+                },
+                "author": "Ana",
+                "team": {
+                  "key": "ACM",
+                  "name": "Acme"
+                },
+                "project": {
+                  "name": "Checkout revamp",
+                  "url": "https://linear.app/acme/project/checkout"
+                },
+                "cycle": "Cycle 12",
+                "labels": [
+                  "Bug"
+                ],
+                "attachments": [
+                  {
+                    "title": "Demo",
+                    "subtitle": null,
+                    "url": "https://www.loom.com/share/abc123",
+                    "source": "loom"
+                  }
+                ],
+                "pullRequestUrls": [],
+                "source": "linear",
+                "id": "ACM-5",
+                "label": "ACM-5",
+                "title": "Checkout fails on Safari",
+                "url": "https://linear.app/acme/issue/ACM-5",
+                "description": "Steps: open checkout.",
+                "state": {
+                  "group": "review",
+                  "name": "In Review",
+                  "type": "started"
+                },
+                "comments": [
+                  {
+                    "author": "Ana",
+                    "avatarUrl": null,
+                    "body": "Repro on 17.2",
+                    "createdAt": "2026-10-02T09:00:00.000Z"
+                  },
+                  {
+                    "author": null,
+                    "avatarUrl": "https://avatars/l.png",
+                    "body": "On it",
+                    "createdAt": "2026-10-03T09:00:00.000Z"
+                  }
+                ],
+                "commentCount": 2
+              },
               "pullRequest": null,
               "tickets": [],
               "media": [

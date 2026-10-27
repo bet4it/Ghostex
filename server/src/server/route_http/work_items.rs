@@ -168,14 +168,12 @@ async fn list_work_items(
     Ok(list)
 }
 
-/// `{ projectId?, projectIds?, linearIssue? | githubIssue? | pullRequest?, force? }`.
+/// `{ projectId?, projectIds?, source + ticketId | pullRequest, force? }`.
 async fn read_work_item_route(
     state: Arc<AppState>,
     params: Map<String, Value>,
 ) -> Result<Value, DomainStateError> {
-    let item_ref = WorkItemRef::from_params(&params).ok_or_else(|| {
-        DomainStateError::bad_request("Pass linearIssue, githubIssue or pullRequest.")
-    })?;
+    let item_ref = WorkItemRef::from_params(&params).map_err(DomainStateError::bad_request)?;
     let refresh_state = state.clone();
     let task = tokio::task::spawn_blocking(move || {
         let project_id = params

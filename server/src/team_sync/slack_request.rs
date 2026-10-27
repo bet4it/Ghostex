@@ -144,8 +144,9 @@ fn start(
             params.insert("pullRequest".to_string(), json!(number));
         }
         (Some("github"), None) => {
+            params.insert("source".to_string(), json!("github"));
             params.insert(
-                "githubIssue".to_string(),
+                "ticketId".to_string(),
                 payload
                     .pointer("/ticket/number")
                     .cloned()
@@ -153,7 +154,8 @@ fn start(
             );
         }
         _ => {
-            params.insert("linearIssue".to_string(), json!(ticket));
+            params.insert("source".to_string(), json!("linear"));
+            params.insert("ticketId".to_string(), json!(ticket));
         }
     }
     let started = tokio::runtime::Handle::current()

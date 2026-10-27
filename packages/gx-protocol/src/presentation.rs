@@ -545,6 +545,11 @@ pub struct PresentationSessionWork {
     pub branch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pull_request: Option<PresentationWorkPullRequest>,
+    /// Every ticket the session is linked to, from whichever source its workspace uses, in the
+    /// session links' shape (`key` `linear:GHX-142` / `issue:owner/repo#12`, `state_group`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub tickets: Vec<PresentationSessionLink>,
+    /// CDXC:WorkMode 2026-10-27 WHY: The phone app (ghostex-mobile) still reads `linearIssues` and `githubIssues` for a session's work chip, its Link to rows and its Copy rows, so they stay next to the source-generic `tickets` until the phone reads `tickets`; then they go.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub linear_issues: Vec<PresentationWorkLinearIssue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
@@ -697,6 +702,10 @@ pub struct PresentationSessionLink {
     /// A Linear ticket's state as its team names it ("In Review"), or "Not found".
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub state_name: Option<String>,
+    /// A ticket's Work page group (`backlog`, `todo`, `progress`, `review`, `done`, `canceled`, or
+    /// `closed` for a closed GitHub issue), which sorts and colours it whatever its source.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub state_group: Option<String>,
     /// A PR's `passing`, `failing` or `pending`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub checks: Option<String>,

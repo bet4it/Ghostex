@@ -46,11 +46,11 @@ export function linkOffer(item: WorkItem, current: CurrentSession | null): LinkO
   const links = current.links;
   const prNumber = item.pullRequest?.number;
   const linked =
-    item.kind === 'linearIssue'
-      ? !!item.linearIssue && links.linearIssues.some((id) => id.toUpperCase() === item.linearIssue?.toUpperCase())
-      : item.kind === 'githubIssue'
-        ? item.githubIssue != null && links.githubIssues.includes(item.githubIssue)
-        : prNumber != null && links.pullRequest?.number === prNumber;
+    item.kind === 'ticket'
+      ? item.source === 'github'
+        ? links.githubIssues.some((number) => String(number) === item.ticketId)
+        : links.linearIssues.some((id) => id.toUpperCase() === item.ticketId?.toUpperCase())
+      : prNumber != null && links.pullRequest?.number === prNumber;
   if (linked) return null;
   if (current.remote)
     return {

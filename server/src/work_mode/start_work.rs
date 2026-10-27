@@ -36,50 +36,19 @@ pub(crate) enum WorkTicket {
 
 impl WorkTicket {
     pub(crate) fn from_params(params: &Map<String, Value>) -> Result<Self, DomainStateError> {
-        let linear = params
-            .get("linearIssue")
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|text| !text.is_empty());
-        let github = params.get("githubIssue").filter(|value| !value.is_null());
-        let pull_request = params.get("pullRequest").filter(|value| !value.is_null());
-        match (linear, github, pull_request) {
-            (None, None, Some(value)) => value
-                .as_u64()
-                .map(|number| number.to_string())
-                .or_else(|| {
-                    let text = value.as_str()?.trim().trim_start_matches('#');
-                    let valid = text.parse::<u64>().is_ok_and(|number| number > 0)
-                        || (text.starts_with("https://") && text.contains("/pull/"));
-                    valid.then(|| text.to_string())
-                })
-                .map(Self::PullRequest)
-                .ok_or_else(|| {
-                    DomainStateError::bad_request("pullRequest must be a PR number or URL.")
-                }),
-            (Some(text), None, None) => normalize_linear_identifier(text)
-                .map(Self::Linear)
-                .ok_or_else(|| {
-                    DomainStateError::bad_request(format!(
-                        "\"{text}\" is not a Linear issue ID like SPX-1245."
-                    ))
-                }),
-            (None, Some(value), None) => value
-                .as_u64()
-                .or_else(|| {
-                    value
-                        .as_str()
-                        .and_then(|text| text.trim().trim_start_matches('#').parse().ok())
-                })
-                .filter(|number| *number > 0)
-                .map(Self::Github)
-                .ok_or_else(|| {
+        Self::of(WorkItemRef::from_params(params).map_err(DomainStateError::bad_request)?)
+    }
+
+    pub(crate) fn of(item: WorkItemRef) -> Result<Self, DomainStateError> {
+        Ok(match item {
+            WorkItemRef::Ticket(ticket) => match ticket.source {
+                WorkSourceId::Linear => Self::Linear(ticket.id),
+                WorkSourceId::Github => Self::Github(ticket.id.parse().map_err(|_| {
                     DomainStateError::bad_request("githubIssue must be an issue number.")
-                }),
-            _ => Err(DomainStateError::bad_request(
-                "Pass one of linearIssue (SPX-1245), githubIssue (218) or pullRequest (412 or its URL).",
-            )),
-        }
+                })?),
+            },
+            WorkItemRef::PullRequest(selector) => Self::PullRequest(selector),
+        })
     }
 
     /// The `setSessionWorkLinks`-shaped request that links a session to this ticket.

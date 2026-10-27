@@ -33,13 +33,7 @@ fn text(request: &Value, key: &str) -> Option<String> {
 
 /// The ticket fields a request may carry, copied as they are for gxserver to check.
 fn ticket_params(request: &Value, params: &mut Map<String, Value>) {
-    for key in [
-        "projectId",
-        "linearIssue",
-        "githubIssue",
-        "pullRequest",
-        "agentId",
-    ] {
+    for key in ["projectId", "source", "ticketId", "pullRequest", "agentId"] {
         if let Some(value) = request.get(key).filter(|value| !value.is_null()) {
             params.insert(key.to_string(), value.clone());
         }
@@ -164,14 +158,14 @@ impl GhostexGpuiApp {
                                     params.insert(key.to_string(), value.clone());
                                 }
                             }
-                        } else if let Some(issue) =
-                            request.get("linearIssue").filter(|value| !value.is_null())
+                        } else if let Some(ticket) =
+                            request.get("ticketId").filter(|value| !value.is_null())
                         {
-                            params.insert("addLinearIssues".to_string(), json!([issue]));
-                        } else if let Some(issue) =
-                            request.get("githubIssue").filter(|value| !value.is_null())
-                        {
-                            params.insert("addGithubIssues".to_string(), json!([issue]));
+                            let add = match text(&request, "source").as_deref() {
+                                Some("github") => "addGithubIssues",
+                                _ => "addLinearIssues",
+                            };
+                            params.insert(add.to_string(), json!([ticket]));
                         } else if let Some(pr) =
                             request.get("pullRequest").filter(|value| !value.is_null())
                         {

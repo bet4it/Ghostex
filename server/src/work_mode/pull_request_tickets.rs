@@ -23,16 +23,14 @@ pub(crate) fn pull_request_tickets_known_locally(
 ) -> Vec<WorkItemRef> {
     let mut tickets = Vec::new();
     if let Some(item) = item {
-        if let Some(identifier) = item
-            .get("linearIssue")
-            .or_else(|| item.get("ticket"))
-            .and_then(Value::as_str)
-            .and_then(normalize_linear_identifier)
-        {
-            push_ticket(&mut tickets, WorkItemRef::Linear(identifier));
-        }
-        if let Some(number) = item.get("githubIssue").and_then(Value::as_u64) {
-            push_ticket(&mut tickets, WorkItemRef::GithubIssue(number));
+        // The ticket row the PR folded into, or the Linear ticket its own row names.
+        let ticket = match item.get("ticket").and_then(Value::as_str) {
+            Some(identifier) => normalize_linear_identifier(identifier)
+                .map(|identifier| Ok(TicketRef::new(WorkSourceId::Linear, identifier))),
+            None => item.as_object().and_then(TicketRef::from_params),
+        };
+        if let Some(Ok(ticket)) = ticket {
+            push_ticket(&mut tickets, WorkItemRef::Ticket(ticket));
         }
     }
     let Some(wanted) = pull_request_identity(selector, repo) else {
@@ -51,11 +49,11 @@ pub(crate) fn pull_request_tickets_known_locally(
                 continue;
             }
             for identifier in targets.linear_issues {
-                push_ticket(&mut tickets, WorkItemRef::Linear(identifier));
+                push_ticket(&mut tickets, linear_ticket(identifier));
             }
             // A session's GitHub issues are in its own repo, which is the PR's.
             for number in targets.github_issues {
-                push_ticket(&mut tickets, WorkItemRef::GithubIssue(number));
+                push_ticket(&mut tickets, github_ticket(number));
             }
         }
     }
@@ -73,12 +71,20 @@ pub(crate) fn pull_request_branch_tickets(
     };
     let mut tickets = Vec::new();
     for identifier in linear_identifiers_in_branch(head, linear_team_keys) {
-        push_ticket(&mut tickets, WorkItemRef::Linear(identifier));
+        push_ticket(&mut tickets, linear_ticket(identifier));
     }
     if let Some(number) = github_issue_in_branch(head) {
-        push_ticket(&mut tickets, WorkItemRef::GithubIssue(number));
+        push_ticket(&mut tickets, github_ticket(number));
     }
     tickets
+}
+
+fn linear_ticket(identifier: String) -> WorkItemRef {
+    WorkItemRef::Ticket(TicketRef::new(WorkSourceId::Linear, identifier))
+}
+
+fn github_ticket(number: u64) -> WorkItemRef {
+    WorkItemRef::Ticket(TicketRef::new(WorkSourceId::Github, number.to_string()))
 }
 
 /// The Linear issues whose attachments include the PR's URL (Linear's documented
