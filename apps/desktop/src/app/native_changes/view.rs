@@ -220,6 +220,9 @@ pub(crate) struct ChangesView {
     pub(crate) view_width: gpui::Pixels,
     /// The file an entry point asked to show, until the diff that has it arrives.
     pending_reveal: Option<String>,
+    /// The file header row a jump scrolled to the top, to centre once the list has measured the
+    /// rows around it (see `center_pending_file`).
+    pending_center: Option<usize>,
     memory: HashMap<String, ProjectMemory>,
     last_render_ms: u64,
     _poll: Task<()>,
@@ -284,6 +287,7 @@ impl ChangesView {
             view_origin: gpui::Point::default(),
             view_width: gpui::Pixels::default(),
             pending_reveal: None,
+            pending_center: None,
             memory: HashMap::new(),
             last_render_ms: 0,
             _poll: poll,
@@ -653,6 +657,49 @@ impl ChangesView {
             self.cursor = Some(row);
         }
         cx.notify();
+    }
+
+    /// Picking a file in the jump menu: unfolds it (a folded or viewed file) and scrolls its
+    /// header to the middle of the view.
+    ///
+    /// CDXC:Changes 2026-10-27 DECISION: User: "selecting a file here in changes view should expand it and scroll to center it's top in the view". The header lands centred, or as near as the top and the end of the diff allow; ] and [ still put the header at the top.
+    pub(crate) fn jump_to_file(&mut self, path: &str, cx: &mut Context<Self>) {
+        let was_viewed = self.viewed.remove(path).is_some();
+        if self.collapsed.remove(path) || was_viewed {
+            self.selection = None;
+            self.rebuild_rows();
+        }
+        self.scroll_to_file(path, cx);
+        self.pending_center = self.cursor;
+    }
+
+    /// Runs after the list's layout, which measured the rows around the header a jump put at
+    /// the top: scrolls it down to the middle, then draws again.
+    pub(crate) fn center_pending_file(&mut self, cx: &mut Context<Self>) {
+        let Some(row) = self.pending_center.take() else {
+            return;
+        };
+        let Some(header) = self.list.bounds_for_item(row) else {
+            return;
+        };
+        let viewport = self.list.viewport_bounds();
+        let room_below = self
+            .rows
+            .len()
+            .checked_sub(1)
+            .and_then(|last| self.list.bounds_for_item(last))
+            .map(|last| f32::from(last.bottom() - viewport.bottom()));
+        let delta = center_scroll_delta(
+            f32::from(header.top() - viewport.top()),
+            f32::from(header.size.height),
+            f32::from(viewport.size.height),
+            f32::from(-self.list.scroll_px_offset_for_scrollbar().y),
+            room_below,
+        );
+        if delta.abs() >= 0.5 {
+            self.list.scroll_by(px(delta));
+            cx.notify();
+        }
     }
 
     // -- Picking lines ------------------------------------------------------------------------
@@ -1133,6 +1180,23 @@ impl ChangesView {
     }
 }
 
+/// How far to scroll (positive scrolls down) so a header `top` pixels below the view's top sits
+/// in the middle of a `viewport`-tall view, held back by the content there is to scroll:
+/// `above` pixels above the view's top and `below` under its bottom (`None` when the end is
+/// further than the list has measured, so there is room enough).
+pub(crate) fn center_scroll_delta(
+    top: f32,
+    height: f32,
+    viewport: f32,
+    above: f32,
+    below: Option<f32>,
+) -> f32 {
+    let wanted = top - (viewport - height).max(0.0) / 2.0;
+    wanted
+        .min(below.unwrap_or(f32::INFINITY).max(0.0))
+        .max(-above.max(0.0))
+}
+
 fn same_palette(a: &ChangesHostInfo, b: &ChangesHostInfo) -> bool {
     a.palette.light == b.palette.light
         && a.palette.glass == b.palette.glass
@@ -1160,4 +1224,61 @@ fn trim_trailing_spaces(message: &str) -> String {
         .join("\n")
         .trim()
         .to_string()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::center_scroll_delta;
+
+    #[test]
+    fn a_header_at_the_top_moves_to_the_middle() {
+        // 600 tall view, 36 tall header: its top lands at (600 - 36) / 2 = 282.
+        assert_eq!(center_scroll_delta(0.0, 36.0, 600.0, 5_000.0, None), -282.0);
+        assert_eq!(
+            center_scroll_delta(0.0, 36.0, 600.0, 5_000.0, Some(900.0)),
+            -282.0
+        );
+    }
+
+    #[test]
+    fn a_header_below_the_middle_scrolls_up_to_it() {
+        assert_eq!(
+            center_scroll_delta(500.0, 36.0, 600.0, 0.0, Some(1_000.0)),
+            218.0
+        );
+    }
+
+    #[test]
+    fn the_first_file_stays_at_the_top() {
+        // Nothing above the list's start: the header cannot come further down than it is.
+        assert_eq!(center_scroll_delta(0.0, 36.0, 600.0, 0.0, None), 0.0);
+        assert_eq!(center_scroll_delta(0.0, 36.0, 600.0, 120.0, None), -120.0);
+    }
+
+    #[test]
+    fn a_file_near_the_end_never_scrolls_past_it() {
+        // Only 50 pixels of diff left under the view: scroll those and no more.
+        assert_eq!(
+            center_scroll_delta(500.0, 36.0, 600.0, 0.0, Some(50.0)),
+            50.0
+        );
+        // The end already in view: stay put.
+        assert_eq!(
+            center_scroll_delta(500.0, 36.0, 600.0, 0.0, Some(-80.0)),
+            0.0
+        );
+    }
+
+    #[test]
+    fn a_centred_header_stays() {
+        assert_eq!(
+            center_scroll_delta(282.0, 36.0, 600.0, 400.0, Some(400.0)),
+            0.0
+        );
+    }
+
+    #[test]
+    fn a_header_taller_than_the_view_goes_to_the_top() {
+        assert_eq!(center_scroll_delta(40.0, 700.0, 600.0, 400.0, None), 40.0);
+    }
 }

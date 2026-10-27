@@ -4,9 +4,9 @@
 use gpui::Focusable as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, Context, FontWeight, InteractiveElement as _, IntoElement, KeyDownEvent,
-    MouseButton, ParentElement as _, Render, SharedString, StatefulInteractiveElement as _,
-    Styled as _, Window, canvas, div, list, px,
+    AnyElement, Context, InteractiveElement as _, IntoElement, KeyDownEvent, MouseButton,
+    ParentElement as _, Render, SharedString, StatefulInteractiveElement as _, Styled as _, Window,
+    canvas, div, list, px,
 };
 use gpui_component::{h_flex, v_flex};
 
@@ -113,12 +113,11 @@ impl ChangesView {
                     .px(px(10.0))
                     .flex()
                     .items_center()
-                    .text_size(px(UI_SIZE))
+                    // CDXC:Changes 2026-10-27 DECISION: User: "make the font here for Against main / Uncommited fit the fonts around it it's too large"; the scopes use the branch label's size and weight beside them, and the picked one shows by its fill and text colour.
+                    .text_size(px(SMALL_SIZE))
                     .cursor_pointer()
                     .text_color(hsla(if on { s.text } else { s.muted }))
-                    .when(on, |this| {
-                        this.bg(hsla(s.selected)).font_weight(FontWeight::MEDIUM)
-                    })
+                    .when(on, |this| this.bg(hsla(s.selected)))
                     .hover(|this| this.bg(hsla(s.hover)))
                     .on_click(cx.listener(move |this, _, _, cx| this.set_scope(scope, cx)))
                     .child(label)
@@ -425,7 +424,7 @@ impl ChangesView {
                     .when(self.viewed.contains_key(&path), |this| this.opacity(0.55))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         this.jump_open = false;
-                        this.scroll_to_file(&scroll_path, cx);
+                        this.jump_to_file(&scroll_path, cx);
                     }))
                     .child(status_badge(s, file.status))
                     .child(
@@ -483,6 +482,7 @@ impl ChangesView {
         });
         let resolved = self.resolved_count();
         let view = cx.entity().downgrade();
+        let center_view = view.clone();
         let list_state = self.list.clone();
         list_state.set_scroll_handler(move |_, _, cx| {
             // A header that scrolls away never hears the pointer leave it.
@@ -504,6 +504,18 @@ impl ChangesView {
                     cx.processor(|this, index, window, cx| this.render_row(index, window, cx)),
                 )
                 .size_full(),
+            )
+            // After the list's layout, so the rows around a jumped-to header are measured.
+            .child(
+                canvas(
+                    move |_, _, cx| {
+                        let _ = center_view
+                            .update(cx, |this: &mut Self, cx| this.center_pending_file(cx));
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_0(),
             )
             .children(header)
             .when(resolved > 0, |this| {
