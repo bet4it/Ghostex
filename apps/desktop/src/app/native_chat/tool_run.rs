@@ -761,6 +761,7 @@ impl NativeChatView {
                     this.child(super::code_block::action(
                         SharedString::from(format!("copy:{key}")),
                         "titlebar/copy.svg",
+                        "Copy",
                         p,
                         move |cx| {
                             crate::app::helpers::gpui_copy_to_clipboard(

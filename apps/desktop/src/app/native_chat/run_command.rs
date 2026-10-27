@@ -2,21 +2,17 @@
 //!
 //! CDXC:SessionChat 2026-10-24 SEE-ALSO: which fences and inline spans hold a command, and the text
 //! each runs, is decided in packages/gx-chat-core/src/transcript/run_command.rs. A fence's arrives
-//! as `run` on its header JSON and gets a Run button beside wrap and copy (`code_block.rs`). An
+//! as `run` on its header JSON and gets an icon-only Run in terminal button beside wrap and copy (`code_block.rs`). An
 //! inline span's arrives as a `ghostex-run:` link drawn here as the span itself, with a small bar
 //! above it on hover holding Copy and Paste in terminal, which never covers the span's text. The
 //! presses are the core's `runInTerminal` and `pasteInTerminal` actions, which the host performs
 //! (apps/desktop/src/app/session_chat/run_in_terminal.rs).
 
 use super::{appearance::ChatAppearance, state::NativeChatView};
-use crate::app::native_chat::cursor::ChatCursor as _;
 use ghostex_gx_chat_core::transcript::run_command::{
     RUN_COMMAND_HREF_PREFIX, command_from_href, decode_command,
 };
-use gpui::{
-    AnyElement, ClipboardItem, FontWeight, InteractiveElement as _, IntoElement,
-    ParentElement as _, StatefulInteractiveElement as _, Styled as _, WeakEntity, div, px, svg,
-};
+use gpui::{AnyElement, ClipboardItem, WeakEntity, px};
 use gpui_component::text::{InlineLink, InlineLinkAction, InlineLinkBar, InlineLinkFrame};
 use serde_json::json;
 
@@ -35,45 +31,17 @@ fn send(chat: &WeakEntity<NativeChatView>, action: &str, command: String, cx: &m
     });
 }
 
-/// The fence header's Run button: the terminal glyph with "Run" beside it, so it reads apart from
-/// the copy button next to it.
+/// The fence header's Run button: the terminal glyph alone, like the wrap and copy buttons beside it.
 pub(super) fn run_button(
     command: String,
     chat: &WeakEntity<NativeChatView>,
     p: &ChatAppearance,
 ) -> AnyElement {
-    let s = p.scale;
     let chat = chat.clone();
-    div()
-        .id("run-fence")
-        .flex()
-        .items_center()
-        .gap(px(3.0 * s))
-        .h(px(22.0 * s))
-        .px(px(5.0 * s))
-        .rounded(px(6.0 * s))
-        .chat_cursor_pointer()
-        .hover(|style| style.bg(p.border.opacity(0.7)))
-        .child(
-            svg()
-                .path(RUN_ICON)
-                .size(px(14.0 * s))
-                .text_color(p.muted)
-                .flex_shrink_0(),
-        )
-        .child(
-            div()
-                .text_size(px(11.0 * s))
-                .font_weight(FontWeight::MEDIUM)
-                .text_color(p.muted)
-                .child("Run"),
-        )
-        // The header's own control consumes the press, like the copy button beside it.
-        .on_click(move |_, _, cx| {
-            cx.stop_propagation();
-            send(&chat, "runInTerminal", command.clone(), cx);
-        })
-        .into_any_element()
+    // The header's own control consumes the press, like the copy button beside it.
+    super::code_block::action("run-fence", RUN_ICON, "Run in terminal", p, move |cx| {
+        send(&chat, "runInTerminal", command.clone(), cx);
+    })
 }
 
 /// The look an inline command span keeps once it is a link: the transcript's inline code chip, and
