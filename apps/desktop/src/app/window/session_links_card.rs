@@ -48,9 +48,7 @@ impl GhostexGpuiApp {
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
-        let Some(key) =
-            SessionKey::parse_sidebar_session_id(&session_id).filter(|key| key.machine.is_local())
-        else {
+        let Some(key) = SessionKey::parse_sidebar_session_id(&session_id) else {
             return;
         };
         let Some(links) = self.session_links_of(&key) else {
@@ -72,7 +70,7 @@ impl GhostexGpuiApp {
         let width = SESSION_LINKS_CARD_WIDTH;
         // Past half the window's height the list scrolls inside the card.
         let half_window = session_links_max_height(main.size.height.as_f32());
-        let height = session_links_list_height(Some(&links), &folded_session_link_groups(), None)
+        let height = session_links_list_height(Some(&links), &folded_session_link_groups())
             .min(half_window)
             .max(80.0);
         // Beside the sidebar, on the work area's side.

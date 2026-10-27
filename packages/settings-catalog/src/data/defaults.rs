@@ -43,8 +43,10 @@ pub const DEFAULT_GHOSTEX_SETTINGS: &[(&str, J)] = &[
     // CDXC:SessionLinks 2026-10-24 DECISION: User: "user can pick to open in embedded or external browser in settings (default to embedded)".
     ("sessionLinkOpenTarget", J::Str("embedded")),
     ("browserPagesInViewRow", J::Bool(false)),
-    // CDXC:SessionLinks 2026-10-24 SEE-ALSO: `SessionLinksDisplay` in packages/gx-core/src/sidebar_view/links.rs (what each value shows). The default is Always, the user's own choice (2026-10-24: "i want all the settings related to the sidebar links we added to match what i have set now").
-    ("sidebarSessionLinks", J::Str("always")),
+    // CDXC:SessionLinks 2026-10-27 SEE-ALSO: `SessionLinksDisplay` in packages/gx-core/src/sidebar_view/links.rs (what each value shows). The default is Badge (2026-10-27: "and also please make the sidebar show as badge by default"), which replaces the 2026-10-24 Always default.
+    ("sidebarSessionLinks", J::Str("badge")),
+    // CDXC:SessionLinks 2026-10-27 SEE-ALSO: `SessionLinksInHeader` in packages/gx-core/src/sidebar_view/links.rs; on by default.
+    ("sessionChatHeaderLinks", J::Bool(true)),
     // CDXC:SessionLinks 2026-10-24 SEE-ALSO: native_sidebar/links_list.rs; the links list's folded groups, kept app-wide (Merged or closed and Removed folded until opened).
     (
         "sessionLinksFoldedGroups",

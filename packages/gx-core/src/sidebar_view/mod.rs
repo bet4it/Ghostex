@@ -66,7 +66,8 @@ pub use inputs::{
 };
 pub use links::{
     link_chips_that_fit, SessionLink, SessionLinkGlyph, SessionLinkKind, SessionLinkTone,
-    SessionLinks, SessionLinksBadge, SessionLinksDisplay, SessionLinksRow, SuggestedSessionLink,
+    SessionLinks, SessionLinksBadge, SessionLinksDisplay, SessionLinksInHeader, SessionLinksRow,
+    SuggestedSessionLink,
 };
 pub use machine_connection::{machine_state_copy, machine_state_is_busy, machine_state_is_failure};
 pub use machine_switch::{

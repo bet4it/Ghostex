@@ -31,7 +31,7 @@ While a terminal has the keyboard, the Terminal focused binding applies instead 
 | Open Commands Panel | `cmd+j` | `f12` | `cmd+j` | `f12` | Open the project command terminal panel (F12 always works too). When the pane is already focused, hide it; press again to show it. | `openCommandsPanel` |
 | Open Commands Panel (Second Key) | `shift+escape` |  | `shift+escape` |  | A second key that opens or hides the Commands panel, like Open Commands Panel. | `openCommandsPanelSecondKey` |
 | Open Settings | `cmd+,` |  | `cmd+,` |  | Open app settings. | `openSettings` |
-| Open Extension Store | unassigned |  | unassigned |  | Open the Store page in Settings > Extensions to manage built-in features and installed extensions. | `openExtensions` |
+| Open Extensions | unassigned |  | unassigned |  | Open Settings > Extensions to manage built-in features and installed extensions. | `openExtensions` |
 | Ask Ghostex Help | unassigned |  | unassigned |  | Open the Ghostex Help menu: sample questions an agent can answer and settings it can change for you. | `openGhostexHelp` |
 | Open File | unassigned |  | unassigned |  | Open the Files view with its search box ready: type a file name, or paste the path of any file on this computer, and press Enter. | `openFileInFiles` |
 | Hotkeys | `cmd+/` |  | `cmd+/` | `cmd+alt+/` | Open app hotkeys. | `openHotkeys` |

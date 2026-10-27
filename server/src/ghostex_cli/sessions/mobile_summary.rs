@@ -134,11 +134,11 @@ pub(super) fn to_mobile_session_list(result: &Value, settings: &Map<String, Valu
     {
         map.insert("sessionLinkOpenTarget".to_string(), json!("external"));
     }
-    // CDXC:SessionLinks 2026-10-24 SEE-ALSO: `SessionLinksDisplay` in packages/gx-core/src/sidebar_view/links.rs; the phone's session list draws its rows by the computer's "Session links in the sidebar" (apps/mobile/app/src/chat/native/sessionLinks.ts). Sent only when it is not the default (`always`).
+    // CDXC:SessionLinks 2026-10-27 SEE-ALSO: `SessionLinksDisplay` in packages/gx-core/src/sidebar_view/links.rs; the phone's session list draws its rows by the computer's "Session links in the sidebar" (apps/mobile/app/src/chat/native/sessionLinks.ts). Sent only when it is not the default (`badge`, since 2026-10-27).
     if let Some(display) = settings
         .get("sidebarSessionLinks")
         .and_then(Value::as_str)
-        .filter(|display| *display != "always")
+        .filter(|display| *display != "badge")
     {
         map.insert("sidebarSessionLinks".to_string(), json!(display));
     }

@@ -3691,15 +3691,14 @@ link keeps what was last read about it, so its title and state show right away a
 Ghostex restarts; a link not read yet says Loading… until its state is known. A Linear
 ticket Linear no longer has (deleted, or not visible to your key) shows grey as Not
 found under Merged / Closed.
-Right after a removal its row reads Removed · Undo for a few seconds, and every
-removed link stays under a Removed group, folded until you open it, at the bottom of the list
+A removed link leaves its group at once and stays under a Removed group, folded until you open it, at the bottom of the list
 (on the phone's sheet too) with Restore, which puts it back as it was and lets it
 join by itself again. In the sidebar, **Session links in the sidebar**
-(Settings > Session Cards) picks how a card shows them: Always (the default: a line of chips
+(Settings > Session Cards) picks how a card shows them: Always (a line of chips
 under every card that has links), Selected session (that line only under the
-session you have open), Badge (a small count on the card, coloured by
+session you have open), Badge (the default: a small count on the card, coloured by
 the most pressing link: red for failing checks or changes asked for, amber for a
-review asked for or checks still running), Open work only (a line of the ones
+review asked for or checks still running, grey once every link is merged or closed), Open work only (a line of the ones
 still open, none once they are all merged or closed), or Off. A session with no
 links yet but links the chat mentioned shows a muted, dashed badge counting those
 suggestions on a line under its name, with every choice but Off. Rest the pointer on a
@@ -3708,8 +3707,11 @@ listing them the same way, with the same open, ×, Remove? and Link as the
 header's list. It is as tall as what it shows and grows or shrinks when you fold a
 group; past half the window's height the list scrolls inside it. It stays while the pointer is on the card or its row (Off shows no
 card). A red dot on +N means a link behind it has failing checks; Ghostex sends no
-notifications for link changes. On the phone, the chat shows the same chips under
-its header: tap one to open it, touch and hold to copy its link, and tap +N or
+notifications for link changes. Turn off **Show session links in the chat's top bar**
+(Settings > Chat) to keep the bar above the chat to the session's title; the sidebar and
+the list still show the links. Sessions on a connected remote machine show their links the
+same way, and pinning, removing and restoring act on that machine. On the phone, the chat shows the same chips under
+its header (its own Settings > Chat has the same switch): tap one to open it, touch and hold to copy its link, and tap +N or
 List for the whole list (touch and hold a link for Copy link, Pin or Unpin and Remove, which asks
 Remove? first; Link adds a suggestion). The
 phone's session list follows the computer's Session links in the sidebar, and a
@@ -3721,7 +3723,7 @@ checked.
 `ghostex link list [--session <session>]` prints a session's links and
 `ghostex link remove <link>` removes one and `ghostex link restore <link>` brings it back. Settings: `sessionLinkOpenTarget`
 (`embedded` or `external`), `sidebarSessionLinks` (`always`, `selected`, `badge`,
-`open` or `off`).
+`open` or `off`), `sessionChatHeaderLinks` (`true` or `false`).
 
 To start a piece of work from a new ticket, open the project's "…" menu and choose
 Create Linear Ticket… (it shows once a Linear key applies to the project; in a

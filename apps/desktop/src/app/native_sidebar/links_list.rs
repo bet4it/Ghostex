@@ -8,7 +8,9 @@
 //! CDXC:SessionLinks 2026-10-24 DECISION:
 //! User: a PR or issue URL the chat only mentioned is offered under Suggested ("suggest") with a Link button, rather than linked by itself.
 //! CDXC:SessionLinks 2026-10-24 DECISION:
-//! User: "when a link is gone i see that i can't bring it back why not?", "i mean when i hit x button twice on it". Right after the second click the row reads "Removed · Undo" for a few seconds (this app's toasts have no buttons, so the undo stays in the row), and a collapsed "Removed (N)" group at the bottom lists every removed link with Restore (`/api/restoreSessionLink`).
+//! User: "when a link is gone i see that i can't bring it back why not?", "i mean when i hit x button twice on it". A collapsed "Removed (N)" group at the bottom lists every removed link with Restore (`/api/restoreSessionLink`). The "Removed · Undo" row that stood in for a just-removed link is gone (CDXC:SessionLinks 2026-10-27 in packages/gx-core/src/sidebar_view/links.rs, `without_removed`): the link leaves its group at once and leads Removed.
+//! CDXC:SessionLinks 2026-10-27 DECISION:
+//! User: "also the height of the row that has "undo" is bigger than the other rows, just wanted to note this is wrong". Every row is the height of a plain link row (one line or two); a button in it (pin, ×, Remove?, Link, Restore) is sized to fit the row (`BUTTON_HEIGHT`) and never grows it.
 //! CDXC:SessionLinks 2026-10-24 DECISION:
 //! User: "can u pls make all the sections in these cards colapsible with chevron? please add this for pr and github issues etc (the headers there". Every group header has the same chevron and folds on a click, keeping its count. The folded groups are one app-wide choice per group (`sessionLinksFoldedGroups`), kept across sessions and restarts in the settings file the way the chat keeps its zoom; the phone keeps its own (SessionLinksSheet.tsx).
 //! CDXC:SessionLinks 2026-10-24 DECISION:
@@ -43,8 +45,9 @@ use ghostex_gx_core::{SessionKey, SessionLink, SessionLinkTone, SessionLinks};
 
 /// How long a × waits for its confirming click.
 const REMOVE_ARMED_FOR: Duration = Duration::from_secs(3);
-/// How long a removed row offers Undo.
-const UNDO_FOR: Duration = Duration::from_secs(6);
+/// How long a removed link stays out of the list without gxserver publishing its removal; past it
+/// the list shows what gxserver says again (the removal failed, and said so in a toast).
+const REMOVAL_PENDING_FOR: Duration = Duration::from_secs(10);
 pub(crate) const SESSION_LINKS_LIST_WIDTH: f32 = 440.0;
 /// The floating card beside the sidebar is narrower than the header's dropdown.
 pub(crate) const SESSION_LINKS_CARD_WIDTH: f32 = 380.0;
@@ -53,6 +56,10 @@ const SECTION_HEIGHT: f32 = 24.0;
 const ROW_HEIGHT: f32 = 46.0;
 /// A row with nothing on its second line.
 const ONE_LINE_ROW_HEIGHT: f32 = 30.0;
+/// Every button a row carries; it sits 6px under the row's top, so it fits a one-line row.
+const BUTTON_HEIGHT: f32 = 20.0;
+const ROW_TOP_PADDING: f32 = 6.0;
+const _: () = assert!(ROW_TOP_PADDING + BUTTON_HEIGHT <= ONE_LINE_ROW_HEIGHT);
 /// "This session has no links."
 const EMPTY_HEIGHT: f32 = 40.0;
 
@@ -67,11 +74,7 @@ pub(crate) enum SessionLinksListHost {
 
 /// The list's height for what it shows: a folded group is its header line, an open one its rows
 /// too. The host caps it (half the window for the card).
-pub(crate) fn session_links_list_height(
-    links: Option<&SessionLinks>,
-    folded: &[String],
-    undo: Option<&SessionLink>,
-) -> f32 {
+pub(crate) fn session_links_list_height(links: Option<&SessionLinks>, folded: &[String]) -> f32 {
     let Some(links) = links else {
         return HEADER_HEIGHT + 60.0;
     };
@@ -79,21 +82,16 @@ pub(crate) fn session_links_list_height(
     // The body's children, which sit 2px apart.
     let mut children: Vec<f32> = Vec::new();
     for (group, _) in SESSION_LINK_GROUPS {
-        let undone = undo.filter(|undo| link_in_group(undo, group));
         let rows: Vec<f32> = links
             .items
             .iter()
             .filter(|item| link_in_group(item, group))
-            .filter(|item| undone.is_none_or(|undo| undo.key != item.key))
             .map(entry_height)
             .collect();
-        if rows.is_empty() && undone.is_none() {
+        if rows.is_empty() {
             continue;
         }
         children.push(SECTION_HEIGHT);
-        if undone.is_some() {
-            children.push(ROW_HEIGHT);
-        }
         if open(group) {
             children.extend(rows);
         }
@@ -112,7 +110,6 @@ pub(crate) fn session_links_list_height(
     let removed: Vec<f32> = links
         .removed
         .iter()
-        .filter(|link| undo.is_none_or(|undo| undo.key != link.key))
         .map(|link| entry_height(&link.as_link()))
         .collect();
     if !removed.is_empty() {
@@ -122,7 +119,7 @@ pub(crate) fn session_links_list_height(
             SECTION_HEIGHT
         });
     }
-    if links.items.is_empty() && links.suggested.is_empty() && undo.is_none() {
+    if links.items.is_empty() && links.suggested.is_empty() {
         children.push(EMPTY_HEIGHT);
     }
     let gaps = children.len().saturating_sub(1) as f32 * 2.0;
@@ -205,8 +202,9 @@ pub(crate) struct SessionLinksList {
     armed: Option<String>,
     /// The entry under the pointer: only it shows its pin and ×.
     hovered: Option<String>,
-    /// The entry just removed, which reads "Removed · Undo" for a few seconds.
-    undo: Option<SessionLink>,
+    /// Links removed here whose removal gxserver has not published yet: they are already drawn
+    /// under Removed (gx-core `SessionLinks::without_removed`).
+    removing: Vec<String>,
     /// The groups folded shut, by id (`open`, `finished`, `suggested`, `removed`), as
     /// `sessionLinksFoldedGroups` says.
     folded: Vec<String>,
@@ -240,6 +238,11 @@ impl SessionLinksList {
                 let links = app.read(cx).session_links_of(&list.key);
                 let folded = folded_session_link_groups();
                 let delay = app.read(cx).configured_tooltip_delay();
+                // A removal gxserver has published needs no holding any more.
+                if let Some(links) = &links {
+                    list.removing
+                        .retain(|key| links.items.iter().any(|link| &link.key == key));
+                }
                 if links != list.links || folded != list.folded || delay != list.tooltip_delay {
                     list.links = links;
                     list.folded = folded;
@@ -254,7 +257,7 @@ impl SessionLinksList {
             host,
             armed: None,
             hovered: None,
-            undo: None,
+            removing: Vec::new(),
             folded: folded_session_link_groups(),
             max_height,
             fitted_height: None,
@@ -281,20 +284,21 @@ impl SessionLinksList {
     fn click_remove(&mut self, key: String, cx: &mut Context<Self>) {
         if self.armed.as_deref() == Some(&key) {
             self.armed = None;
+            self.hovered = None;
             let sidebar_id = self.key.to_sidebar_session_id();
-            self.undo = self
-                .links
-                .as_ref()
-                .and_then(|links| links.items.iter().find(|link| link.key == key).cloned());
+            if !self.removing.contains(&key) {
+                self.removing.push(key.clone());
+            }
             self.send(
                 json!({ "type": "removeSessionLink", "sessionId": sidebar_id, "key": key }),
                 cx,
             );
             cx.spawn(async move |list, cx| {
-                cx.background_executor().timer(UNDO_FOR).await;
+                cx.background_executor().timer(REMOVAL_PENDING_FOR).await;
                 let _ = list.update(cx, |list, cx| {
-                    if list.undo.as_ref().is_some_and(|undo| undo.key == key) {
-                        list.undo = None;
+                    let before = list.removing.len();
+                    list.removing.retain(|pending| pending != &key);
+                    if list.removing.len() != before {
                         cx.notify();
                     }
                 });
@@ -430,7 +434,7 @@ impl SessionLinksList {
             .items_start()
             .gap(px(8.0))
             .px(px(8.0))
-            .pt(px(6.0))
+            .pt(px(ROW_TOP_PADDING))
             .rounded(px(6.0))
             .when(link.finished, |row| row.opacity(0.62))
             .hover(|row| row.bg(chrome_ink().opacity(0.07)))
@@ -519,7 +523,7 @@ impl SessionLinksList {
                 link.key
             )))
             .flex_shrink_0()
-            .h(px(20.0))
+            .h(px(BUTTON_HEIGHT))
             .px(px(if armed { 7.0 } else { 4.0 }))
             .items_center()
             .rounded(px(5.0))
@@ -575,7 +579,7 @@ impl SessionLinksList {
         h_flex()
             .id(gpui::SharedString::from(id))
             .flex_shrink_0()
-            .h(px(20.0))
+            .h(px(BUTTON_HEIGHT))
             .px(px(4.0))
             .items_center()
             .rounded(px(5.0))
@@ -597,9 +601,7 @@ impl SessionLinksList {
     }
 
     fn restore(&mut self, key: String, cx: &mut Context<Self>) {
-        if self.undo.as_ref().is_some_and(|undo| undo.key == key) {
-            self.undo = None;
-        }
+        self.removing.retain(|pending| pending != &key);
         let sidebar_id = self.key.to_sidebar_session_id();
         self.send(
             json!({ "type": "restoreSessionLink", "sessionId": sidebar_id, "key": key }),
@@ -608,82 +610,9 @@ impl SessionLinksList {
         cx.notify();
     }
 
-    /// A small text button: a removed row's Undo.
-    fn text_button(
-        id: String,
-        label: &'static str,
-        on_click: impl Fn(&mut Self, &gpui::ClickEvent, &mut Window, &mut Context<Self>) + 'static,
-        cx: &mut Context<Self>,
-    ) -> AnyElement {
-        div()
-            .id(gpui::SharedString::from(id))
-            .flex_shrink_0()
-            .px(px(8.0))
-            .h(px(20.0))
-            .flex()
-            .items_center()
-            .rounded(px(5.0))
-            .border_1()
-            .border_color(chrome_ink().opacity(0.18))
-            .text_size(px(11.5))
-            .text_color(chrome_ink().opacity(0.92))
-            .cursor_pointer()
-            .hover(|button| button.bg(chrome_ink().opacity(0.12)))
-            .child(label)
-            .on_click(cx.listener(move |list, event, window, cx| {
-                cx.stop_propagation();
-                on_click(list, event, window, cx);
-            }))
-            .into_any_element()
-    }
-
-    /// The row of a link just removed: "Removed · #318 …" and Undo, for a few seconds.
-    fn render_undo_row(&self, link: &SessionLink, cx: &mut Context<Self>) -> AnyElement {
-        let key = link.key.clone();
-        h_flex()
-            .h(px(ROW_HEIGHT))
-            .w_full()
-            .flex_shrink_0()
-            .items_center()
-            .gap(px(8.0))
-            .px(px(8.0))
-            .rounded(px(6.0))
-            .bg(chrome_ink().opacity(0.05))
-            .text_size(px(12.0))
-            .child(
-                div()
-                    .flex_shrink_0()
-                    .text_color(chrome_ink().opacity(0.55))
-                    .child("Removed ·"),
-            )
-            .child(
-                div()
-                    .flex_1()
-                    .min_w_0()
-                    .truncate()
-                    .text_color(chrome_ink().opacity(0.7))
-                    .child(match &link.title {
-                        Some(title) => format!("{} {title}", link.label),
-                        None => link.label.clone(),
-                    }),
-            )
-            .child(Self::text_button(
-                format!("session-link-undo-{}", link.key),
-                "Undo",
-                move |list, _, _, cx| list.restore(key.clone(), cx),
-                cx,
-            ))
-            .into_any_element()
-    }
-
     /// The collapsed "Removed (N)" group: its header toggles it, each row offers Restore.
     fn render_removed(&self, links: &SessionLinks, cx: &mut Context<Self>) -> Option<AnyElement> {
-        let undo_key = self.undo.as_ref().map(|undo| undo.key.as_str());
-        let removed: Vec<&ghostex_gx_core::SuggestedSessionLink> = links
-            .removed
-            .iter()
-            .filter(|link| Some(link.key.as_str()) != undo_key)
-            .collect();
+        let removed: Vec<&ghostex_gx_core::SuggestedSessionLink> = links.removed.iter().collect();
         if removed.is_empty() {
             return None;
         }
@@ -712,9 +641,19 @@ impl SessionLinksList {
 
     /// The list's height for what it shows now, capped by `max_height`.
     pub(crate) fn fitted_height(&self) -> f32 {
-        session_links_list_height(self.links.as_ref(), &self.folded, self.undo.as_ref())
+        session_links_list_height(self.shown_links().as_ref(), &self.folded)
             .min(self.max_height)
             .max(80.0)
+    }
+
+    /// The list as drawn: gxserver's, with the links removed here already under Removed.
+    fn shown_links(&self) -> Option<SessionLinks> {
+        let links = self.links.as_ref()?;
+        Some(if self.removing.is_empty() {
+            links.clone()
+        } else {
+            links.without_removed(&self.removing)
+        })
     }
 
     fn is_folded(&self, section: &str) -> bool {
@@ -831,7 +770,7 @@ impl Render for SessionLinksList {
         }
         #[cfg(target_arch = "wasm32")]
         let _ = window;
-        let links = self.links.clone().unwrap_or_default();
+        let links = self.shown_links().unwrap_or_default();
         // Only links read as open count: one not read yet is neither open nor finished.
         let open = links
             .items
@@ -853,24 +792,15 @@ impl Render for SessionLinksList {
         .join(" · ");
         let mut body = v_flex().w_full().gap(px(2.0));
         for (section, title) in SESSION_LINK_GROUPS {
-            let undo = self
-                .undo
-                .clone()
-                .filter(|undo| link_in_group(undo, section));
             let items: Vec<&SessionLink> = links
                 .items
                 .iter()
                 .filter(|item| link_in_group(item, section))
-                .filter(|item| undo.as_ref().is_none_or(|undo| undo.key != item.key))
                 .collect();
-            if items.is_empty() && undo.is_none() {
+            if items.is_empty() {
                 continue;
             }
             body = body.child(self.section_header(section, title, items.len(), cx));
-            // A just-removed row keeps its Undo even while its section is folded.
-            if let Some(undo) = &undo {
-                body = body.child(self.render_undo_row(undo, cx));
-            }
             if !self.is_folded(section) {
                 for item in items {
                     body = body.child(self.render_row(item, cx));
@@ -893,7 +823,7 @@ impl Render for SessionLinksList {
         if let Some(removed) = self.render_removed(&links, cx) {
             body = body.child(removed);
         }
-        if links.items.is_empty() && links.suggested.is_empty() && self.undo.is_none() {
+        if links.items.is_empty() && links.suggested.is_empty() {
             body = body.child(
                 div()
                     .p(px(12.0))

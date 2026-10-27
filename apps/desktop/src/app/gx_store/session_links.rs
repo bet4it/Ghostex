@@ -75,8 +75,10 @@ impl GhostexGpuiApp {
                     .get("sessionId")
                     .and_then(Value::as_str)
                     .and_then(SessionKey::parse_sidebar_session_id)
-                    .filter(|session| session.machine.is_local())
                 else {
+                    return true;
+                };
+                let Some(remote) = self.session_links_machine(&session) else {
                     return true;
                 };
                 let (path, params, failure) = if kind == "pinSessionLink" {
@@ -123,7 +125,7 @@ impl GhostexGpuiApp {
                     )
                 };
                 cx.spawn(async move |this, cx| {
-                    if let Err(error) = gx_rpc(None, path, params).await {
+                    if let Err(error) = gx_rpc(remote, path, params).await {
                         let _ = this.update(cx, |this, cx| {
                             this.dispatch_gpui_workspace_action_toast(
                                 "error",
@@ -150,14 +152,31 @@ impl GhostexGpuiApp {
     /// links now instead of on their usual schedule (`/api/refreshSessionLinks`,
     /// server/src/server/session_links_sync.rs `want_session_links_now`).
     pub(crate) fn want_session_links_now(&self, key: &SessionKey, cx: &mut gpui::Context<Self>) {
-        if !key.machine.is_local() {
+        let Some(remote) = self.session_links_machine(key) else {
             return;
-        }
+        };
         let params = json!({ "projectId": key.project_id, "sessionId": key.session_id });
         cx.spawn(async move |_, _| {
-            let _ = gx_rpc(None, "/api/refreshSessionLinks", params).await;
+            let _ = gx_rpc(remote, "/api/refreshSessionLinks", params).await;
         })
         .detach();
+    }
+
+    /// The gxserver that owns `session`'s links: `Some(None)` for this computer's,
+    /// `Some(Some(tunnel))` for a remote machine's while its tunnel is up, `None` while it is not.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 WHY:
+    /// The links card's pin, remove and undo, a suggestion's link and the card's refresh were sent only for this computer's sessions, so a remote machine's session opened no card and its links could not be changed. They go to the machine that owns the session, like a remote row's sleep or close (gx_store/sidebar_remote.rs); its gxserver allows these calls from a remote client (server/src/protocol.rs).
+    fn session_links_machine(
+        &self,
+        session: &SessionKey,
+    ) -> Option<Option<crate::app::model::GpuiRemoteGxserverRequestTarget>> {
+        match session.machine.remote_id() {
+            None => Some(None),
+            Some(machine_id) => self
+                .gpui_remote_gxserver_request_target(machine_id)
+                .map(Some),
+        }
     }
 
     /// `session_id` (a sidebar session id) is the session whose link it is: the page opens in its

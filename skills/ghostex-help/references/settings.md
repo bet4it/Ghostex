@@ -51,7 +51,7 @@ How to use this file:
 #### Session Cards
 
 - **Session hover buttons (click to toggle, drag to reorder)** `sessionCardHoverButtons` (structured value; change it in Settings, not with `ghostex settings set`) [advanced]: Buttons a session card shows when you hover it. Click an icon to turn it on or off; drag icons to reorder them. Buttons to the right of the chevron always show, buttons to its left hide until the chevron is clicked. By default the strip is Tag, Park, Sleep, chevron, Close.
-- **Session links in the sidebar** `sidebarSessionLinks` (one of always | selected | badge | open | off; default always): How a session card shows the pull requests, issues and Linear tickets it is linked to. Always: a line of them under every card that has any. Selected session: that line only under the session you have open. Badge: a small count on the card, coloured by the most pressing one. Open work only: a line of the ones still open, none once they are all merged or closed. Hovering a card with links shows them all in a card beside the sidebar, except with Off, which shows nothing. Option labels: always = Always, selected = Selected session, badge = Badge, open = Open work only, off = Off.
+- **Session links in the sidebar** `sidebarSessionLinks` (one of always | selected | badge | open | off; default badge): How a session card shows the pull requests, issues and Linear tickets it is linked to. Always: a line of them under every card that has any. Selected session: that line only under the session you have open. Badge: a small count on the card, coloured by the most pressing one, grey once all are merged or closed. Open work only: a line of the ones still open, none once they are all merged or closed. Hovering a card with links shows them all in a card beside the sidebar, except with Off, which shows nothing. Option labels: always = Always, selected = Selected session, badge = Badge, open = Open work only, off = Off.
 - **Title sessions by their branch** `titleSessionsByBranch` (boolean, default false): Name a session after the branch it works on, without your name and the ticket number (yahia/spx-1245-copy-link shows as copy-link), until you rename it yourself. Sessions on main keep their own title.
 - **Offer Clean up when a PR merges** `offerCleanupWhenPrMerges` (boolean, default true): When a session's pull request is merged, its card asks once whether to clean up (remove the session's worktree and park the session; a worktree with uncommitted changes is kept) or keep it.
 - **Hover buttons also in context menu** `showSessionCardHoverButtonsInContextMenu` (boolean, default true) [advanced]: Also list the enabled hover buttons in the session right-click menu, in their usual place in the menu. Close is never listed while it is on the card. Turn off to leave every button out of the menu once it is on the card.
@@ -73,6 +73,7 @@ How to use this file:
 - **Keep chat box expanded while scrolling** `sessionChatKeepComposerExpanded` (boolean, default false) [advanced]: Keep the desktop chat box at full size while you scroll the transcript instead of shrinking it as you scroll up and growing it back at the end.
 - **Press Escape twice to interrupt** `sessionChatConfirmEscapeInterrupt` (boolean, default true) [advanced]: While the agent is working, the first Escape asks you to press Escape again within 2 seconds before it interrupts. Turn off to interrupt on the first Escape.
 - **Simple mode** `sessionChatSimpleMode` (boolean, default true): Simplify all chats: hide tool command previews and group file edits behind an expandable file count.
+- **Show session links in the chat's top bar** `sessionChatHeaderLinks` (boolean, default true): Show the session's pull requests, issues and Linear tickets after its title in the bar above the chat. Turn off to keep that bar to the title; the sidebar and the session's links list still show them.
 - **Catch me up button** `chatCatchMeUp` (boolean, default false): Show a Catch me up button at the top right of the chat box while it is empty. It has your Title Generation Agent (a small, cheap model) read the session's last 30 agent messages and shows where the session stands: what needs you, what is done, in progress or untested.
 - **Send when you pick an answer** `chatSendOnPick` (boolean, default false) [advanced]: When a question card asks one question, picking an answer sends it right away, without Send answers. Cards with several questions, multiple-choice questions, Other and text answers still wait for Send.
 - **Open chat pages in** `chatPageOpenTarget` (one of popup | files | system-browser; default popup): Where a page an agent shows in chat (a mockup, a question form, a comparison) opens when you click its card: a popup over the chat, the Files view, or your default web browser. Answers you send from the page reach the agent the same way in all three. The phone always opens pages in its own viewer. Option labels: popup = Popup, files = Files, system-browser = System browser.
@@ -367,7 +368,7 @@ How to use this file:
 - **Start a thread in a box** `agentboxStartThread` (Settings UI row without a settings key; use `ghostex settings open`): Open New Thread and pick where it runs under Run on. Boxes open in the terminal view. Only on macOS and Linux.
 - **Open a box's web app** `agentboxWebApp` (Settings UI row without a settings key; use `ghostex settings open`): Right-click the session and choose Open Box Web App to open it on this computer. Add an agentbox.yaml with services.web.expose.port to start your dev server in the box automatically. Only on macOS and Linux.
 - **Cloud boxes bill until stopped** `agentboxBilling` (Settings UI row without a settings key; use `ghostex settings open`): Cloud providers charge while a box exists. Deleting a session stops its box and keeps its work; Destroy removes the box. Only on macOS and Linux.
-## Store (tab `extensions`)
+## Extensions (tab `extensions`)
 
 ### Views
 
@@ -381,13 +382,13 @@ How to use this file:
 - **Hide Linear view** `linearViewTabHidden` (boolean, default false): Hide the Linear view from the view picker and tab menus.
 - **Hide Jira view** `jiraViewTabHidden` (boolean, default false): Hide the Jira view from the view picker and tab menus.
 - **Hide GitHub view** `githubViewTabHidden` (boolean, default false): Hide the automatic repository view from the view picker and tab menus.
-- **Hide Sentry view** `sentryViewTabHidden` (boolean, default true): Enable Sentry in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide Figma view** `figmaViewTabHidden` (boolean, default true): Enable Figma in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide Vercel view** `vercelViewTabHidden` (boolean, default true): Enable Vercel in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide Supabase view** `supabaseViewTabHidden` (boolean, default true): Enable Supabase in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide GitHub Actions view** `githubActionsViewTabHidden` (boolean, default true): Enable GitHub Actions in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide PostHog view** `posthogViewTabHidden` (boolean, default true): Enable PostHog in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
-- **Hide Custom Website view** `customWebsiteViewTabHidden` (boolean, default true): Enable Custom Website in Settings > Extensions > Store, then choose its home URL when opening the view. Disabled by default.
+- **Hide Sentry view** `sentryViewTabHidden` (boolean, default true): Enable Sentry in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide Figma view** `figmaViewTabHidden` (boolean, default true): Enable Figma in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide Vercel view** `vercelViewTabHidden` (boolean, default true): Enable Vercel in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide Supabase view** `supabaseViewTabHidden` (boolean, default true): Enable Supabase in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide GitHub Actions view** `githubActionsViewTabHidden` (boolean, default true): Enable GitHub Actions in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide PostHog view** `posthogViewTabHidden` (boolean, default true): Enable PostHog in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
+- **Hide Custom Website view** `customWebsiteViewTabHidden` (boolean, default true): Enable Custom Website in Settings > Extensions, then choose its home URL when opening the view. Disabled by default.
 - **Hide Storybook view** `storybookViewTabHidden` (boolean, default false): Hide the built-in component workshop. When enabled, it appears only in projects with Storybook.
 - **Hide Terminal view** `terminalViewTabHidden` (boolean, default false): Stop offering the Terminal view, so it is missing from the view panel tab strip, its + menu and the view picker.
 - **Hide Tips button** `tipsAndTricksTitlebarButtonHidden` (boolean, default false): Stop offering the Tips & Tricks page, so it is missing from the header ⋯ menu and the view picker.
@@ -448,9 +449,9 @@ How to use this file:
 - **Turn off OS Integration** `osIntegrationHidden` (boolean, default false): Leave the OS Integration page out of Settings. On by default, and shown only while Enable Experimental Features is on.
 - **Turn off Debugging** `debuggingHidden` (boolean, default false): Leave the Debugging page out of Settings. On by default, and shown only while Show Advanced is on (a search still finds it).
 - **Turn off the voice agent** `voiceAgentHidden` (boolean, default false): Turn off the voice agent everywhere: the headset at the top of the window and its arrow menu, voice calls about one session, the call rows on Settings > Extensions > Voice agent and the voice agent hotkeys, on this computer and in the phone app connected to it. A call that is running ends. Dictate keeps working, and the xAI key stays on Settings > Extensions > Voice agent. On by default; your voice settings are kept.
-### Extensions Store
+### Get more
 
-- **Extension store** `store` (Settings UI row without a settings key; use `ghostex settings open`): Browse audited extensions, install them, and manage what is already installed.
+- **Get more extensions** `store` (Settings UI row without a settings key; use `ghostex settings open`): Browse audited extensions, install them, and manage what is already installed.
 ### Your views
 
 - **Your views** `customViews` (structured value; change it in Settings, not with `ghostex settings set`): Project views, templates, Storybook, Linear, GitHub Issues, dev server commands, and HTML reports.

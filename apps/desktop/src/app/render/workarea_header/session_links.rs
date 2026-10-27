@@ -29,7 +29,11 @@ const HEADER_CHIPS: usize = 3;
 const HEADER_CHIPS_COMPACT: usize = 1;
 
 impl GhostexGpuiApp {
-    /// The session the header names: the focused Agents pane's active tab, on this computer.
+    /// The session the header names: the focused Agents pane's active tab, on this computer or on
+    /// a remote machine.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 WHY:
+    /// The header looked the tab up among this computer's sessions only, so a remote machine's session showed no links beside its title although its gxserver sends them. The tab's key names its machine, and the links come from that machine's presentation in the store.
     pub(crate) fn workarea_header_session_key(&self) -> Option<SessionKey> {
         let workspace = &self.agents_workspace;
         let pane_id = workspace
@@ -39,8 +43,7 @@ impl GhostexGpuiApp {
             .chain(workspace.rendered_leaf_order())
             .find(|pane_id| workspace.find_leaf(*pane_id).is_some())?;
         let session_id = workspace.active_session_in_pane(pane_id)?;
-        let key = self.agents_chat_local_key_for_session(session_id)?;
-        Some(SessionKey::local(key.project_id, key.session_id))
+        self.workspace_terminal_session_key(session_id)
     }
 
     /// Opens the session's links list under `anchor`.
@@ -88,6 +91,11 @@ impl GhostexGpuiApp {
         compact: bool,
         cx: &mut gpui::Context<Self>,
     ) -> Option<AnyElement> {
+        if !ghostex_gx_core::SessionLinksInHeader::shown(
+            crate::shared_settings::shared_sidebar_settings_snapshot().object(),
+        ) {
+            return None;
+        }
         let key = self.workarea_header_session_key()?;
         let links = self.session_links_of(&key)?;
         let shown = links.items.len().min(if compact {

@@ -414,8 +414,7 @@ impl GhostexGpuiApp {
                 .into_any_element()
         });
         let overflow = (hidden > 0).then(|| {
-            let key = ghostex_gx_core::SessionKey::parse_sidebar_session_id(&session_id)
-                .filter(|key| key.machine.is_local());
+            let key = ghostex_gx_core::SessionKey::parse_sidebar_session_id(&session_id);
             let failing = links.items.iter().any(|link| {
                 link.checks.as_deref() == Some("failing")
                     && !items.iter().take(shown).any(|shown| shown.key == link.key)

@@ -156,6 +156,28 @@ impl SessionLinks {
         self.items.is_empty() && self.suggested.is_empty() && self.removed.is_empty()
     }
 
+    /// The list as it stands once `keys` are removed, before gxserver publishes it: each leaves
+    /// its group at once and leads Removed, where Restore brings it back.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 DECISION:
+    /// User: "please don't show undo here right away after i remove one. ther'es no need. i clicked twice and confiremd already man". A link removed with the two-click × leaves the list straight away, with no "Removed · Undo" row in its place; it stays restorable from the Removed group. This supersedes the 2026-10-24 Undo row ("when a link is gone i see that i can't bring it back why not?").
+    pub fn without_removed(&self, keys: &[String]) -> SessionLinks {
+        let mut links = self.clone();
+        let (gone, kept): (Vec<SessionLink>, Vec<SessionLink>) = links
+            .items
+            .into_iter()
+            .partition(|link| keys.contains(&link.key));
+        links.items = kept;
+        let mut removed: Vec<SuggestedSessionLink> = gone
+            .iter()
+            .filter(|link| !links.removed.iter().any(|known| known.key == link.key))
+            .map(SessionLink::as_removed)
+            .collect();
+        removed.append(&mut links.removed);
+        links.removed = removed;
+        links
+    }
+
     /// Whether a link left out of the first `shown` chips has failing checks: the "+N" chip then
     /// carries the red dot, so a failing PR is never hidden.
     pub fn overflow_has_failing(&self, shown: usize) -> bool {
@@ -319,6 +341,25 @@ impl SessionLink {
     }
 }
 
+impl SessionLink {
+    /// The entry as the Removed group lists it.
+    fn as_removed(&self) -> SuggestedSessionLink {
+        SuggestedSessionLink {
+            key: self.key.clone(),
+            kind: self.kind,
+            label: self.label.clone(),
+            url: self.url.clone(),
+            title: self.title.clone(),
+            state: self.state.clone(),
+            state_name: self.state_name.clone(),
+            source_label: self.source_label.clone(),
+            finished: self.finished,
+            loading: self.loading,
+            branch: self.branch.clone(),
+        }
+    }
+}
+
 impl SuggestedSessionLink {
     /// The entry as a linked one, which the lists draw with the same row: its glyph and state come
     /// from what was read about it, and it has no second line.
@@ -346,14 +387,16 @@ impl SuggestedSessionLink {
 /// What a sidebar row shows of its session's links (`sidebarSessionLinks`).
 ///
 /// CDXC:SessionLinks 2026-10-24 DECISION:
-/// User, of the four ways to see a session's links without hovering: "i want a, b, c,d to be options in settings so people pick but they want (fully disabled should be option too)". Always (A), Selected session (B), Badge (C), Open work only (D) and Off. Always is the default: the user asked for every sidebar-links setting to default to what they have set ("i want all the settings related to the sidebar links we added to match what i have set now"), which replaces the earlier Badge default.
+/// User, of the four ways to see a session's links without hovering: "i want a, b, c,d to be options in settings so people pick but they want (fully disabled should be option too)". Always (A), Selected session (B), Badge (C), Open work only (D) and Off.
+/// CDXC:SessionLinks 2026-10-27 DECISION:
+/// User: "and also please make the sidebar show as badge by default". Badge is the default; a person who picked an option keeps it. This replaces the 2026-10-24 Always default ("i want all the settings related to the sidebar links we added to match what i have set now").
 /// CDXC:SessionLinks 2026-10-24 DECISION:
 /// User: "i think i we don't need a separate thing called "work mode" and instead we can just do this". Work mode cards follow this setting too; their permanent chip line (CDXC:WorkMode 2026-10-09) is gone, except while a merged PR's Clean up / Keep offer waits. This supersedes the 2026-10-24 rule that kept the sidebar line Work-mode-only.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum SessionLinksDisplay {
-    #[default]
     Always,
     Selected,
+    #[default]
     Badge,
     OpenOnly,
     Off,
@@ -369,8 +412,7 @@ impl SessionLinksDisplay {
             Some("selected") => Self::Selected,
             Some("open") => Self::OpenOnly,
             Some("off") => Self::Off,
-            Some("badge") => Self::Badge,
-            _ => Self::Always,
+            _ => Self::Badge,
         }
     }
 
@@ -380,6 +422,24 @@ impl SessionLinksDisplay {
                 .get(Self::SETTING_KEY)
                 .and_then(serde_json::Value::as_str),
         )
+    }
+}
+
+/// Settings > Chat > Show session links in the chat's top bar (`sessionChatHeaderLinks`).
+///
+/// CDXC:SessionLinks 2026-10-27 DECISION:
+/// User: "also please add setting to not show links in the top bar of the chat view and make it enabled by default". On by default, so a session's chips keep showing beside its title in the bar above the chat (and the phone's strip under its chat header) until turned off; off leaves that bar to the title. The sidebar and the links list are not affected.
+pub struct SessionLinksInHeader;
+
+impl SessionLinksInHeader {
+    pub const SETTING_KEY: &'static str = "sessionChatHeaderLinks";
+
+    /// Whether the chat's top bar shows the session's links; anything but `false` is on.
+    pub fn shown(settings: &serde_json::Map<String, serde_json::Value>) -> bool {
+        settings
+            .get(Self::SETTING_KEY)
+            .and_then(serde_json::Value::as_bool)
+            != Some(false)
     }
 }
 
@@ -406,11 +466,14 @@ pub struct SessionLinksRow {
 
 impl SessionLinks {
     /// The colour of the most pressing link: failing checks or changes asked for, then a review
-    /// asked for or checks still running, then open work, then a draft, then finished work.
+    /// asked for or checks still running, then open work, then a draft; grey once every link is
+    /// merged or closed.
     pub fn most_pressing_tone(&self) -> SessionLinkTone {
         Self::most_pressing_tone_of(self.items.iter())
     }
 
+    /// CDXC:SessionLinks 2026-10-27 DECISION:
+    /// User: "make the badge gray if it's merged (not open)". A badge whose links are all merged or closed (none open) is grey (`Draft`, GitHub's grey), not merged purple; while any of them is open it keeps the most pressing link's colour.
     fn most_pressing_tone_of<'a>(links: impl Iterator<Item = &'a SessionLink>) -> SessionLinkTone {
         let rank = |link: &SessionLink| -> (u8, SessionLinkTone) {
             if link.checks.as_deref() == Some("failing")
@@ -421,15 +484,15 @@ impl SessionLinks {
                 || link.checks.as_deref() == Some("pending")
             {
                 (1, SessionLinkTone::Pending)
-            } else if !link.finished && link.state.as_deref() != Some("draft") {
+            } else if link.state.as_deref() != Some("draft") {
                 (2, link.glyph().1)
-            } else if !link.finished {
-                (3, SessionLinkTone::Draft)
             } else {
-                (4, SessionLinkTone::Merged)
+                (3, SessionLinkTone::Draft)
             }
         };
+        // Only open links colour it; none open (or none at all) is grey.
         links
+            .filter(|link| !link.finished)
             .map(rank)
             .min_by_key(|(rank, _)| *rank)
             .map(|(_, tone)| tone)
@@ -576,7 +639,7 @@ mod tests {
     }
 
     #[test]
-    fn the_setting_reads_every_option_and_defaults_to_always() {
+    fn the_setting_reads_every_option_and_defaults_to_badge() {
         use SessionLinksDisplay::*;
         for (value, display) in [
             ("always", Always),
@@ -584,11 +647,63 @@ mod tests {
             ("badge", Badge),
             ("open", OpenOnly),
             ("off", Off),
-            ("nonsense", Always),
+            ("nonsense", Badge),
         ] {
             assert_eq!(SessionLinksDisplay::from_setting(Some(value)), display);
         }
-        assert_eq!(SessionLinksDisplay::from_setting(None), Always);
+        // A person who picked Always keeps it; only an unset setting is Badge.
+        assert_eq!(SessionLinksDisplay::from_setting(Some("always")), Always);
+        assert_eq!(SessionLinksDisplay::from_setting(None), Badge);
+        assert_eq!(
+            SessionLinksDisplay::from_settings_json(&serde_json::json!({})),
+            Badge
+        );
+        assert_eq!(SessionLinksDisplay::default(), Badge);
+    }
+
+    #[test]
+    fn a_removed_link_leaves_its_group_at_once_and_leads_removed() {
+        let older = links().items[2].as_removed();
+        let mut list = links();
+        list.removed = vec![older];
+        let after = list.without_removed(&["#2".to_string()]);
+        assert_eq!(
+            after
+                .items
+                .iter()
+                .map(|link| link.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["#1", "#3"]
+        );
+        assert_eq!(
+            after
+                .removed
+                .iter()
+                .map(|link| link.key.as_str())
+                .collect::<Vec<_>>(),
+            vec!["#2", "#3"]
+        );
+        // Once gxserver has published the removal the key changes nothing.
+        let published = SessionLinks {
+            items: after.items.clone(),
+            suggested: Vec::new(),
+            removed: after.removed.clone(),
+        };
+        assert_eq!(published.without_removed(&["#2".to_string()]), published);
+        assert_eq!(links().without_removed(&[]), links());
+    }
+
+    #[test]
+    fn the_top_bar_shows_links_unless_the_setting_is_off() {
+        use serde_json::json;
+        let shown = |settings: serde_json::Value| {
+            SessionLinksInHeader::shown(settings.as_object().expect("an object"))
+        };
+        assert!(shown(json!({})));
+        assert!(shown(json!({ "sessionChatHeaderLinks": true })));
+        assert!(!shown(json!({ "sessionChatHeaderLinks": false })));
+        // A value of the wrong type is the default, on.
+        assert!(shown(json!({ "sessionChatHeaderLinks": "no" })));
     }
 
     #[test]
@@ -621,12 +736,53 @@ mod tests {
                 suggested: false,
             })
         );
+    }
+
+    #[test]
+    fn the_badge_is_grey_once_every_link_is_merged_or_closed() {
+        let mut closed_issue = link("#4", "closed", true);
+        closed_issue.kind = SessionLinkKind::Issue;
         let finished = SessionLinks {
-            items: vec![link("#3", "merged", true)],
+            items: vec![link("#3", "merged", true), closed_issue],
             suggested: Vec::new(),
             removed: Vec::new(),
         };
-        assert_eq!(finished.most_pressing_tone(), SessionLinkTone::Merged);
+        assert_eq!(finished.most_pressing_tone(), SessionLinkTone::Draft);
+        assert_eq!(
+            finished.row(SessionLinksDisplay::Badge, false).badge,
+            Some(SessionLinksBadge {
+                count: 2,
+                tone: SessionLinkTone::Draft,
+                suggested: false,
+            })
+        );
+        // One open link beside the merged ones keeps the open colour.
+        let one_open = SessionLinks {
+            items: vec![link("#3", "merged", true), link("#2", "open", false)],
+            suggested: Vec::new(),
+            removed: Vec::new(),
+        };
+        assert_eq!(
+            one_open
+                .row(SessionLinksDisplay::Badge, false)
+                .badge
+                .map(|badge| badge.tone),
+            Some(SessionLinkTone::Open)
+        );
+        // A pinned open link leaves the badge counting only merged ones: grey.
+        let mut pinned_open = link("#2", "open", false);
+        pinned_open.pinned = true;
+        let pinned = SessionLinks {
+            items: vec![pinned_open, link("#3", "merged", true)],
+            suggested: Vec::new(),
+            removed: Vec::new(),
+        };
+        let row = pinned.row(SessionLinksDisplay::Badge, false);
+        assert_eq!(row.line, vec![0]);
+        assert_eq!(
+            row.badge.map(|badge| badge.tone),
+            Some(SessionLinkTone::Draft)
+        );
     }
 
     #[test]

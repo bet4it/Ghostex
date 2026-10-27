@@ -744,6 +744,24 @@ mod tests {
     }
 
     #[test]
+    fn mobile_summary_carries_sidebar_session_links_only_when_not_badge() {
+        let result = json!({ "ok": true, "projects": [], "sessions": [] });
+        let unset = to_mobile_session_list(&result, &serde_json::Map::new());
+        assert!(unset.get("sidebarSessionLinks").is_none());
+        let mut settings = serde_json::Map::new();
+        settings.insert("sidebarSessionLinks".to_string(), json!("badge"));
+        assert!(to_mobile_session_list(&result, &settings)
+            .get("sidebarSessionLinks")
+            .is_none());
+        // A person who picked Always keeps it on the phone too.
+        settings.insert("sidebarSessionLinks".to_string(), json!("always"));
+        assert_eq!(
+            to_mobile_session_list(&result, &settings)["sidebarSessionLinks"],
+            json!("always")
+        );
+    }
+
+    #[test]
     fn format_active_time_invalid_is_dash() {
         assert_eq!(format_active_time(None), "-");
         assert_eq!(format_active_time(Some(&json!("not a date"))), "-");
