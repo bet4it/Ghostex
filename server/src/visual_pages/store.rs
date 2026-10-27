@@ -202,6 +202,24 @@ pub(super) fn store_scroll(
     write_record(gxserver_state_dir, id, &record).map_err(StoreAnswersError::Io)
 }
 
+/// Notes on the record that the reader closed the old-layout notice (notice.rs). Closing it again
+/// keeps the first time.
+pub(super) fn dismiss_layout_notice(
+    gxserver_state_dir: &Path,
+    id: &str,
+) -> Result<(), StoreAnswersError> {
+    let _guard = RECORD_WRITE_LOCK
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner());
+    let mut record = read_record(gxserver_state_dir, id).ok_or(StoreAnswersError::NotFound)?;
+    if record.get("layoutNoticeDismissedAt").is_some() {
+        return Ok(());
+    }
+    record["layoutNoticeDismissedAt"] =
+        json!(chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Millis, true));
+    write_record(gxserver_state_dir, id, &record).map_err(StoreAnswersError::Io)
+}
+
 /// Replaces the record whole (written beside it, then renamed), so a reader never sees half.
 fn write_record(
     gxserver_state_dir: &Path,

@@ -13,6 +13,7 @@ use super::{
     prepare::PAGE_CONTENT_SECURITY_POLICY,
     store::{is_page_id, read_page, read_record},
     theme::PAGE_STATE_MARKER,
+    version::is_current_layout,
 };
 
 pub(crate) const VISUAL_PAGE_ROUTE_PREFIX: &str = "/visual/";
@@ -119,7 +120,8 @@ fn header_policy(id: &str, host: Option<&str>) -> String {
 
 /// The page with today's built-in block (builtin.rs) and its answered state where `PAGE_API`
 /// reads it: whether the reader already sent
-/// answers, what they were, and when, or else the draft they left. A page published before
+/// answers, what they were, and when, or else the draft they left; and, for a page written without
+/// the v2 marker, `oldLayout` and whether its notice was closed. A page published before
 /// answering existed has no marker. `page_script` adds [`PAGE_SCRIPT`] there too, or before
 /// `</head>` in a page without the marker.
 fn with_page_state(page: Vec<u8>, record: Option<serde_json::Value>, page_script: bool) -> Vec<u8> {
@@ -147,7 +149,7 @@ fn with_page_state(page: Vec<u8>, record: Option<serde_json::Value>, page_script
         .as_ref()
         .and_then(|record| record.get("answeredAt"))
         .and_then(serde_json::Value::as_str);
-    let state = match answered_at {
+    let mut state = match answered_at {
         Some(answered_at) => serde_json::json!({
             "answered": true,
             "answeredAt": answered_at,
@@ -158,6 +160,16 @@ fn with_page_state(page: Vec<u8>, record: Option<serde_json::Value>, page_script
             "draft": record.as_ref().and_then(|record| record.get("draft")).cloned(),
         }),
     };
+    // A page written without the v2 marker shows the page API's old-layout notice until the
+    // reader closes it (version.rs, notice.rs).
+    if !is_current_layout(&html) {
+        state["oldLayout"] = serde_json::Value::Bool(true);
+        state["noticeDismissed"] = serde_json::Value::Bool(
+            record
+                .as_ref()
+                .is_some_and(|record| record.get("layoutNoticeDismissedAt").is_some()),
+        );
+    }
     // `<` never appears raw inside the script, so no value can close it.
     let state = state.to_string().replace('<', "\\u003c");
     let mut out = String::with_capacity(html.len() + state.len() + script.len() + 64);
@@ -168,4 +180,51 @@ fn with_page_state(page: Vec<u8>, record: Option<serde_json::Value>, page_script
     out.push_str(&script);
     out.push_str(&html[at + PAGE_STATE_MARKER.len()..]);
     out.into_bytes()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::visual_pages::builtin::current_block;
+
+    fn page(head: &str) -> Vec<u8> {
+        format!(
+            "<!doctype html><html><head>{}{head}<title>t</title></head><body><p>x</p></body></html>",
+            current_block()
+        )
+        .into_bytes()
+    }
+
+    fn state_of(served: Vec<u8>) -> serde_json::Value {
+        let html = String::from_utf8(served).unwrap();
+        let start = html.find("ghostex.__state(").unwrap() + "ghostex.__state(".len();
+        let end = start + html[start..].find(");</script>").unwrap();
+        serde_json::from_str(&html[start..end]).unwrap()
+    }
+
+    #[test]
+    fn a_page_without_the_v2_marker_asks_for_the_old_layout_notice() {
+        let state = state_of(with_page_state(page(""), None, false));
+        assert_eq!(state["oldLayout"], true);
+        assert_eq!(state["noticeDismissed"], false);
+    }
+
+    #[test]
+    fn a_closed_notice_stays_closed_for_that_page() {
+        let record = serde_json::json!({"layoutNoticeDismissedAt": "2026-10-27T00:00:00.000Z"});
+        let state = state_of(with_page_state(page(""), Some(record), false));
+        assert_eq!(state["oldLayout"], true);
+        assert_eq!(state["noticeDismissed"], true);
+    }
+
+    #[test]
+    fn a_v2_page_gets_no_notice() {
+        let state = state_of(with_page_state(
+            page("<meta name=\"ghostex-page\" content=\"v2\">"),
+            None,
+            false,
+        ));
+        assert!(state.get("oldLayout").is_none());
+        assert_eq!(state["answered"], false);
+    }
 }

@@ -10,7 +10,8 @@ use crate::ghostex_cli::rpc::{
     request_gxserver_rpc, resolve_gxserver_server_target, CliError, CliResult,
 };
 use crate::visual_pages::{
-    page_too_large, prepare_page, PUBLISH_VISUAL_PAGE_ENDPOINT, VISUAL_PAGE_MAX_BYTES,
+    is_current_layout, page_too_large, prepare_page, PAGE_VERSION_META_TAG,
+    PUBLISH_VISUAL_PAGE_ENDPOINT, VISUAL_PAGE_MAX_BYTES,
 };
 
 /// `ghostex show <file.html> [--title <text>] [--json]`: publishes a self-contained HTML page
@@ -91,20 +92,39 @@ pub fn show_command(args: &[String]) -> CliResult<()> {
         popup,
         page_question_tags(&source).as_deref(),
     );
+    let hint = old_layout_hint(&source);
     if parsed.flags.truthy("json") {
+        let hint = hint
+            .as_deref()
+            .map(|hint| format!(",\"hint\":{}", json_string(hint)))
+            .unwrap_or_default();
         println!(
-            "{{\"ok\":true,\"id\":{},\"title\":{},\"url\":{},\"block\":{}}}",
+            "{{\"ok\":true,\"id\":{},\"title\":{},\"url\":{},\"block\":{}{hint}}}",
             json_string(id),
             json_string(title),
             json_string(&url),
             json_string(&block)
         );
     } else {
+        let hint = hint.map(|hint| format!("{hint}\n\n")).unwrap_or_default();
         println!(
-            "Published \"{title}\".\nPut this block in your reply where the page should appear (the chat shows it as a card that opens the page where the reader's Open chat pages in setting says, a floating window over the chat by default):\n\n{block}"
+            "Published \"{title}\".\n{hint}Put this block in your reply where the page should appear (the chat shows it as a card that opens the page where the reader's Open chat pages in setting says, a floating window over the chat by default):\n\n{block}"
         );
     }
     Ok(())
+}
+
+/// What the publishing agent is told when its page lacks the v2 marker (visual_pages/version.rs):
+/// the page still publishes, with the old layout and a notice to the reader about it.
+///
+/// CDXC:SessionChat 2026-10-27 DECISION:
+/// User: tell the sessions that still write old pages ("mention it again to his sessions"). The agent that publishes is the one that can change, so `ghostex show` says it right where the agent reads its result; it covers customers' agents too, whatever skill copy they loaded.
+fn old_layout_hint(source: &str) -> Option<String> {
+    (!is_current_layout(source)).then(|| {
+        format!(
+            "Note: this page has no {PAGE_VERSION_META_TAG}, so it was written for the old page layout and the reader sees a notice saying so. Load the current $ghostex-visuals skill again (Ghostex keeps it up to date) and start your next page from its skeleton."
+        )
+    })
 }
 
 /// The tags of the questions a page asks (`<gx-question tag="Q1">`), or `None` when it asks none:
@@ -238,4 +258,25 @@ fn calling_session_ref() -> Option<String> {
                 .map(|value| value.trim().to_string())
                 .filter(|value| !value.is_empty())
         })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_page_without_the_v2_marker_gets_the_old_layout_hint() {
+        let hint = old_layout_hint("<html><head><title>t</title></head><body></body></html>")
+            .expect("a hint");
+        assert!(hint.contains(PAGE_VERSION_META_TAG));
+        assert!(hint.contains("$ghostex-visuals"));
+    }
+
+    #[test]
+    fn a_v2_page_gets_no_hint() {
+        assert!(old_layout_hint(
+            "<html><head><meta name=\"ghostex-page\" content=\"v2\"></head><body><gx-page></gx-page></body></html>"
+        )
+        .is_none());
+    }
 }

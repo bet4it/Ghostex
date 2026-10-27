@@ -24,9 +24,23 @@
 //! <section data-question="Q1" data-choice="tabs"><h3>A. Tabs</h3>…mockup…</section>
 //! ```
 //!
-//! `<gx-questions>` lays its children out in one centred column (`--gx-column`, 720px) and lets a
-//! `<gx-wide>` child span the page's full width; what a wide section holds that is narrower than
-//! the page is centred, so it lines up symmetrically with the column. A choice question
+//! The page template (v2, pages that carry `<meta name="ghostex-page" content="v2">`, version.rs):
+//! `<gx-page>` and `<gx-questions>` lay their children out in one centred column
+//! (`--gx-text-width`, 720px, with a `--gx-gutter` on each side). A `<gx-wide>` child is a centred
+//! band up to `--gx-wide-width` (1120px; `size="full"` for the whole window) whose blocks are
+//! centred as a group, each as wide as its widest frame and never narrower than the column, so a
+//! variant's heading, its Pick button and its mockup share the same edges. A `<header>` child holds
+//! the eyebrow, title and lede, and the kit puts the reader's Dark / Light switch beside the title
+//! on a v2 page. The kit also styles headings, code, tables and a few components (`.gx-eyebrow`,
+//! `.gx-lede`, `.gx-callout`, `.gx-card`, `.gx-grid`, `.gx-figure`, `.gx-frame`, `.gx-seg`,
+//! `.gx-button`, `<gx-tabs>`), all at low specificity so a page's own CSS wins. Every colour is a
+//! theme token (theme.rs `THEME_STYLE`). A page that paints its own background in the other theme
+//! moves the theme to match ("follow paint") and gets no switch.
+//!
+//! CDXC:SessionChat 2026-10-27 DECISION:
+//! User, on a published page whose sections ran from the window's left edge while its title sat in the centred column, with the Pick button at the far right: "why is the stuff u shared here not centered … pls fix and make future generated ones … not have this issue", then picked the Editorial look and 720/1120 widths. `<gx-wide>` used to span the window, and its auto margins centred only children with their own width, so headings, notes and frame wrappers started at the left edge; it is now a bounded centred band whose content is centred as a group.
+//!
+//! A choice question
 //! (`multiple` for several picks) letters its choices, ends with "Other / none of these", and has
 //! a note box; a `type="text"` question is a text box. A question left blank when the answers are
 //! sent goes as `"skipped"`, and the kit adds a Skip all button that sends every question as
@@ -57,18 +71,60 @@
 /// have no specificity (`:where`), so a page's own CSS always wins.
 ///
 /// CDXC:SessionChat 2026-10-11 SEE-ALSO:
-/// The `--gx-*` tokens at its top are the chat card's palette (apps/desktop/src/app/native_chat/appearance.rs: `foreground`, `card_muted`, `control_primary`, `card_panel`, `card_row`, `card_footer`, `input_border`, `control_border`), worked out from the page's `--background` by the same rule the chat uses on its own (dark mode lifts the card 3.5%, its rows 1.5% and the footer 2.5% toward white), with `light-dark()` choosing the theme. The phone's copy is apps/mobile/app/src/chat/native/transcript/theme.ts. Change them together.
+/// The question card's `--gx-card`, `--gx-footer`, `--gx-option`, `--gx-card-border`, `--gx-option-border`, `--gx-card-muted`, `--gx-control` and `--gx-fg` tokens (theme.rs `THEME_STYLE`, per theme since 2026-10-27) are the chat card's palette (apps/desktop/src/app/native_chat/appearance.rs: `foreground`, `card_muted`, `control_primary`, `card_panel`, `card_row`, `card_footer`, `input_border`, `control_border`), worked out from the default page background by the same rule the chat uses on its own (dark mode lifts the card 3.5%, its rows 1.5% and the footer 2.5% toward white) and written out per theme, so a page that redefines `--background` no longer moves them. The phone's copy is apps/mobile/app/src/chat/native/transcript/theme.ts. Change them together.
 pub(super) const KIT_STYLE: &str = r#"<style id="ghostex-kit">
-:root{--gx-fg:light-dark(#27272a,#fcfcfc);--gx-card-muted:light-dark(#71717b,#b4b8bf);--gx-control:light-dark(#18181b,#e5e5e5);--gx-card:light-dark(color-mix(in srgb,#fff 60%,var(--background)),color-mix(in srgb,#fff 3.5%,var(--background)));--gx-footer:light-dark(color-mix(in srgb,#fff 10%,var(--background)),color-mix(in srgb,#fff 2.5%,var(--background)));--gx-option:light-dark(var(--background),color-mix(in srgb,#fff 1.5%,var(--background)));--gx-card-border:light-dark(color-mix(in srgb,#000 9.5%,var(--background)),rgba(255,255,255,.08));--gx-option-border:light-dark(color-mix(in srgb,#000 9.5%,var(--background)),rgba(255,255,255,.06))}
-gx-questions{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,var(--gx-column,720px)) minmax(0,1fr);row-gap:12px;align-content:start;padding:12px 0 24px}
-gx-questions>*{grid-column:2;min-width:0}
-gx-questions>gx-wide{grid-column:1/-1}
-gx-wide>*{margin-left:auto;margin-right:auto}
+gx-page,gx-questions{display:grid;grid-template-columns:minmax(var(--gx-gutter),1fr) minmax(0,var(--gx-text-width)) minmax(var(--gx-gutter),1fr);row-gap:20px;align-content:start;padding:56px 0 88px;font-size:15px;line-height:1.65;color:var(--gx-text)}
+gx-page{display:grid}
+gx-page>*,gx-questions>*{grid-column:2;min-width:0}
+gx-page>gx-wide,gx-questions>gx-wide{grid-column:1/-1;justify-self:center;box-sizing:border-box;width:min(100% - 2*var(--gx-gutter),var(--gx-wide-width));display:flex;flex-direction:column;align-items:center;gap:20px}
+gx-page>gx-wide[size=full],gx-questions>gx-wide[size=full]{width:100%}
+gx-wide>*{width:fit-content;max-width:100%;min-width:min(100%,var(--gx-text-width));box-sizing:border-box}
+gx-wide>p,gx-wide>*>p,gx-wide figcaption{max-width:var(--gx-text-width)}
 gx-wide,gx-choice{display:block;min-width:0}
-:where(gx-questions>h1,gx-questions>h2,gx-questions>h3,gx-questions>p){margin:0}
-:where(gx-questions>h1){font-size:18px;font-weight:600;line-height:1.35}
-:where(gx-questions>h2){margin-top:8px;font-size:15px;font-weight:600}
-:where(gx-questions>p){color:var(--muted-foreground)}
+gx-page>gx-wide,gx-questions>gx-wide{display:flex}
+:where(gx-page,gx-questions) :where(h1,h2,h3,h4,p,figure){margin:0}
+:where(gx-page,gx-questions) :where(h1,h2,h3,h4){color:var(--gx-fg)}
+:where(gx-page,gx-questions) :where(h1){font-size:32px;line-height:1.15;font-weight:700;letter-spacing:-.025em}
+:where(gx-page,gx-questions) :where(h2){margin-top:28px;font-size:22px;line-height:1.25;font-weight:650;letter-spacing:-.015em}
+:where(gx-page,gx-questions) :where(h3){margin-top:6px;font-size:17px;line-height:1.35;font-weight:600;letter-spacing:-.005em}
+:where(gx-page,gx-questions) :where(h4){font-size:15px;line-height:1.4;font-weight:600}
+:where(gx-page,gx-questions) :where(a){color:var(--gx-accent);text-underline-offset:2px}
+:where(gx-page,gx-questions) :where(code){font-size:.87em;padding:.1em .4em;border-radius:6px;background:var(--gx-surface);color:var(--gx-fg)}
+:where(gx-page,gx-questions) :where(pre){margin:0;padding:14px 16px;overflow-x:auto;border-radius:12px;background:var(--gx-code-bg);color:var(--gx-fg);font:13px/1.6 var(--font-mono)}
+:where(gx-page,gx-questions) :where(pre code){padding:0;background:none;font-size:inherit}
+:where(gx-page,gx-questions) :where(ul,ol){margin:0;padding-left:22px}
+:where(gx-page,gx-questions) :where(li+li){margin-top:4px}
+:where(gx-page,gx-questions) :where(table){border-collapse:collapse;width:100%;font-size:14px}
+:where(gx-page,gx-questions) :where(th){text-align:left;font-weight:600;font-size:12px;letter-spacing:.04em;text-transform:uppercase;color:var(--gx-muted);border-bottom:1px solid var(--gx-line-strong);padding:8px 10px}
+:where(gx-page,gx-questions) :where(td){border-bottom:1px solid var(--gx-line);padding:10px;vertical-align:top}
+:where(gx-page>header,gx-questions>header){display:grid;grid-template-columns:minmax(0,1fr) auto;column-gap:16px;row-gap:12px;align-items:start;margin-bottom:12px}
+:where(gx-page>header>*,gx-questions>header>*){grid-column:1}
+.gx-eyebrow{display:block;font:600 12px/1.3 var(--font-sans);letter-spacing:.08em;text-transform:uppercase;color:var(--gx-accent)}
+.gx-lede{font-size:17px;line-height:1.6;color:var(--gx-muted)}
+.gx-muted{color:var(--gx-muted)}
+.gx-callout{padding:14px 18px;border-radius:12px;background:color-mix(in srgb,var(--gx-tone,var(--gx-accent)) 10%,var(--gx-bg));color:var(--gx-text)}
+.gx-callout[data-tone=warn]{--gx-tone:var(--gx-warn)}.gx-callout[data-tone=good]{--gx-tone:var(--gx-good)}.gx-callout[data-tone=bad]{--gx-tone:var(--gx-bad)}
+.gx-callout :where(b,strong),.gx-card :where(b,strong){color:var(--gx-fg)}
+.gx-card{padding:18px 20px;border-radius:16px;background:var(--gx-surface)}
+.gx-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.gx-figure{display:flex;flex-direction:column;gap:10px}
+.gx-figure>img{display:block;max-width:100%;height:auto;border-radius:12px;border:1px solid var(--gx-line)}
+.gx-figure figcaption{font-size:13px;line-height:1.5;color:var(--gx-muted)}
+.gx-frame{max-width:100%;overflow-x:auto;padding-bottom:4px}
+.gx-seg{display:inline-flex;flex:none;gap:2px;padding:2px;border-radius:10px;background:var(--gx-surface);border:1px solid var(--gx-line)}
+.gx-seg>button{font:500 12.5px/1 var(--font-sans);padding:7px 11px;border:0;border-radius:8px;background:transparent;color:var(--gx-muted);cursor:pointer}
+.gx-seg>button:hover{color:var(--gx-fg)}
+.gx-seg>button[aria-pressed=true],.gx-seg>button[aria-selected=true]{background:var(--gx-raised);color:var(--gx-fg);box-shadow:0 0 0 1px var(--gx-line-strong)}
+.gx-button{display:inline-flex;align-items:center;gap:6px;height:32px;box-sizing:border-box;padding:0 13px;border-radius:9px;border:1px solid var(--gx-line-strong);background:var(--gx-raised);color:var(--gx-fg);font:500 13px/1 var(--font-sans);cursor:pointer}
+.gx-button:hover{background:color-mix(in srgb,var(--gx-fg) 6%,var(--gx-raised))}
+.gx-button.gx-primary{background:var(--gx-control);border-color:var(--gx-control);color:var(--gx-bg)}
+.gx-theme-switch{grid-column:2!important;grid-row:1;justify-self:end;align-self:start}
+gx-page>.gx-theme-switch,gx-questions>.gx-theme-switch{grid-column:2!important;grid-row:auto}
+body>.gx-theme-switch{position:absolute;top:12px;right:12px}
+@media (max-width:560px){:where(gx-page>header,gx-questions>header){grid-template-columns:minmax(0,1fr)}.gx-theme-switch{grid-column:1!important;grid-row:auto;justify-self:start}}
+gx-tabs{display:flex;flex-direction:column;gap:14px;min-width:0}
+gx-tabs>.gx-seg{align-self:flex-start}
+gx-tabs>[data-tab][hidden]{display:none!important}
 gx-question{display:block;border:1px solid var(--gx-card-border);background:var(--gx-card);color:var(--gx-card-muted);border-radius:14px;padding:12px 14px 14px}
 gx-questions gx-question{width:100%;box-sizing:border-box;min-width:0}
 .gx-q-head{display:flex;align-items:center;gap:10px;margin-bottom:12px}
@@ -83,9 +139,9 @@ gx-question.gx-has-answer .gx-q-badge.gx-check,gx-question.gx-answered .gx-q-bad
 .gx-q-badge svg{width:6px;height:6px}
 gx-question.gx-unanswered .gx-q-badge.gx-ask,gx-question.gx-unanswered .gx-q-badge.gx-check{display:none}
 .gx-q-heading{display:flex;flex:1;min-width:0;align-items:flex-start;gap:10px}
-.gx-q-tag{flex:none;margin-top:2px;font:500 10.5px/18px var(--font-mono);color:var(--muted-foreground);background:color-mix(in srgb,var(--muted-foreground) 18%,transparent);border-radius:999px;padding:0 7px}
+.gx-q-tag{flex:none;margin-top:2px;font:500 10.5px/18px var(--font-mono);color:var(--gx-muted);background:color-mix(in srgb,var(--gx-muted) 18%,transparent);border-radius:999px;padding:0 7px}
 .gx-q-title{flex:1;min-width:0;color:var(--gx-fg);font-size:15px;font-weight:500;line-height:22px}
-.gx-q-desc{color:var(--muted-foreground);font-size:13px;line-height:1.5;margin:-4px 0 12px}
+.gx-q-desc{color:var(--gx-muted);font-size:13px;line-height:1.5;margin:-4px 0 12px}
 .gx-q-desc>:first-child{margin-top:0}.gx-q-desc>:last-child{margin-bottom:0}
 .gx-choices{display:flex;flex-direction:column;gap:8px}
 .gx-choice{display:flex;gap:12px;align-items:flex-start;width:100%;box-sizing:border-box;margin:0;text-align:left;padding:10px 12px;border:1px solid var(--gx-option-border);border-radius:10px;background:var(--gx-option);color:var(--gx-fg);font:inherit;font-size:14px;line-height:20px;cursor:pointer}
@@ -94,28 +150,28 @@ gx-question.gx-unanswered .gx-q-badge.gx-ask,gx-question.gx-unanswered .gx-q-bad
 .gx-choice[aria-checked=true]{border-color:color-mix(in srgb,var(--warning) 32%,transparent);background:color-mix(in srgb,var(--warning) 4%,var(--gx-card))}
 .gx-choice:disabled{cursor:default}
 .gx-choice:disabled:not([aria-checked=true]){opacity:.55}
-.gx-mark{flex-shrink:0;width:16px;height:16px;margin-top:2px;box-sizing:border-box;border:1.5px solid color-mix(in srgb,var(--muted-foreground) 70%,transparent);border-radius:50%}
+.gx-mark{flex-shrink:0;width:16px;height:16px;margin-top:2px;box-sizing:border-box;border:1.5px solid color-mix(in srgb,var(--gx-muted) 70%,transparent);border-radius:50%}
 .gx-choice[role=checkbox] .gx-mark{border-radius:4px}
 .gx-choice[aria-checked=true] .gx-mark{border-color:color-mix(in srgb,var(--warning) 85%,transparent);background:color-mix(in srgb,var(--warning) 85%,transparent);box-shadow:inset 0 0 0 3px var(--gx-card)}
 .gx-choice[role=checkbox][aria-checked=true] .gx-mark{box-shadow:inset 0 0 0 2px var(--gx-card)}
 gx-question.gx-answered .gx-choice[aria-checked=true]{border-color:color-mix(in srgb,var(--success) 55%,transparent);background:color-mix(in srgb,var(--success) 8%,var(--gx-card))}
 gx-question.gx-answered .gx-choice[aria-checked=true] .gx-mark{border-color:var(--success);background:var(--success)}
-.gx-letter{flex:none;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;margin-top:1px;border:1px solid color-mix(in srgb,var(--gx-fg) 12%,transparent);border-radius:5px;background:color-mix(in srgb,var(--background) 50%,transparent);font:500 11px/16px var(--font-mono);color:var(--muted-foreground);text-align:center}
+.gx-letter{flex:none;min-width:18px;height:18px;padding:0 5px;box-sizing:border-box;margin-top:1px;border:1px solid color-mix(in srgb,var(--gx-fg) 12%,transparent);border-radius:5px;background:color-mix(in srgb,var(--gx-bg) 50%,transparent);font:500 11px/16px var(--font-mono);color:var(--gx-muted);text-align:center}
 .gx-choice[aria-checked=true] .gx-letter{color:var(--gx-fg)}
 .gx-choice-body{flex:1;min-width:0;font-weight:500}
 .gx-other .gx-choice-body{color:var(--gx-card-muted)}
 .gx-other[aria-checked=true] .gx-choice-body{color:inherit}
 .gx-rec{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid color-mix(in srgb,var(--gx-control) 60%,transparent);border-radius:999px;color:var(--gx-control);font-size:10.5px;font-weight:600;line-height:16px;vertical-align:1px}
-.gx-choice-body small{display:block;color:var(--muted-foreground);font-size:13px;font-weight:400;line-height:19px;margin-top:1px}
+.gx-choice-body small{display:block;color:var(--gx-muted);font-size:13px;font-weight:400;line-height:19px;margin-top:1px}
 .gx-note,.gx-text{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:13.5px;line-height:20px;color:var(--gx-fg);background:var(--gx-option);border:1px solid var(--gx-card-border);border-radius:9px;padding:6px 10px}
 .gx-text{min-height:64px}
 .gx-note:focus,.gx-text:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 20%,transparent)}
-.gx-note::placeholder,.gx-text::placeholder{color:var(--muted-foreground)}
+.gx-note::placeholder,.gx-text::placeholder{color:var(--gx-muted)}
 .gx-note[readonly],.gx-text[readonly]{resize:none}
 .gx-note[hidden],.gx-text[hidden]{display:none}
 .gx-has-pick{display:flex;align-items:center;gap:8px}
-.gx-pick{display:inline-flex;flex:none;align-items:center;gap:4px;margin-left:auto;padding:2px 10px;vertical-align:middle;border:1px solid var(--border);border-radius:999px;background:transparent;color:var(--foreground);font:500 12px/1.5 var(--font-sans);cursor:pointer}
-.gx-pick:hover:not(:disabled):not([aria-pressed=true]){background:var(--accent);color:var(--accent-foreground)}
+.gx-pick{display:inline-flex;flex:none;align-items:center;gap:4px;margin-left:auto;padding:2px 10px;vertical-align:middle;border:1px solid var(--gx-line-strong);border-radius:999px;background:transparent;color:var(--gx-text);font:500 12px/1.5 var(--font-sans);cursor:pointer}
+.gx-pick:hover:not(:disabled):not([aria-pressed=true]){background:var(--gx-surface);color:var(--gx-fg)}
 .gx-pick[aria-pressed=true]{background:color-mix(in srgb,var(--warning) 12%,transparent);border-color:color-mix(in srgb,var(--warning) 40%,transparent);color:var(--warning)}
 .gx-pick[aria-pressed=true]:hover:not(:disabled),.gx-pick[aria-pressed=true]:active:not(:disabled){background:color-mix(in srgb,var(--warning) 20%,transparent);border-color:color-mix(in srgb,var(--warning) 55%,transparent);color:var(--warning)}
 .gx-pick:focus-visible{outline:none;box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 35%,transparent)}
@@ -125,25 +181,25 @@ gx-question.gx-answered .gx-choice[aria-checked=true] .gx-mark{border-color:var(
 [data-question][data-choice]:not(h1,h2,h3,h4,h5,h6){box-sizing:content-box;padding:14px;border:2px solid transparent;border-radius:16px}
 :where([data-question][data-choice]:not(h1,h2,h3,h4,h5,h6)){max-width:calc(100% - 32px)}
 [data-question][data-choice].gx-picked:not(h1,h2,h3,h4,h5,h6){border-color:color-mix(in srgb,var(--warning) 40%,transparent)}
-.gx-option-note{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:12.5px;color:var(--foreground);background:transparent;border:1px solid var(--border);border-radius:var(--radius);padding:7px 9px}
+.gx-option-note{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:12.5px;color:var(--gx-text);background:transparent;border:1px solid var(--gx-line-strong);border-radius:var(--radius);padding:7px 9px}
 .gx-option-note:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 20%,transparent)}
-.gx-option-note::placeholder{color:var(--muted-foreground)}
+.gx-option-note::placeholder{color:var(--gx-muted)}
 .gx-option-note[readonly]{resize:none}
 .gx-option-note[hidden]{display:none}
 .gx-send{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:4px;padding:10px 14px;border:1px solid var(--gx-card-border);border-radius:14px;background:var(--gx-footer)}
-.gx-send-button{display:inline-flex;align-items:center;gap:6px;margin-left:auto;height:28px;box-sizing:border-box;padding:0 11px;font:inherit;font-size:13px;font-weight:500;border-radius:8px;border:1px solid var(--gx-control);background:var(--gx-control);color:var(--background);cursor:pointer}
+.gx-send-button{display:inline-flex;align-items:center;gap:6px;margin-left:auto;height:28px;box-sizing:border-box;padding:0 11px;font:inherit;font-size:13px;font-weight:500;border-radius:8px;border:1px solid var(--gx-control);background:var(--gx-control);color:var(--gx-bg);cursor:pointer}
 .gx-send-button:hover:not(:disabled){opacity:.9}
 .gx-send-button:disabled{opacity:.5;cursor:default}
-.gx-skip-all{display:inline-flex;align-items:center;gap:6px;margin-left:auto;height:28px;box-sizing:border-box;padding:0 11px;font:inherit;font-size:13px;font-weight:500;border-radius:8px;border:1px solid transparent;background:light-dark(color-mix(in srgb,var(--foreground) 7%,transparent),color-mix(in srgb,var(--foreground) 10%,transparent));color:var(--foreground);cursor:pointer}
-.gx-skip-all:hover{background:light-dark(color-mix(in srgb,var(--foreground) 11%,transparent),color-mix(in srgb,var(--foreground) 15%,transparent))}
+.gx-skip-all{display:inline-flex;align-items:center;gap:6px;margin-left:auto;height:28px;box-sizing:border-box;padding:0 11px;font:inherit;font-size:13px;font-weight:500;border-radius:8px;border:1px solid transparent;background:color-mix(in srgb,var(--gx-fg) 9%,transparent);color:var(--gx-text);cursor:pointer}
+.gx-skip-all:hover{background:color-mix(in srgb,var(--gx-fg) 14%,transparent)}
 .gx-send-button,.gx-skip-all{position:relative}
-.gx-send-button[data-tip]::after,.gx-skip-all[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);right:0;white-space:nowrap;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--background);color:var(--foreground);font:500 12px/16px var(--font-mono);opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
+.gx-send-button[data-tip]::after,.gx-skip-all[data-tip]::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);right:0;white-space:nowrap;padding:4px 8px;border-radius:6px;border:1px solid var(--gx-line-strong);background:var(--gx-bg);color:var(--gx-text);font:500 12px/16px var(--font-mono);opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
 .gx-send-button[data-tip]:hover:not(:disabled)::after,.gx-skip-all[data-tip]:hover::after{opacity:1;transition-delay:.15s}
 .gx-skip-all+.gx-send-button{margin-left:0}
-.gx-send-status{flex:1;min-width:0;font-size:12.5px;color:var(--muted-foreground)}
+.gx-send-status{flex:1;min-width:0;font-size:12.5px;color:var(--gx-muted)}
 .gx-send-status.gx-error{color:var(--destructive)}
-.gx-send-info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:none;color:var(--muted-foreground);font:inherit;cursor:default}
-.gx-send-info::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:0;width:max-content;max-width:240px;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--background);color:var(--foreground);font:500 12px/16px var(--font-mono);text-align:left;opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
+.gx-send-info{position:relative;display:inline-flex;align-items:center;justify-content:center;width:20px;height:20px;padding:0;border:0;background:none;color:var(--gx-muted);font:inherit;cursor:default}
+.gx-send-info::after{content:attr(data-tip);position:absolute;bottom:calc(100% + 6px);left:0;width:max-content;max-width:240px;padding:4px 8px;border-radius:6px;border:1px solid var(--gx-line-strong);background:var(--gx-bg);color:var(--gx-text);font:500 12px/16px var(--font-mono);text-align:left;opacity:0;pointer-events:none;transition:opacity .08s ease 0s;z-index:5}
 .gx-send-info:hover::after,.gx-send-info:focus-visible::after{opacity:1;transition-delay:.15s}
 </style>"#;
 
@@ -291,6 +347,41 @@ function setup(root){
   /* Ctrl+Enter (Cmd+Enter on macOS) presses the send button from anywhere on the page, a note box included; with Shift it presses Skip all. */
   document.addEventListener("keydown",function(e){if(e.key==="Enter"&&(e.ctrlKey||e.metaKey)&&!e.isComposing&&!button.disabled){e.preventDefault();(e.shiftKey?skipAll:button).click();}});
 }
-function init(){var root=document.querySelector("gx-questions");if(root)setup(root);}
+/* The page's theme: the attribute PAGE_BOOTSTRAP set (Ghostex's theme, else the system's). A page that paints its own background in the other theme decides instead ("follow paint"), so the kit's cards always match what the page shows; the reader's Dark / Light switch, which a v2 page gets, wins over both. */
+var html=document.documentElement,picked=false,themeSwitch=null;
+function lum(color){var m=(color||"").match(/[\d.]+/g);if(!m||m.length<3||(m.length>3&&+m[3]<0.5))return null;return(0.2126*m[0]+0.7152*m[1]+0.0722*m[2])/255;}
+function followPaint(){
+  if(picked||!document.body)return;
+  var l=lum(getComputedStyle(document.body).backgroundColor);if(l==null)l=lum(getComputedStyle(html).backgroundColor);if(l==null)return;
+  var want=l>0.5?"light":"dark";
+  if(html.getAttribute("data-gx-theme")!==want){html.setAttribute("data-gx-theme",want);html.setAttribute("data-gx-theme-from","page");}
+  /* A page that paints its own theme can't be flipped, so it gets no switch. */
+  if(html.getAttribute("data-gx-theme-from")==="page"&&themeSwitch){themeSwitch.remove();themeSwitch=null;}
+  markSwitch();
+}
+function markSwitch(){if(!themeSwitch)return;var t=html.getAttribute("data-gx-theme");Array.prototype.forEach.call(themeSwitch.children,function(b){b.setAttribute("aria-pressed",b.getAttribute("data-gx-set-theme")===t?"true":"false");});}
+function isV2(){var m=document.querySelector('meta[name="ghostex-page" i]');return!!m&&(m.getAttribute("content")||"").trim().toLowerCase()==="v2";}
+function addThemeSwitch(){
+  if(!isV2()||html.getAttribute("data-gx-theme-from")==="page"||document.querySelector(".gx-theme-switch"))return;
+  var sw=el("div","gx-seg gx-theme-switch");sw.setAttribute("role","group");sw.setAttribute("aria-label","Theme");
+  ["Dark","Light"].forEach(function(name){var b=el("button",null,name);b.type="button";b.setAttribute("data-gx-set-theme",name.toLowerCase());b.addEventListener("click",function(){picked=true;html.setAttribute("data-gx-theme",name.toLowerCase());html.setAttribute("data-gx-theme-from","reader");markSwitch();});sw.append(b);});
+  /* Beside the page's title: in the container's header, else at the top of the container, else the page's top right corner. */
+  var slot=document.querySelector("[data-gx-theme-switch]"),container=document.querySelector("gx-page,gx-questions"),header=container&&Array.prototype.filter.call(container.children,function(c){return c.tagName==="HEADER";})[0];
+  if(slot)slot.append(sw);else if(header)header.append(sw);else if(container)container.insertBefore(sw,container.firstChild);else document.body.append(sw);
+  themeSwitch=sw;markSwitch();
+}
+/* <gx-tabs> with one child per tab (`data-tab="Label"`): the kit adds the tab bar and shows the first, or the one marked `data-tab-default`. */
+function setupTabs(){
+  Array.prototype.forEach.call(document.querySelectorAll("gx-tabs"),function(tabs){
+    var panes=Array.prototype.filter.call(tabs.children,function(c){return c.hasAttribute("data-tab");});if(!panes.length)return;
+    var bar=el("div","gx-seg");bar.setAttribute("role","tablist");
+    function show(i){panes.forEach(function(p,j){p.hidden=j!==i;bar.children[j].setAttribute("aria-selected",j===i?"true":"false");});}
+    panes.forEach(function(p,i){var b=el("button",null,p.getAttribute("data-tab"));b.type="button";b.setAttribute("role","tab");b.addEventListener("click",function(){show(i);});bar.append(b);});
+    tabs.insertBefore(bar,tabs.firstChild);
+    var start=0;panes.forEach(function(p,i){if(p.hasAttribute("data-tab-default"))start=i;});show(start);
+  });
+}
+function init(){followPaint();addThemeSwitch();setupTabs();var root=document.querySelector("gx-questions");if(root)setup(root);}
 if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",init);else init();
+addEventListener("load",followPaint);
 })();</script>"#;
