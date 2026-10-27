@@ -4230,10 +4230,24 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   Theme), with a "More theme options in Settings > Theme" link that opens the
   Theme page. Turning transparency on there also switches Appearance to Dark. The very first run opens on a short
   intro video before the panels: press Play to watch it there (on Linux it
-  opens in the browser), it shows once, and Continue (or Enter) goes on to
+  opens in your web browser, and says so), it shows once, and Continue (or Enter) goes on to
   setup at any time; the
-  video is also at https://youtu.be/QzjFB4J6-8E. Reopen the setup any
+  video is also at https://youtu.be/QzjFB4J6-8E. Choose folder opens the
+  system's folder picker; where there is none (a Linux desktop without the
+  xdg-desktop-portal file chooser) Ghostex opens its own: type a path (Tab
+  completes it, `~` is your home folder) or click through the folders, then
+  Use this folder. Setup counts as done once it opens your first project.
+  Skip for now (or closing the window) before any project exists leaves setup
+  unfinished and opens Add Project; it comes back on the next launch only if
+  there is still no project. With a folder chosen, Advanced settings later
+  adds the project and then opens Settings. Reopen the setup any
   time from Tips > Setup or Quick Access > Commands > Setup.
+- The `ghostex` and `gx` commands are linked into a folder on your PATH, or
+  into `~/.local/bin` when no other folder is writable (the usual case on
+  Linux; never `~/.cargo/bin`). When `~/.local/bin` is not on your PATH, the
+  Ghostex CLI row in Settings > Integrations (and its Repair button) says so
+  and gives the line to add to your shell profile:
+  `export PATH="$HOME/.local/bin:$PATH"`.
 
 ## More than one window
 

@@ -330,10 +330,11 @@ impl GhostexGpuiApp {
         if let Some(surface) = gpui_telemetry_surface_for_app_modal(modal) {
             record_gpui_surface_opened_telemetry(surface, cx.background_executor());
         }
-        // Another app modal replacing the native onboarding counts as finishing setup; otherwise
-        // onboarding reappears on the next launch.
+        // Another app modal replacing the native onboarding counts as finishing setup once a
+        // project exists; without one, setup stays unfinished and comes back on the next launch.
         if modal != GpuiAppModalKind::Onboarding
             && self.native_app_modal_kind() == Some(GpuiAppModalKind::Onboarding)
+            && self.gpui_onboarding_has_projects(cx)
         {
             self.complete_first_launch_setup();
         }

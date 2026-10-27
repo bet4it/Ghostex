@@ -93,6 +93,12 @@ impl GhostexGpuiApp {
         // A native GPUI modal has no toast layer, and the React host's toast
         // dies with its window; after a native modal closes, its outcome goes
         // to the bottom-center app toast window instead of being dropped.
+        // The onboarding draws app toasts in its own toast, above its buttons
+        // (`GpuiOnboardingWindow::receive_app_toast`).
+        if self.native_app_modal_kind() == Some(GpuiAppModalKind::Onboarding) {
+            self.show_gpui_onboarding_app_toast(level, title, description, cx);
+            return;
+        }
         if self.app_modal_window.is_none() {
             self.dispatch_gpui_workspace_action_toast(level, title, description, cx);
             return;

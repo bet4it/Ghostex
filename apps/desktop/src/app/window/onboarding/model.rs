@@ -760,9 +760,201 @@ pub(crate) fn transparency_strength(settings: &OnboardingSettings) -> (Option<f6
     (exact, nearest)
 }
 
+/// The desktop Computer Use runs on, for the copy that says what it asks for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ComputerUseDesktop {
+    MacOs,
+    Windows,
+    LinuxX11,
+    LinuxWayland,
+}
+
+impl ComputerUseDesktop {
+    pub(crate) fn current() -> Self {
+        if cfg!(target_os = "macos") {
+            Self::MacOs
+        } else if cfg!(target_os = "windows") {
+            Self::Windows
+        } else {
+            Self::linux(
+                std::env::var("XDG_SESSION_TYPE").ok().as_deref(),
+                std::env::var_os("WAYLAND_DISPLAY").is_some(),
+            )
+        }
+    }
+
+    pub(crate) fn linux(session_type: Option<&str>, wayland_display: bool) -> Self {
+        match session_type.map(str::trim) {
+            Some(kind) if kind.eq_ignore_ascii_case("wayland") => Self::LinuxWayland,
+            Some(kind) if kind.eq_ignore_ascii_case("x11") => Self::LinuxX11,
+            _ if wayland_display => Self::LinuxWayland,
+            _ => Self::LinuxX11,
+        }
+    }
+}
+
+/// One line under "what your computer asks": an icon, a name, why, and whether it opens the
+/// system setting that grants it (macOS only).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct ComputerUseGrant {
+    pub(crate) icon: &'static str,
+    pub(crate) name: &'static str,
+    pub(crate) why: &'static str,
+    pub(crate) opens: Option<ComputerUseGrantSetting>,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ComputerUseGrantSetting {
+    Accessibility,
+    ScreenRecording,
+}
+
+/// What each desktop asks before agents can see and drive it.
+///
+/// CDXC:Onboarding 2026-10-28 WHY:
+/// The Computer Use copy promised Accessibility and Screen Recording prompts on every computer, but
+/// those are macOS's grants: on Windows and on Linux under X11 nothing asks, and on Wayland the
+/// desktop's screen-sharing portal asks each session the first time an agent looks at the screen
+/// (cua-driver's platform notes). Each desktop now says what it really does.
+pub(crate) struct ComputerUseCopy {
+    /// The label above the grants while nothing is pending, and while macOS is asking.
+    pub(crate) label: &'static str,
+    pub(crate) asking_label: &'static str,
+    pub(crate) grants: [ComputerUseGrant; 2],
+    /// The toast after the switch is turned on.
+    pub(crate) turned_on: &'static str,
+    /// The "You're set" summary while a grant is still pending.
+    pub(crate) pending_summary: &'static str,
+}
+
+pub(crate) fn computer_use_copy(desktop: ComputerUseDesktop) -> ComputerUseCopy {
+    match desktop {
+        ComputerUseDesktop::MacOs => ComputerUseCopy {
+            label: "Your computer asks once for",
+            asking_label: "Your computer is asking for",
+            grants: [
+                ComputerUseGrant {
+                    icon: "shield",
+                    name: "Accessibility",
+                    why: "so agents can click and type",
+                    opens: Some(ComputerUseGrantSetting::Accessibility),
+                },
+                ComputerUseGrant {
+                    icon: "monitor",
+                    name: "Screen Recording",
+                    why: "so agents can see the screen",
+                    opens: Some(ComputerUseGrantSetting::ScreenRecording),
+                },
+            ],
+            turned_on: "Computer Use is installing. macOS will ask for Accessibility and Screen Recording.",
+            pending_summary: "On · macOS will ask for permission",
+        },
+        ComputerUseDesktop::Windows => ComputerUseCopy {
+            label: "Windows asks for nothing",
+            asking_label: "Windows asks for nothing",
+            grants: [
+                ComputerUseGrant {
+                    icon: "monitor",
+                    name: "No prompt",
+                    why: "agents see and drive apps on this desktop",
+                    opens: None,
+                },
+                ComputerUseGrant {
+                    icon: "shield",
+                    name: "Your session",
+                    why: "only apps on your Windows desktop",
+                    opens: None,
+                },
+            ],
+            turned_on: "Computer Use is installing. Windows asks for no permission.",
+            pending_summary: "On",
+        },
+        ComputerUseDesktop::LinuxX11 => ComputerUseCopy {
+            label: "X11 asks for nothing",
+            asking_label: "X11 asks for nothing",
+            grants: [
+                ComputerUseGrant {
+                    icon: "monitor",
+                    name: "No prompt",
+                    why: "agents see and drive apps on this display",
+                    opens: None,
+                },
+                ComputerUseGrant {
+                    icon: "shield",
+                    name: "Your session",
+                    why: "only windows on your X11 desktop",
+                    opens: None,
+                },
+            ],
+            turned_on: "Computer Use is installing. X11 asks for no permission.",
+            pending_summary: "On",
+        },
+        ComputerUseDesktop::LinuxWayland => ComputerUseCopy {
+            label: "Your Wayland desktop asks for",
+            asking_label: "Your Wayland desktop asks for",
+            grants: [
+                ComputerUseGrant {
+                    icon: "monitor",
+                    name: "Screen sharing",
+                    why: "each session, the first time an agent looks",
+                    opens: None,
+                },
+                ComputerUseGrant {
+                    icon: "shield",
+                    name: "Depends on desktop",
+                    why: "some Wayland desktops limit what agents can drive",
+                    opens: None,
+                },
+            ],
+            turned_on: "Computer Use is installing. Your desktop asks to share the screen the first time an agent looks.",
+            pending_summary: "On · your desktop asks to share the screen",
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn linux_session_picks_the_computer_use_copy() {
+        assert_eq!(
+            ComputerUseDesktop::linux(Some("wayland"), false),
+            ComputerUseDesktop::LinuxWayland
+        );
+        assert_eq!(
+            ComputerUseDesktop::linux(Some("x11"), true),
+            ComputerUseDesktop::LinuxX11
+        );
+        assert_eq!(
+            ComputerUseDesktop::linux(None, true),
+            ComputerUseDesktop::LinuxWayland
+        );
+        assert_eq!(
+            ComputerUseDesktop::linux(Some("tty"), false),
+            ComputerUseDesktop::LinuxX11
+        );
+    }
+
+    #[test]
+    fn only_macos_promises_accessibility_and_screen_recording() {
+        for desktop in [
+            ComputerUseDesktop::Windows,
+            ComputerUseDesktop::LinuxX11,
+            ComputerUseDesktop::LinuxWayland,
+        ] {
+            let copy = computer_use_copy(desktop);
+            assert!(copy.grants.iter().all(|grant| grant.opens.is_none()));
+            for text in [copy.label, copy.turned_on, copy.pending_summary] {
+                assert!(
+                    !text.contains("Accessibility") && !text.contains("Screen Recording"),
+                    "{text}"
+                );
+            }
+        }
+        let mac = computer_use_copy(ComputerUseDesktop::MacOs);
+        assert!(mac.grants.iter().all(|grant| grant.opens.is_some()));
+    }
 
     fn settings_with(tints: [f64; 4]) -> OnboardingSettings {
         let mut settings = OnboardingSettings::from_object(&Map::new());

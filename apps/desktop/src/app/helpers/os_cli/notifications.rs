@@ -276,6 +276,36 @@ pub(crate) fn gpui_request_macos_notification_permission()
     GpuiMacOSNotificationAuthorizationStatus::Unsupported
 }
 
+/// Why this computer cannot show Ghostex's agent alerts, for the onboarding's "Ping me when an
+/// agent needs me" row; `None` when nothing is known to be wrong.
+///
+/// CDXC:Notifications 2026-10-28 WHY:
+/// The onboarding turned alerts on with no check outside macOS. Linux shows them through
+/// `notify-send`, which minimal installs leave out, and Windows can have Ghostex's notifications
+/// switched off; both can be read without sending anything. macOS asks for permission itself the
+/// first time an alert is sent, so it reports nothing here.
+pub(crate) fn gpui_attention_notification_problem() -> Option<String> {
+    #[cfg(target_os = "linux")]
+    {
+        if crate::app::helpers::gpui_which_command("notify-send").is_none() {
+            return Some(
+                "This computer can't show alerts yet: install libnotify (the notify-send command). Your phone still gets them."
+                    .to_string(),
+            );
+        }
+    }
+    #[cfg(target_os = "windows")]
+    {
+        if gpui_windows_notification_status() == GpuiMacOSNotificationAuthorizationStatus::Denied {
+            return Some(
+                "Windows has notifications from Ghostex turned off: turn them on in Settings > System > Notifications. Your phone still gets them."
+                    .to_string(),
+            );
+        }
+    }
+    None
+}
+
 #[cfg(target_os = "macos")]
 pub(crate) fn gpui_deliver_macos_settings_test_notification() -> GpuiMacOSNotificationDeliveryResult
 {

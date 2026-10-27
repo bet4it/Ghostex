@@ -200,7 +200,16 @@ pub(crate) fn gpui_ghostex_cli_status_message_with_cua_update_check(
                     "Ghostex CLI was not found in the selected WSL2 distribution.".to_string()
                 });
                 #[cfg(not(target_os = "windows"))]
-                parts.push("Ghostex CLI was not found on PATH.".to_string());
+                parts.push(
+                    match gpui_cli_user_bin_path_hint(
+                        &gpui_home_dir().join(".local/bin"),
+                        &gpui_cli_path_entries(),
+                        &gpui_home_dir(),
+                    ) {
+                        Some(hint) => format!("Ghostex CLI was not found on PATH. {hint}"),
+                        None => "Ghostex CLI was not found on PATH.".to_string(),
+                    },
+                );
             }
             if gx_usable {
                 parts.push("The gx alias appears to be Ghostex-owned.".to_string());

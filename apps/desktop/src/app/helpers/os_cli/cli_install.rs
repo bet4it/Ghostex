@@ -67,9 +67,14 @@ pub(crate) fn gpui_finish_desktop_control_setup(
                 "Fast Computer & Browser Use is up to date. Ghostex Computer Use is ready.{skill_note}"
             )
         } else {
-            format!(
-                "Fast Computer & Browser Use installed. Grant accessibility and screen recording permissions if needed.{skill_note}"
-            )
+            // Accessibility and Screen Recording are macOS grants; Windows and X11 ask nothing.
+            if cfg!(target_os = "macos") {
+                format!(
+                    "Fast Computer & Browser Use installed. Grant accessibility and screen recording permissions if needed.{skill_note}"
+                )
+            } else {
+                format!("Fast Computer & Browser Use installed.{skill_note}")
+            }
         }),
         Err(message) => Err(format!(
             "Fast Computer & Browser Use {}, but Ghostex Computer Use skill could not be installed. {message}",
@@ -112,20 +117,54 @@ pub(crate) fn gpui_repair_ghostex_cli_commands() -> Result<String, String> {
 
     let gx_result =
         gpui_install_ghostex_cli_command("gx", &cli_binary_path, &cli_dir, &install_dirs);
+    let path_hint = gpui_cli_user_bin_path_hint(
+        &gpui_home_dir().join(".local/bin"),
+        &path_entries,
+        &gpui_home_dir(),
+    )
+    .map(|hint| format!(" {hint}"))
+    .unwrap_or_default();
     match gx_result {
         GpuiCliCommandInstallResult::Blocked { existing_path } => Ok(format!(
-            "Ghostex CLI linked. The gx alias was not changed because another command already owns that name at {}.",
+            "Ghostex CLI linked. The gx alias was not changed because another command already owns that name at {}.{path_hint}",
             gpui_path_string(&existing_path)
         )),
-        GpuiCliCommandInstallResult::Unavailable => Ok(
-            "Ghostex CLI linked. The gx alias could not be linked because no writable install location was available."
-                .to_string(),
-        ),
-        GpuiCliCommandInstallResult::Current | GpuiCliCommandInstallResult::Repaired => Ok(
-            "Ghostex CLI linked. ghostex and gx now launch this GPUI app build where available."
-                .to_string(),
-        ),
+        GpuiCliCommandInstallResult::Unavailable => Ok(format!(
+            "Ghostex CLI linked. The gx alias could not be linked because no writable install location was available.{path_hint}"
+        )),
+        GpuiCliCommandInstallResult::Current | GpuiCliCommandInstallResult::Repaired => {
+            Ok(format!(
+                "Ghostex CLI linked. ghostex and gx now launch this GPUI app build where available.{path_hint}"
+            ))
+        }
     }
+}
+
+/// CDXC:Cli 2026-10-28 WHY:
+/// On Linux (and a Mac without Homebrew's folders) the only writable place for the `ghostex` and
+/// `gx` launchers is ~/.local/bin, which minimal installs leave off PATH, so the link "worked" while
+/// a terminal outside Ghostex still answered "command not found". When the launchers are there and
+/// the folder is not on PATH, the link's result says so and gives the line to add. Windows keeps
+/// its own PATH handling.
+pub(crate) fn gpui_cli_user_bin_path_hint(
+    user_bin: &Path,
+    path_entries: &[PathBuf],
+    home: &Path,
+) -> Option<String> {
+    if cfg!(windows) || path_entries.iter().any(|entry| entry == user_bin) {
+        return None;
+    }
+    let launcher = user_bin.join(gpui_cli_wrapper_name("ghostex"));
+    if !gpui_path_exists_or_is_symlink(&launcher) {
+        return None;
+    }
+    let shown = user_bin
+        .strip_prefix(home)
+        .map(|rest| format!("~/{}", rest.to_string_lossy()))
+        .unwrap_or_else(|_| gpui_path_string(user_bin));
+    Some(format!(
+        "{shown} is not on your PATH, so terminals outside Ghostex will not find ghostex or gx. Add this line to your shell profile (~/.profile, ~/.bashrc or ~/.zshrc), then open a new terminal: export PATH=\"$HOME/.local/bin:$PATH\""
+    ))
 }
 
 fn gpui_describe_cli_install_dirs(install_dirs: &[PathBuf]) -> String {
@@ -951,6 +990,35 @@ mod linux_package_cli_tests {
     fn write_executable(path: &Path, content: &str) {
         fs::write(path, content).unwrap();
         fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[test]
+    fn local_bin_launcher_off_path_gets_a_path_hint() {
+        let root = scratch_dir("path-hint");
+        let home = root.join("home");
+        let user_bin = home.join(".local/bin");
+        assert_eq!(
+            gpui_cli_user_bin_path_hint(&user_bin, &[root.join("usr/bin")], &home),
+            None,
+            "no launcher in ~/.local/bin, nothing to say"
+        );
+        write_executable(&user_bin.join("ghostex"), "#!/bin/sh\n");
+        let hint = gpui_cli_user_bin_path_hint(&user_bin, &[root.join("usr/bin")], &home)
+            .expect("off PATH");
+        assert!(
+            hint.starts_with("~/.local/bin is not on your PATH"),
+            "{hint}"
+        );
+        assert!(
+            hint.contains("export PATH=\"$HOME/.local/bin:$PATH\""),
+            "{hint}"
+        );
+        assert_eq!(
+            gpui_cli_user_bin_path_hint(&user_bin, &[user_bin.clone()], &home),
+            None,
+            "on PATH already"
+        );
+        let _ = fs::remove_dir_all(&root);
     }
 
     /// The AUR `ghostex-bin` layout: the tarball's /usr/bin/ghostex script and its gx link.
