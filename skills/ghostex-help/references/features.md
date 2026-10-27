@@ -176,12 +176,14 @@ part of the desktop app; the web version opens a chip's link instead.
 
 **Changes** (on by default, listed right after Files) shows what changed in the
 project as one diff you scroll through.
-**Against main** (the default) shows everything the branch changed, committed or
-not, compared with where it left the default branch; **Uncommitted** shows only
-what is not committed yet. New files are included. The file list above the diff
-jumps to a file (hide it with the files button to keep only the diff, where each
-file's header stays pinned at the top while you read it); click a header to fold
-the file, and tick **Viewed** to fold it until it changes again. The toolbar
+The scope button on the right of the toolbar picks what it shows: **Whole branch**
+(the default) shows everything the branch changed, committed or not, compared with
+where it left its base branch (main, or develop when the branch came from there);
+**Uncommitted only** shows only what is not committed yet. New files are included.
+The file count in the toolbar opens a list of the files; picking one unfolds it and
+scrolls its header to the middle of the view. Each file's header stays pinned at
+the top while you read it; click a header to fold the file, and tick **Viewed** to
+fold it until it changes again. The toolbar
 switches between Unified and Split, wraps long lines and hides whitespace-only
 changes. To comment for the agent, hover a line and click **+**, or drag across
 lines and click **Comment**; write the comment and press Cmd+Enter (**Add to
@@ -203,12 +205,12 @@ the work into commits) and **Merge into main…** on any branch other than main.
 Keys while the view has focus: J and K step through hunks, ] and [ through files,
 C comments on the current hunk, V marks the file viewed, O opens it in Files and
 Esc clears the selection. The header's Commit button, the Git menu's Commit, Push
-and Create PR open this view (Commit and Push on Uncommitted, a pull request on
-Against main). A chat's **Review all** and Session details' Changes card follow
+and Create PR open this view (Commit and Push on Uncommitted only, a pull request on
+Whole branch). A chat's **Review all** and Session details' Changes card follow
 **Open file changes in** (Settings > General > File opening,
 `fileChangesOpenTarget`): **Changes view** (the default) opens Changes scrolled to
-the card's first file, on Uncommitted when that file has uncommitted edits and
-Against main otherwise (Session details opens Against main); **VS Code** opens the
+the card's first file, on Uncommitted only when that file has uncommitted edits and
+Whole branch otherwise (Session details opens Whole branch); **VS Code** opens the
 VS Code view. When the chosen view is turned off the other one opens, and when both
 are off a notice says so, with a button to the views' settings. Opening a file to
 edit it keeps following the other File opening settings. In
@@ -216,8 +218,8 @@ Ghostex Web the right-panel button in the header shows Changes beside the chat.
 Hide it with `changesViewTabHidden`; give it a key with the **Switch to Changes**
 hotkey (`switchChangesView`).
 On the phone, **Changes** in a session's ⋯ menu or its long-press menu opens the
-same diff for that session's project, read-only: Against main or Uncommitted, the
-file list with its counts, headers that stay pinned and fold when tapped, and pull
+same diff for that session's project, read-only: Whole branch or Uncommitted only
+(the same scope button, at the top right), the file list with its counts, headers that stay pinned and fold when tapped, and pull
 to refresh; hold a line to copy it.
 
 Right-click a view tab to choose where that view appears and what happens to it.

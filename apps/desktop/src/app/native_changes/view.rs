@@ -180,6 +180,9 @@ pub(crate) struct ChangesView {
     /// The file count's jump-to-file menu, and where its button is (window coordinates).
     pub(crate) jump_open: bool,
     pub(crate) jump_anchor: gpui::Bounds<gpui::Pixels>,
+    /// The scope menu (Whole branch / Uncommitted only), and where its button is.
+    pub(crate) scope_open: bool,
+    pub(crate) scope_anchor: gpui::Bounds<gpui::Pixels>,
     pub(crate) data: Option<ChangesData>,
     pub(crate) loading: bool,
     pub(crate) error: Option<String>,
@@ -260,6 +263,8 @@ impl ChangesView {
             key_file: None,
             hovered_header: None,
             jump_anchor: gpui::Bounds::default(),
+            scope_open: false,
+            scope_anchor: gpui::Bounds::default(),
             data: None,
             loading: false,
             error: None,

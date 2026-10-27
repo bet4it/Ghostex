@@ -11,7 +11,7 @@ use gpui::{
 use gpui_component::{h_flex, v_flex};
 
 use super::model::{ChangesScope, Row};
-use super::rows::{ICON_CHEVRON_DOWN, stat, status_badge};
+use super::rows::{ICON_CHECK, ICON_CHEVRON_DOWN, stat, status_badge};
 use super::style::{
     CODE_SIZE, CONTROL_HEIGHT, ChangesStyle, FILE_HEADER_HEIGHT, ICON_SIZE, SMALL_SIZE, UI_SIZE,
 };
@@ -28,6 +28,7 @@ const ICON_REFRESH: &str = "titlebar/refresh.svg";
 const ICON_FOLD: &str = "titlebar/arrows-diagonal-minimize.svg";
 const ICON_UNFOLD: &str = "titlebar/arrows-diagonal-2.svg";
 const ICON_BRANCH: &str = "titlebar/git-branch.svg";
+const ICON_PENCIL: &str = "titlebar/pencil.svg";
 
 impl Render for ChangesView {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
@@ -59,6 +60,7 @@ impl Render for ChangesView {
                 cx.listener(|this, _, _, cx| {
                     if this.file_menu.take().is_some()
                         || std::mem::take(&mut this.jump_open)
+                        || std::mem::take(&mut this.scope_open)
                         || this.commit_menu_open
                         || this.agent_select.open
                     {
@@ -87,6 +89,7 @@ impl Render for ChangesView {
             .children(self.render_commit_bar(&s, window, cx))
             .children(self.render_file_menu(&s, cx))
             .children(self.render_jump_menu(&s, cx))
+            .children(self.render_scope_menu(&s, cx))
             .into_any_element()
     }
 }
@@ -104,24 +107,6 @@ impl ChangesView {
             }
         });
         let file_count = data.map_or(0, |data| data.files.len());
-        let scope_button =
-            |scope: ChangesScope, label: &'static str, id: &'static str, cx: &mut Context<Self>| {
-                let on = self.scope == scope;
-                div()
-                    .id(id)
-                    .h_full()
-                    .px(px(10.0))
-                    .flex()
-                    .items_center()
-                    // CDXC:Changes 2026-10-27 DECISION: User: "make the font here for Against main / Uncommited fit the fonts around it it's too large"; the scopes use the branch label's size and weight beside them, and the picked one shows by its fill and text colour.
-                    .text_size(px(SMALL_SIZE))
-                    .cursor_pointer()
-                    .text_color(hsla(if on { s.text } else { s.muted }))
-                    .when(on, |this| this.bg(hsla(s.selected)))
-                    .hover(|this| this.bg(hsla(s.hover)))
-                    .on_click(cx.listener(move |this, _, _, cx| this.set_scope(scope, cx)))
-                    .child(label)
-            };
         let toggle = |id: &'static str, icon: &'static str, on: bool, tip: &'static str| {
             div()
                 .id(id)
@@ -156,28 +141,6 @@ impl ChangesView {
             .border_b_1()
             .border_color(hsla(s.hairline))
             .whitespace_nowrap()
-            .child(
-                h_flex()
-                    .flex_none()
-                    .h(px(CONTROL_HEIGHT))
-                    .rounded(px(6.0))
-                    .overflow_hidden()
-                    .border_1()
-                    .border_color(hsla(s.hairline))
-                    .child(scope_button(
-                        ChangesScope::AgainstMain,
-                        "Against main",
-                        "changes-scope-main",
-                        cx,
-                    ))
-                    .child(div().w(px(1.0)).h_full().bg(hsla(s.hairline)))
-                    .child(scope_button(
-                        ChangesScope::Uncommitted,
-                        "Uncommitted",
-                        "changes-scope-uncommitted",
-                        cx,
-                    )),
-            )
             .when_some(refs, |this, refs| {
                 this.child(
                     h_flex()
@@ -211,7 +174,8 @@ impl ChangesView {
                         .gap(px(5.0))
                         .rounded(px(6.0))
                         .cursor_pointer()
-                        .text_size(px(UI_SIZE))
+                        // CDXC:Changes 2026-10-27 DECISION: User (Q653, "Yes, match it"): the file count uses the same size as the scope buttons and the branch name beside it.
+                        .text_size(px(SMALL_SIZE))
                         .text_color(hsla(s.muted))
                         .when(self.jump_open, |this| this.bg(hsla(s.selected)))
                         .hover(|this| this.bg(hsla(s.hover)))
@@ -222,6 +186,7 @@ impl ChangesView {
                         .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
                         .on_click(cx.listener(|this, _, _, cx| {
                             this.jump_open = !this.jump_open;
+                            this.scope_open = false;
                             this.file_menu = None;
                             cx.notify();
                         }))
@@ -246,6 +211,7 @@ impl ChangesView {
             .when(self.loading, |this| {
                 this.child(div().flex_none().child(modal_spinner(s.muted)))
             })
+            .child(self.render_scope_button(s, cx))
             .child(
                 h_flex()
                     .flex_none()
@@ -313,6 +279,140 @@ impl ChangesView {
                     .on_click(cx.listener(|this, _, _, cx| this.load(false, cx))),
             )
             .into_any_element()
+    }
+
+    /// The scope's dropdown button on the right of the toolbar: the scope shown, and a menu that
+    /// switches to the other.
+    ///
+    /// CDXC:Changes 2026-10-27 DECISION: User: "i don't like "Uncommited" and "Against main" being shown as 2 buttons, should just be a toggle button on the right side that toggles these 2 states and should be clearer name". From the options page they picked the dropdown-style button (Q650 "dropdown") named "Whole branch & Uncommitted only" (Q651); Whole branch still compares against the project's base (main, develop). The phone's Changes screen got the same (Q652 "same").
+    fn render_scope_button(&mut self, s: &ChangesStyle, cx: &mut Context<Self>) -> AnyElement {
+        let anchor = cx.entity().downgrade();
+        let icon = match self.scope {
+            ChangesScope::AgainstMain => ICON_BRANCH,
+            ChangesScope::Uncommitted => ICON_PENCIL,
+        };
+        h_flex()
+            .id("changes-scope")
+            .relative()
+            .flex_none()
+            .h(px(CONTROL_HEIGHT))
+            .pl(px(9.0))
+            .pr(px(7.0))
+            .gap(px(5.0))
+            .rounded(px(6.0))
+            .border_1()
+            .border_color(hsla(s.hairline))
+            .cursor_pointer()
+            .text_size(px(SMALL_SIZE))
+            .text_color(hsla(s.text))
+            .when(self.scope_open, |this| this.bg(hsla(s.selected)))
+            .hover(|this| this.bg(hsla(s.hover)))
+            .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+            .on_click(cx.listener(|this, _, _, cx| {
+                this.scope_open = !this.scope_open;
+                this.jump_open = false;
+                this.file_menu = None;
+                cx.notify();
+            }))
+            .child(
+                canvas(
+                    move |bounds, _, cx| {
+                        let _ = anchor.update(cx, |this, _| this.scope_anchor = bounds);
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .size_full(),
+            )
+            .child(modal_icon(icon, ICON_SIZE - 1.0, s.muted))
+            .child(self.scope.label())
+            .child(modal_icon(ICON_CHEVRON_DOWN, ICON_SIZE - 2.0, s.muted))
+            .into_any_element()
+    }
+
+    /// The scope button's menu: both scopes with a line on what each shows, the current one ticked.
+    fn render_scope_menu(
+        &mut self,
+        s: &ChangesStyle,
+        cx: &mut Context<Self>,
+    ) -> Option<AnyElement> {
+        if !self.scope_open {
+            return None;
+        }
+        let base = self
+            .data
+            .as_ref()
+            .map_or_else(|| "main".to_string(), |data| data.base_label.clone());
+        let width = px(300.0);
+        let left = (self.scope_anchor.right() - self.view_origin.x - width)
+            .min(self.view_width - width - px(8.0))
+            .max(px(8.0));
+        let top = self.scope_anchor.bottom() - self.view_origin.y + px(4.0);
+        let items: Vec<_> = [ChangesScope::AgainstMain, ChangesScope::Uncommitted]
+            .into_iter()
+            .map(|scope| {
+                let on = self.scope == scope;
+                h_flex()
+                    .id(SharedString::from(format!(
+                        "changes-scope-{}",
+                        scope.wire()
+                    )))
+                    .w_full()
+                    .items_start()
+                    .gap(px(8.0))
+                    .px(px(8.0))
+                    .py(px(6.0))
+                    .rounded(px(5.0))
+                    .cursor_pointer()
+                    .when(on, |this| this.bg(hsla(s.selected)))
+                    .hover(|this| this.bg(hsla(s.hover)))
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        this.scope_open = false;
+                        this.set_scope(scope, cx);
+                        cx.notify();
+                    }))
+                    .child(div().flex_none().w(px(14.0)).pt(px(2.0)).when(on, |this| {
+                        this.child(modal_icon(ICON_CHECK, 12.0, s.accent))
+                    }))
+                    .child(
+                        v_flex()
+                            .min_w_0()
+                            .flex_1()
+                            .gap(px(1.0))
+                            .child(
+                                div()
+                                    .text_size(px(SMALL_SIZE))
+                                    .text_color(hsla(s.text))
+                                    .child(scope.label()),
+                            )
+                            .child(
+                                div()
+                                    .text_size(px(SMALL_SIZE - 1.0))
+                                    .text_color(hsla(s.muted))
+                                    .whitespace_normal()
+                                    .child(scope.detail(&base)),
+                            ),
+                    )
+            })
+            .collect();
+        Some(
+            v_flex()
+                .id("changes-scope-menu")
+                .absolute()
+                .left(left)
+                .top(top)
+                .w(width)
+                .p(px(4.0))
+                .rounded(px(8.0))
+                .border_1()
+                .border_color(s.menu_bubble().1)
+                .bg(s.menu_bubble().0)
+                .shadow_lg()
+                .occlude()
+                .on_mouse_down(MouseButton::Left, |_, _, cx| cx.stop_propagation())
+                .children(items)
+                .into_any_element(),
+        )
     }
 
     fn render_body(
@@ -716,6 +816,7 @@ impl ChangesView {
                 let had = self.selection.take().is_some()
                     || self.file_menu.take().is_some()
                     || std::mem::take(&mut self.jump_open)
+                    || std::mem::take(&mut self.scope_open)
                     || self.confirm.take().is_some()
                     || std::mem::take(&mut self.commit_menu_open);
                 cx.notify();

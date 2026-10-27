@@ -21,6 +21,24 @@ impl ChangesScope {
             Self::Uncommitted => "uncommitted",
         }
     }
+
+    /// The scope menu's name for it.
+    pub(crate) fn label(self) -> &'static str {
+        match self {
+            Self::AgainstMain => "Whole branch",
+            Self::Uncommitted => "Uncommitted only",
+        }
+    }
+
+    /// The scope menu's line under the name; `base` is the branch it compares against.
+    pub(crate) fn detail(self, base: &str) -> String {
+        match self {
+            Self::AgainstMain => {
+                format!("Everything this branch changed against {base}, committed or not")
+            }
+            Self::Uncommitted => "Only what is not committed yet".to_string(),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -498,4 +516,23 @@ pub(crate) fn parse_patch_for_tests(
             (file.path, lines)
         })
         .collect()
+}
+
+#[cfg(test)]
+mod scope_tests {
+    use super::ChangesScope;
+
+    #[test]
+    fn the_scope_menu_names_both_scopes_and_the_base() {
+        assert_eq!(ChangesScope::AgainstMain.label(), "Whole branch");
+        assert_eq!(ChangesScope::Uncommitted.label(), "Uncommitted only");
+        assert_eq!(
+            ChangesScope::AgainstMain.detail("develop"),
+            "Everything this branch changed against develop, committed or not"
+        );
+        assert_eq!(
+            ChangesScope::Uncommitted.detail("develop"),
+            "Only what is not committed yet"
+        );
+    }
 }
