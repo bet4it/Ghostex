@@ -182,6 +182,7 @@ Agents run in native PowerShell by default. Prefer Linux? Switch to WSL in Setti
   <a href="https://maddada.com/download/linux-rpm-x64"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Linux-.rpm.svg?variant=secondary&logo=redhat&mode=dark" /><img src="https://shieldcn.dev/badge/Linux-.rpm.svg?variant=secondary&logo=redhat&mode=light" alt="Linux RPM package" /></picture></a>
   <a href="https://aur.archlinux.org/packages/ghostex-bin"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/AUR-ghostex--bin.svg?variant=secondary&logo=archlinux&mode=dark" /><img src="https://shieldcn.dev/badge/AUR-ghostex--bin.svg?variant=secondary&logo=archlinux&mode=light" alt="Arch Linux AUR package" /></picture></a>
   <a href="https://maddada.com/download/linux-tar-x64"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Linux-tar.zst.svg?variant=secondary&logo=linux&mode=dark" /><img src="https://shieldcn.dev/badge/Linux-tar.zst.svg?variant=secondary&logo=linux&mode=light" alt="Linux tarball" /></picture></a>
+  <a href="https://maddada.com/download/linux-appimage-x64"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Linux-AppImage.svg?variant=secondary&logo=linux&mode=dark" /><img src="https://shieldcn.dev/badge/Linux-AppImage.svg?variant=secondary&logo=linux&mode=light" alt="Linux AppImage" /></picture></a>
 </p>
 
 ```bash
@@ -190,7 +191,12 @@ yay -S ghostex-bin
 
 # Any other x64 distribution: the tarball is a prefix-preserving /opt/ghostex tree
 sudo tar -xpf ghostex-*-linux-x64.tar.zst -C /
+
+# No package manager: the AppImage copies itself into ~/.local/share/ghostex/appimage on first start
+chmod +x ghostex-*-linux-x64.AppImage && ./ghostex-*-linux-x64.AppImage
 ```
+
+ARM64 packages and the ARM64 AppImage are on the [release page](https://github.com/maddada/Ghostex/releases/latest). To update an AppImage, download the new one and open it. Without FUSE the AppImage says "Cannot mount AppImage": install your distribution's `fuse3` package, or start it with `--appimage-extract-and-run`.
 
 Ghostex offers to install Chromium the first time you open the browser or code editor.
 

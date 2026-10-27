@@ -71,9 +71,14 @@ it. When an update is available, a download button
 appears just before the project name. On Linux the button opens the release
 notes with an **Open download page** button instead of installing the update;
 install the new package the same way you installed Ghostex. Linux downloads come
-for x64 and for ARM64 (aarch64) computers, each as a .deb, an .rpm and a portable
-.tar.zst on the release page; pick the one that matches your computer's processor
-(`uname -m` prints x86_64 or aarch64). Windows comes as an installer only; the
+for x64 and for ARM64 (aarch64) computers, each as a .deb, an .rpm, a portable
+.tar.zst and an AppImage on the release page; pick the one that matches your computer's processor
+(`uname -m` prints x86_64 or aarch64). The AppImage needs no install: make it
+executable and open it, and it copies Ghostex into `~/.local/share/ghostex/appimage`
+and runs it from there, so agents keep running after the window closes; to update,
+open the newer AppImage and it replaces that copy. Without FUSE it stops with
+"Cannot mount AppImage": install the `fuse3` package, or start it with
+`--appimage-extract-and-run`. Windows comes as an installer only; the
 portable zip is no longer published. A portable copy you already unpacked keeps
 updating in place, keeps all its data in a `GhostexData` folder next to itself and
 runs beside an installed Ghostex without sharing its sessions, settings or
