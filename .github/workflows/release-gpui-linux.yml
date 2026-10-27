@@ -359,6 +359,9 @@ jobs:
         if: ${{ contains(inputs.packages, 'appimage') }}
         env:
           GH_TOKEN: ${{ github.token }}
+          # Empty in a fork: linux-appimage.sh then builds the image unsigned and says so.
+          GHOSTEX_APPIMAGE_SIGNING_KEY: ${{ secrets.GHOSTEX_APPIMAGE_SIGNING_KEY }}
+          GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE: ${{ secrets.GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE }}
         run: |
           tooling/release-gpui/linux-appimage.sh "${{ inputs.version }}"
           # Unpack the published image with its own runtime (no FUSE needed)

@@ -1,4 +1,5 @@
 import { spawnSync } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import {
   chmodSync,
   closeSync,
@@ -17,6 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'vitest';
 
+import { signedDigest, withSignature } from './appimage-signature.mjs';
 import { findElfSection, readUpdateInformation, withUpdateInformation } from './appimage-update-info.mjs';
 import { customerDownloadEntries, renderCustomerDownloadNotes } from './customer-downloads.mjs';
 import { productDefinition } from './product-inputs.mjs';
@@ -94,6 +96,94 @@ function elfWithUpdateInformationSection() {
   names.copy(file, namesOffset);
   return file;
 }
+
+/* An ELF64 file with a 64-byte `.sha256_sig`, a 128-byte `.sig_key` and payload bytes around them. */
+function elfWithSignatureSections() {
+  const names = Buffer.from('\0.sha256_sig\0.sig_key\0.shstrtab\0', 'latin1');
+  const sigOffset = 64;
+  const keyOffset = sigOffset + 64;
+  const namesOffset = keyOffset + 128;
+  const headersOffset = namesOffset + names.length;
+  const file = Buffer.alloc(headersOffset + 4 * 64 + 256, 0x5a);
+  file.fill(0, 0, 64);
+  Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1]).copy(file, 0);
+  file.writeBigUInt64LE(BigInt(headersOffset), 0x28);
+  file.writeUInt16LE(64, 0x3a);
+  file.writeUInt16LE(4, 0x3c);
+  file.writeUInt16LE(3, 0x3e);
+  file.fill(0, headersOffset, headersOffset + 4 * 64);
+  const section = (index, nameOffset, offset, size) => {
+    const at = headersOffset + index * 64;
+    file.writeUInt32LE(nameOffset, at);
+    file.writeBigUInt64LE(BigInt(offset), at + 0x18);
+    file.writeBigUInt64LE(BigInt(size), at + 0x20);
+  };
+  file.fill(0, sigOffset, namesOffset);
+  section(1, 1, sigOffset, 64);
+  section(2, 13, keyOffset, 128);
+  section(3, 22, namesOffset, names.length);
+  names.copy(file, namesOffset);
+  return file;
+}
+
+/* The v4 OpenPGP fingerprint of the first public-key packet in an armored key. */
+function armoredKeyFingerprint(armored) {
+  const body = armored
+    .split('\n')
+    .filter((line) => line && !line.startsWith('-----') && !line.startsWith('=') && !line.includes(':'))
+    .join('');
+  const packets = Buffer.from(body, 'base64');
+  const tag = packets[0];
+  /* New-format packet (0xC6) or old-format tag 6 with a 1- or 2-byte length. */
+  let header;
+  let length;
+  if ((tag & 0x40) !== 0) {
+    expect(tag & 0x3f).toBe(6);
+    const first = packets[1];
+    if (first < 192) [header, length] = [2, first];
+    else [header, length] = [3, ((first - 192) << 8) + packets[2] + 192];
+  } else {
+    expect((tag >> 2) & 0x0f).toBe(6);
+    if ((tag & 3) === 0) [header, length] = [2, packets[1]];
+    else [header, length] = [3, packets.readUInt16BE(1)];
+  }
+  const key = packets.subarray(header, header + length);
+  const prefix = Buffer.from([0x99, length >> 8, length & 0xff]);
+  return createHash('sha1').update(prefix).update(key).digest('hex').toUpperCase();
+}
+
+describe('the AppImage signature', () => {
+  test('signs the image with both signature sections read as zeros, like appimagetool', () => {
+    const image = elfWithSignatureSections();
+    const digest = signedDigest(image);
+    expect(digest).toBe(createHash('sha256').update(image).digest('hex'));
+    const signed = withSignature(image, 'SIGNATURE', 'PUBLIC KEY');
+    /* What a verifier re-hashes after the signature is in place. */
+    expect(signedDigest(signed)).toBe(digest);
+    expect(signed.subarray(64, 64 + 9).toString('latin1')).toBe('SIGNATURE');
+    expect(signed.subarray(128, 128 + 10).toString('latin1')).toBe('PUBLIC KEY');
+    expect(signed.subarray(64 + 9, 128).every((byte) => byte === 0)).toBe(true);
+    /* Any other byte changed is a different digest, so a tampered image fails verification. */
+    const tampered = Buffer.from(signed);
+    tampered[tampered.length - 1] ^= 1;
+    expect(signedDigest(tampered)).not.toBe(digest);
+    expect(() => withSignature(image, 'x'.repeat(64), 'key')).toThrow(/holds 63/u);
+  });
+
+  test('embeds the committed public key, which is the key the release pins', () => {
+    const script = readFileSync(path.join(repoRoot, 'tooling/release-gpui/linux-appimage.sh'), 'utf8');
+    const pinned = /^APPIMAGE_SIGNING_FINGERPRINT="([0-9A-F]{40})"$/mu.exec(script)?.[1];
+    const publicKey = readFileSync(
+      path.join(repoRoot, 'tooling/packaging/appimage/ghostex-appimage-signing.asc'),
+      'utf8'
+    );
+    expect(publicKey).toMatch(/^-----BEGIN PGP PUBLIC KEY BLOCK-----$/mu);
+    expect(publicKey).not.toMatch(/PRIVATE/u);
+    expect(armoredKeyFingerprint(publicKey)).toBe(pinned);
+    /* It has to fit the runtime's 8192-byte .sig_key section. */
+    expect(Buffer.byteLength(publicKey)).toBeLessThan(8192);
+  });
+});
 
 describe('the AppImage update information', () => {
   test('is written into .upd_info zero-padded and leaves every other byte alone', () => {

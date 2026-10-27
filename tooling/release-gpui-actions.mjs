@@ -509,6 +509,17 @@ function validateRequiredSecrets(options, secrets) {
     /* Component tags are published to a separate repository that github.token cannot write. */
     requireSecrets(secrets, `Component publishing to ${componentsGithubRepo()}`, [COMPONENTS_GITHUB_TOKEN_ENV]);
   }
+  /*
+   * The Linux job signs AppImages only when both secrets exist (linux-appimage.sh), so a fork still builds.
+   * A real release must not ship them unsigned: AppImageUpdate refuses to update a signed install to an
+   * unsigned image.
+   */
+  if (options.linuxAppimage || options.linuxAppimageArm64) {
+    requireSecrets(secrets, 'AppImage signing', [
+      'GHOSTEX_APPIMAGE_SIGNING_KEY',
+      'GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE',
+    ]);
+  }
   if (options.android) {
     requireSecrets(secrets, 'Android signing', [
       'ANDROID_RELEASE_KEYSTORE_BASE64',

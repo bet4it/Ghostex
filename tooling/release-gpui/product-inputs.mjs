@@ -276,7 +276,11 @@ function linuxDesktopProduct(format, arch = 'x64') {
       { pathspec: 'tooling/release-gpui/linux-stage.sh' },
       { pathspec: `tooling/release-gpui/linux-${format}.sh` },
       ...(format === 'appimage'
-        ? [{ pathspec: 'tooling/packaging/appimage/**' }, { pathspec: 'tooling/release-gpui/appimage-update-info.mjs' }]
+        ? [
+            { pathspec: 'tooling/packaging/appimage/**' },
+            { pathspec: 'tooling/release-gpui/appimage-update-info.mjs' },
+            { pathspec: 'tooling/release-gpui/appimage-signature.mjs' },
+          ]
         : []),
       { pathspec: '.github/workflows/release-gpui-linux.yml' },
     ],

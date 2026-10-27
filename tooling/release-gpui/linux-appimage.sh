@@ -158,6 +158,58 @@ mksquashfs "$APPDIR" "$SQUASHFS" \
 APPIMAGE="$OUTPUT/ghostex-${VERSION}-linux-${LINUX_ARCH}.AppImage"
 cat "$RUNTIME" "$SQUASHFS" >"$APPIMAGE"
 chmod 755 "$APPIMAGE"
+
+# CDXC:Release 2026-10-27 DECISION:
+# User, on signing the AppImages (GitHub issue #320): "do it man ... just do it urself". Every release AppImage is signed with the Ghostex AppImage Signing key (RSA 4096, no expiry: AppImageUpdate only accepts an update signed by the same key as the installed image, so an expiring key would force a rotation that breaks updates). The private key and passphrase are the GHOSTEX_APPIMAGE_SIGNING_KEY and GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE repository secrets (the key itself lives in the maintainer's GPG keyring, its passphrase in their login Keychain); the public key is committed beside AppRun and embedded in every image. Without the secrets (a fork, a local build) the image is built unsigned with a log line. Signing comes before the zsync file, which describes the final bytes.
+APPIMAGE_SIGNING_FINGERPRINT="093568F45FD8FFFED60AB4F94A5D4C4A8D2E45D3"
+APPIMAGE_SIGNING_PUBLIC_KEY="$REPO_ROOT/tooling/packaging/appimage/ghostex-appimage-signing.asc"
+if [[ -n "${GHOSTEX_APPIMAGE_SIGNING_KEY:-}" || -n "${GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE:-}" ]]; then
+	[[ -n "${GHOSTEX_APPIMAGE_SIGNING_KEY:-}" && -n "${GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE:-}" ]] || {
+		echo "AppImage signing needs both GHOSTEX_APPIMAGE_SIGNING_KEY and GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE; only one is set" >&2
+		exit 1
+	}
+	release_gpui_require_command gpg
+	# Short keyring paths: gpg-agent's socket lives in the home folder on hosts
+	# without /run/user, and a socket path over 107 bytes fails.
+	SIGNING_ROOT="$(mktemp -d)"
+	trap 'rm -rf "$WORK" "$SIGNING_ROOT"' EXIT
+	SIGNING_HOME="$SIGNING_ROOT/sign"
+	VERIFY_HOME="$SIGNING_ROOT/verify"
+	mkdir -m 700 "$SIGNING_HOME" "$VERIFY_HOME"
+	GNUPGHOME="$SIGNING_HOME" gpg --batch --quiet --pinentry-mode loopback --passphrase-fd 3 --import \
+		3< <(printf '%s' "$GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE") <<<"$GHOSTEX_APPIMAGE_SIGNING_KEY"
+	GNUPGHOME="$SIGNING_HOME" gpg --batch --list-secret-keys --with-colons "$APPIMAGE_SIGNING_FINGERPRINT" >/dev/null || {
+		echo "GHOSTEX_APPIMAGE_SIGNING_KEY is not the Ghostex AppImage Signing key $APPIMAGE_SIGNING_FINGERPRINT" >&2
+		exit 1
+	}
+	# The same text appimagetool signs: the hex digest, as canonical text, armored.
+	node "$SCRIPT_DIR/appimage-signature.mjs" digest "$APPIMAGE" >"$WORK/signed-digest.txt"
+	GNUPGHOME="$SIGNING_HOME" gpg --batch --yes --pinentry-mode loopback --passphrase-fd 3 \
+		--local-user "$APPIMAGE_SIGNING_FINGERPRINT!" --digest-algo SHA256 --armor --textmode \
+		--detach-sign --output "$WORK/signature.asc" "$WORK/signed-digest.txt" \
+		3< <(printf '%s' "$GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE")
+	node "$SCRIPT_DIR/appimage-signature.mjs" embed "$APPIMAGE" "$WORK/signature.asc" "$APPIMAGE_SIGNING_PUBLIC_KEY"
+	# Check the embedded signature the way a user's tool does: re-hash the final
+	# image and verify against the committed public key only.
+	node "$SCRIPT_DIR/appimage-signature.mjs" digest "$APPIMAGE" >"$WORK/verify-digest.txt"
+	cmp -s "$WORK/signed-digest.txt" "$WORK/verify-digest.txt" || {
+		echo "Embedding the signature changed the signed digest" >&2
+		exit 1
+	}
+	GNUPGHOME="$VERIFY_HOME" gpg --batch --quiet --import "$APPIMAGE_SIGNING_PUBLIC_KEY"
+	GNUPGHOME="$VERIFY_HOME" gpg --batch --status-fd 1 --verify "$WORK/signature.asc" "$WORK/verify-digest.txt" 2>/dev/null |
+		grep -q "^\[GNUPG:\] VALIDSIG $APPIMAGE_SIGNING_FINGERPRINT " || {
+		echo "The AppImage signature does not verify against $APPIMAGE_SIGNING_PUBLIC_KEY" >&2
+		exit 1
+	}
+	gpgconf --homedir "$SIGNING_HOME" --kill gpg-agent 2>/dev/null || true
+	gpgconf --homedir "$VERIFY_HOME" --kill gpg-agent 2>/dev/null || true
+	rm -rf "$SIGNING_ROOT"
+	printf 'Signed %s with the Ghostex AppImage Signing key %s\n' "$(basename "$APPIMAGE")" "$APPIMAGE_SIGNING_FINGERPRINT"
+else
+	printf 'AppImage signing skipped: GHOSTEX_APPIMAGE_SIGNING_KEY and GHOSTEX_APPIMAGE_SIGNING_PASSPHRASE are not set (a fork or a local build); %s is unsigned\n' "$(basename "$APPIMAGE")"
+fi
+
 # The zsync file holds the image's SHA-1 and block checksums: managers compare
 # that SHA-1 with the installed image to tell whether an update is out, and
 # download only the blocks that changed. Its URL is the image's own name beside
