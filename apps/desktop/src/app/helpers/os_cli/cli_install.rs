@@ -163,8 +163,44 @@ pub(crate) fn gpui_cli_user_bin_path_hint(
         .map(|rest| format!("~/{}", rest.to_string_lossy()))
         .unwrap_or_else(|_| gpui_path_string(user_bin));
     Some(format!(
-        "{shown} is not on your PATH, so terminals outside Ghostex will not find ghostex or gx. Add this line to your shell profile (~/.profile, ~/.bashrc or ~/.zshrc), then open a new terminal: export PATH=\"$HOME/.local/bin:$PATH\""
+        "{shown} is not on your PATH, so terminals outside Ghostex will not find ghostex or gx. {}",
+        gpui_cli_path_fix(std::env::var("SHELL").ok().as_deref()).instruction()
     ))
+}
+
+/// The line that puts ~/.local/bin on PATH for the user's shell, and where it goes.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub(crate) struct GpuiCliPathFix {
+    pub(crate) command: String,
+    /// Where it goes, in words: a shell file, or "run it once" for fish.
+    pub(crate) place: String,
+}
+
+impl GpuiCliPathFix {
+    pub(crate) fn instruction(&self) -> String {
+        format!("{}, then open a new terminal: {}", self.place, self.command)
+    }
+}
+
+/// `shell` is `$SHELL`; its file name picks the profile the user's terminals read.
+pub(crate) fn gpui_cli_path_fix(shell: Option<&str>) -> GpuiCliPathFix {
+    let name = shell
+        .map(|shell| shell.rsplit('/').next().unwrap_or(shell).trim())
+        .unwrap_or_default();
+    let export = "export PATH=\"$HOME/.local/bin:$PATH\"".to_string();
+    let (command, place) = match name {
+        "fish" => (
+            "fish_add_path $HOME/.local/bin".to_string(),
+            "Run this once in fish (it keeps the folder for new terminals)",
+        ),
+        "zsh" => (export, "Add this line to ~/.zshrc"),
+        "bash" => (export, "Add this line to ~/.bashrc"),
+        _ => (export, "Add this line to ~/.profile"),
+    };
+    GpuiCliPathFix {
+        command,
+        place: place.to_string(),
+    }
 }
 
 fn gpui_describe_cli_install_dirs(install_dirs: &[PathBuf]) -> String {
@@ -1146,6 +1182,27 @@ mod linux_package_cli_tests {
     }
 
     #[test]
+    fn the_path_fix_matches_the_users_shell() {
+        let export = "export PATH=\"$HOME/.local/bin:$PATH\"";
+        let zsh = gpui_cli_path_fix(Some("/usr/bin/zsh"));
+        assert_eq!(
+            (zsh.command.as_str(), zsh.place.as_str()),
+            (export, "Add this line to ~/.zshrc")
+        );
+        let bash = gpui_cli_path_fix(Some("/bin/bash"));
+        assert_eq!(bash.place, "Add this line to ~/.bashrc");
+        let fish = gpui_cli_path_fix(Some("/usr/bin/fish"));
+        assert_eq!(fish.command, "fish_add_path $HOME/.local/bin");
+        for unknown in [None, Some("/bin/dash"), Some("")] {
+            let fix = gpui_cli_path_fix(unknown);
+            assert_eq!(
+                (fix.command.as_str(), fix.place.as_str()),
+                (export, "Add this line to ~/.profile")
+            );
+        }
+    }
+
+    #[test]
     fn local_bin_launcher_off_path_gets_a_path_hint() {
         let root = scratch_dir("path-hint");
         let home = root.join("home");
@@ -1162,10 +1219,7 @@ mod linux_package_cli_tests {
             hint.starts_with("~/.local/bin is not on your PATH"),
             "{hint}"
         );
-        assert!(
-            hint.contains("export PATH=\"$HOME/.local/bin:$PATH\""),
-            "{hint}"
-        );
+        assert!(hint.contains("$HOME/.local/bin"), "{hint}");
         assert_eq!(
             gpui_cli_user_bin_path_hint(&user_bin, &[user_bin.clone()], &home),
             None,

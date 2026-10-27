@@ -4244,10 +4244,13 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   time from Tips > Setup or Quick Access > Commands > Setup.
 - The `ghostex` and `gx` commands are linked into a folder on your PATH, or
   into `~/.local/bin` when no other folder is writable (the usual case on
-  Linux; never `~/.cargo/bin`). When `~/.local/bin` is not on your PATH, the
-  Ghostex CLI row in Settings > Integrations (and its Repair button) says so
-  and gives the line to add to your shell profile:
-  `export PATH="$HOME/.local/bin:$PATH"`.
+  Linux; never into a mise, asdf or other version-manager shims folder,
+  `~/.cargo/bin` or `~/.bun/bin`). When the command is not usable, Settings >
+  Integrations > Ghostex CLI says why under Command line tool. When
+  `~/.local/bin` is not on your PATH it names the shell file to edit
+  (`~/.zshrc`, `~/.bashrc` or `~/.profile`) and shows the line with a copy
+  button: `export PATH="$HOME/.local/bin:$PATH"` (in fish,
+  `fish_add_path $HOME/.local/bin`, run once).
 
 ## More than one window
 

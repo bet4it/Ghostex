@@ -658,6 +658,11 @@ impl IntegrationsTab {
                 cx,
             ),
         ];
+        // What is wrong and how to fix it, from the CLI status (`gpui_cli_problem`).
+        let problem = (!checking && !cli_ready)
+            .then(|| text(status, "cliProblem"))
+            .flatten()
+            .map(str::to_string);
         let row = integration_row(
             p,
             "ghostex-cli",
@@ -666,15 +671,98 @@ impl IntegrationsTab {
             RowTitle {
                 link: None,
                 label: "Command line tool".to_string(),
-                description: format!(
-                    "{label}. Ghostex keeps the app-bundled ghostex command linked automatically for mobile apps and CLI-backed integration setup. gx is linked when that alias is available and not taken by another command."
-                ),
+                description: match &problem {
+                    Some(problem) => format!("{label}. {problem}"),
+                    None => format!(
+                        "{label}. Ghostex keeps the app-bundled ghostex command linked automatically for mobile apps and CLI-backed integration setup. gx is linked when that alias is available and not taken by another command."
+                    ),
+                },
                 badge: None,
                 pill: None,
             },
             controls,
         );
-        settings_section(p, "Ghostex CLI", None, None, vec![row]).map(IntoElement::into_any_element)
+        let mut rows = vec![row];
+        if let Some(problem) = problem {
+            rows.push(self.cli_problem_row(
+                p,
+                problem,
+                text(status, "cliFixCommand").map(str::to_string),
+                cx,
+            ));
+        }
+        settings_section(p, "Ghostex CLI", None, None, rows).map(IntoElement::into_any_element)
+    }
+
+    /// CDXC:Cli 2026-10-28 WHY:
+    /// The Command line tool row only turned amber when `ghostex` could not be found, and its
+    /// tooltip kept the fixed description, so nothing said why or what to do. This row says it in
+    /// plain words and, when the fix is a PATH line, shows it with a copy button.
+    fn cli_problem_row(
+        &mut self,
+        p: &SettingsPalette,
+        problem: String,
+        fix_command: Option<String>,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        const COPY_BUTTON: &str = "integrations-cli-copy-path-fix";
+        let mut controls = Vec::new();
+        if let Some(command) = fix_command {
+            let copied = self.copied == Some(COPY_BUTTON);
+            let command_for_copy = command.clone();
+            controls.push(
+                div()
+                    .flex_shrink_1()
+                    .min_w_0()
+                    .max_w(px(416.0))
+                    .px(px(10.0))
+                    .py(px(4.8))
+                    .rounded(px(MODAL_RADIUS_CONTROL))
+                    .border_1()
+                    .border_color(hsla(p.hairline))
+                    .bg(hsla(p.surface))
+                    .font_family(MODAL_MONO_FONT)
+                    .text_size(px(13.0))
+                    .line_height(px(18.0))
+                    .text_color(hsla(p.muted))
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(command)
+                    .into_any_element(),
+            );
+            controls.push(ghost_icon_button(
+                p,
+                COPY_BUTTON,
+                if copied {
+                    ICON_CIRCLE_CHECK_FILLED
+                } else {
+                    ICON_COPY
+                },
+                p.foreground,
+                if copied { "Copied" } else { "Copy command" }.to_string(),
+                false,
+                String::new(),
+                move |page, _window, cx| {
+                    page.copy_command(COPY_BUTTON, command_for_copy.clone(), cx)
+                },
+                cx,
+            ));
+        }
+        integration_row(
+            p,
+            "ghostex-cli-problem",
+            None,
+            None,
+            RowTitle {
+                link: None,
+                label: problem.clone(),
+                description: problem,
+                badge: None,
+                pill: None,
+            },
+            controls,
+        )
     }
 
     /// `TrycuaInstalledActions`.
