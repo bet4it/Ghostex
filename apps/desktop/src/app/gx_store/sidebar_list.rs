@@ -122,6 +122,9 @@ pub(crate) struct SidebarList {
     shortcuts: Option<(u64, Option<String>, Option<String>)>,
     settings_read_at: Option<Instant>,
     unavailable: UnavailableState,
+    /// Why this computer's gxserver could not start, once the bootstrap knows
+    /// (`set_gpui_gxserver_start_failure`); the empty sidebar shows it.
+    start_failure: Option<String>,
     /// Focus as the newest build saw it. The view model compares it too, but only after the whole
     /// input set has been assembled and compared; this is what the cheap gate reads.
     last_focus: Option<FocusState>,
@@ -172,6 +175,7 @@ impl Default for SidebarList {
             shortcuts: None,
             settings_read_at: None,
             unavailable: UnavailableState::default(),
+            start_failure: None,
             last_focus: None,
             built: false,
             last_ui_generation: 0,
@@ -367,6 +371,25 @@ impl GhostexGpuiApp {
         }
     }
 
+    /// Whether the sidebar is showing why this computer's gxserver could not start.
+    pub(crate) fn gpui_gxserver_start_failure_shown(&self) -> bool {
+        self.gx_store.sidebar_list.start_failure.is_some()
+    }
+
+    /// Shows (or, with `None`, clears) why this computer's gxserver could not start in place of
+    /// the empty sidebar's "Loading sessions…".
+    pub(crate) fn set_gpui_gxserver_start_failure(
+        &mut self,
+        reason: Option<String>,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        if self.gx_store.sidebar_list.start_failure == reason {
+            return;
+        }
+        self.gx_store.sidebar_list.start_failure = reason;
+        self.gx_store_sidebar_state_changed(cx);
+    }
+
     /// The sidebar's own state moved. The list is rebuilt at once, because a click must show in
     /// the same frame.
     pub(crate) fn gx_store_sidebar_state_changed(&mut self, cx: &mut gpui::Context<Self>) {
@@ -444,6 +467,7 @@ impl GhostexGpuiApp {
             unavailable,
             &machine_tabs,
         );
+        inputs.host.start_failure = self.gx_store.sidebar_list.start_failure.clone();
         self.gx_store_indicators_changed(&changes, &inputs, cx);
         let settings_moved = self.gx_store.sidebar_list.last_inputs.settings != inputs.settings;
         let last_update = LastUpdate {
@@ -531,6 +555,7 @@ impl GhostexGpuiApp {
                 unavailable,
                 &machine_tabs,
             );
+            inputs.host.start_failure = self.gx_store.sidebar_list.start_failure.clone();
             changed |= self.gx_store.sidebar_list.model.update(
                 &self.gx_store.core,
                 &inputs,

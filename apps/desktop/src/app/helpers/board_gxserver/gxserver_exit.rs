@@ -1,44 +1,68 @@
-//! How the gxserver the Windows app started ended, and the crash evidence gxserver left, for the startup failure toast and its copyable report.
+//! How the gxserver the app started ended (Windows and Linux), and on Windows the crash evidence gxserver left, for the startup failure toast and its copyable report.
+//!
+//! CDXC:ServerDaemon 2026-10-28 WHY:
+//! Linux started gxserver through a detached `nohup` shell, so the app never saw it end: a gxserver that quit at once (its port taken, an unwritable data folder) left "Loading sessions…" up for the whole three-minute start patience with the reason only in the launch log. Linux now keeps the process it starts too and records how it ended here, beside Windows, and the start-failure text (`gxserver_start_failure.rs`) reads what it printed from the launch log offset it was started at.
 //!
 //! CDXC:ServerDaemon 2026-10-24 WHY:
 //! A Windows reporter's gxserver (GitHub #292, like #289 before it) died about a second after every start, the app relaunched it every 30 s, and the startup report held nothing but timeouts: the launcher log was empty, gxserver had written no log line, and the report could only say the recorded process was gone. Windows hands the exit status only to whoever holds the process, and a fail-fast abort, heap corruption or another program ending gxserver never reaches gxserver's own crash filter (server/src/crash_report.rs). So the app keeps the process it starts, and when it ends writes its exit status to the launcher log, the report's timeline and the toast, and the report adds gxserver's crash record and its latest warnings and errors.
 //! SEE-ALSO: `crash_report` in server/src/crash_report.rs (writes `gxserver-crash.json` and `gxserverCrashed`), `gpui_spawn_local_gxserver_daemon` (Windows) in gxserver_health_and_daemon.rs.
 
+#[cfg(windows)]
+use std::io::{Read, Seek, SeekFrom};
 use std::{
     collections::VecDeque,
     fs,
-    io::{Read, Seek, SeekFrom, Write},
+    io::Write,
     path::{Path, PathBuf},
     sync::Mutex,
     time::{Duration, Instant},
 };
 
+#[cfg(windows)]
 use crate::shared_settings;
 
 /// Exits kept for the report timeline; the app starts gxserver at most every 30 s.
 const KEPT_EXITS: usize = 16;
 /// An exit older than this no longer explains a failure toast.
+#[cfg(windows)]
 const TOAST_EXIT_MAX_AGE: Duration = Duration::from_secs(120);
 /// Warnings and errors from gxserver's log copied into the report.
+#[cfg(windows)]
 const REPORTED_LOG_LINES: usize = 8;
 /// How far back from the end of gxserver's log the report looks.
+#[cfg(windows)]
 const LOG_TAIL_BYTES: u64 = 256 * 1024;
 
-struct GpuiWindowsGxserverExit {
-    pid: u32,
-    ran_for: Duration,
-    ended_at: Instant,
-    code: Option<u32>,
+#[derive(Clone)]
+pub(crate) struct GpuiGxserverExit {
+    pub(crate) pid: u32,
+    pub(crate) ran_for: Duration,
+    pub(crate) started_at: Instant,
+    pub(crate) ended_at: Instant,
+    pub(crate) code: Option<u32>,
+    /// The signal that ended it (Unix), when it did not exit on its own.
+    pub(crate) signal: Option<i32>,
+    /// The launch log's length when it was started: what it printed starts here.
+    pub(crate) log_offset: u64,
     /// Already copied into a startup report's timeline.
     reported: bool,
 }
 
-static EXITS: Mutex<VecDeque<GpuiWindowsGxserverExit>> = Mutex::new(VecDeque::new());
+impl GpuiGxserverExit {
+    /// It stopped on its own with status 0 (a handoff to a newer gxserver, a requested stop).
+    pub(crate) fn succeeded(&self) -> bool {
+        self.code == Some(0) && self.signal.is_none()
+    }
+}
+
+static EXITS: Mutex<VecDeque<GpuiGxserverExit>> = Mutex::new(VecDeque::new());
 
 /// Waits on the gxserver the app just started, on its own thread, and records how it ended.
-pub(crate) fn gpui_watch_windows_gxserver_exit(
+/// `log_offset` is the launch log's length when it was started.
+pub(crate) fn gpui_watch_gxserver_exit(
     mut child: std::process::Child,
     launch_log: PathBuf,
+    log_offset: u64,
 ) {
     let pid = child.id();
     let started_at = Instant::now();
@@ -46,16 +70,25 @@ pub(crate) fn gpui_watch_windows_gxserver_exit(
         .name("gxserver-exit-watch".into())
         .spawn(move || {
             // A wait that fails leaves the exit unknown, never a guessed status.
-            let code = child
-                .wait()
-                .ok()
+            let status = child.wait().ok();
+            let code = status
                 .and_then(|status| status.code())
                 .map(|code| code as u32);
-            let exit = GpuiWindowsGxserverExit {
+            #[cfg(unix)]
+            let signal = {
+                use std::os::unix::process::ExitStatusExt as _;
+                status.and_then(|status| status.signal())
+            };
+            #[cfg(not(unix))]
+            let signal = None;
+            let exit = GpuiGxserverExit {
                 pid,
                 ran_for: started_at.elapsed(),
+                started_at,
                 ended_at: Instant::now(),
                 code,
+                signal,
+                log_offset,
                 reported: false,
             };
             append_launch_log_line(&launch_log, &exit);
@@ -71,8 +104,19 @@ pub(crate) fn gpui_watch_windows_gxserver_exit(
     }
 }
 
+/// The newest exit of a gxserver started at or after `launched_since`, unless it stopped normally.
+pub(crate) fn gpui_failed_gxserver_exit_since(launched_since: Instant) -> Option<GpuiGxserverExit> {
+    let exits = EXITS.lock().ok()?;
+    exits
+        .iter()
+        .rev()
+        .find(|exit| exit.started_at >= launched_since)
+        .filter(|exit| !exit.succeeded())
+        .cloned()
+}
+
 /// The startup report's timeline lines for exits it has not shown yet, timed from `startup_started`.
-pub(crate) fn gpui_take_windows_gxserver_exit_notes(startup_started: Instant) -> Vec<String> {
+pub(crate) fn gpui_take_gxserver_exit_notes(startup_started: Instant) -> Vec<String> {
     let Ok(mut exits) = EXITS.lock() else {
         return Vec::new();
     };
@@ -93,6 +137,7 @@ pub(crate) fn gpui_take_windows_gxserver_exit_notes(startup_started: Instant) ->
 }
 
 /// The toast sentence for a gxserver that ended with an error in the last two minutes.
+#[cfg(windows)]
 pub(crate) fn gpui_windows_gxserver_failure_toast_detail() -> Option<String> {
     let exits = EXITS.lock().ok()?;
     let exit = exits.back()?;
@@ -115,6 +160,7 @@ pub(crate) fn gpui_windows_gxserver_failure_toast_detail() -> Option<String> {
 }
 
 /// The crash gxserver recorded and its latest warnings and errors, for the startup report.
+#[cfg(windows)]
 pub(crate) fn gpui_windows_gxserver_crash_evidence_report() -> String {
     let logs_dir = &shared_settings::ghostex_storage_paths().logs_dir;
     let crash_path = logs_dir.join("gxserver-crash.json");
@@ -141,6 +187,7 @@ pub(crate) fn gpui_windows_gxserver_crash_evidence_report() -> String {
     report
 }
 
+#[cfg(windows)]
 fn recent_warning_and_error_lines(log_path: &Path) -> Vec<String> {
     let Ok(mut file) = fs::File::open(log_path) else {
         return Vec::new();
@@ -174,7 +221,7 @@ fn recent_warning_and_error_lines(log_path: &Path) -> Vec<String> {
     lines
 }
 
-fn append_launch_log_line(launch_log: &Path, exit: &GpuiWindowsGxserverExit) {
+fn append_launch_log_line(launch_log: &Path, exit: &GpuiGxserverExit) {
     let unix_seconds = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
         .map(|duration| duration.as_secs())
@@ -189,10 +236,10 @@ fn append_launch_log_line(launch_log: &Path, exit: &GpuiWindowsGxserverExit) {
     let _ = writeln!(file, "[unix {unix_seconds}] {}", describe_exit(exit));
 }
 
-fn describe_exit(exit: &GpuiWindowsGxserverExit) -> String {
+pub(crate) fn describe_exit(exit: &GpuiGxserverExit) -> String {
     let ran_for = format_seconds(exit.ran_for);
-    match exit.code {
-        Some(code) => format!(
+    match (exit.code, exit.signal) {
+        (Some(code), _) => format!(
             "gxserver pid {} exited {ran_for} after Ghostex started it with {}{}",
             exit.pid,
             format_exit_code(code),
@@ -200,14 +247,33 @@ fn describe_exit(exit: &GpuiWindowsGxserverExit) -> String {
                 .map(|meaning| format!(": {meaning}"))
                 .unwrap_or_default(),
         ),
-        None => format!(
-            "gxserver pid {} exited {ran_for} after Ghostex started it; Windows did not report its exit code",
+        (None, Some(signal)) => format!(
+            "gxserver pid {} was ended by signal {signal}{} {ran_for} after Ghostex started it",
+            exit.pid,
+            signal_meaning(signal)
+                .map(|meaning| format!(" ({meaning})"))
+                .unwrap_or_default(),
+        ),
+        (None, None) => format!(
+            "gxserver pid {} exited {ran_for} after Ghostex started it; the system did not report its exit code",
             exit.pid
         ),
     }
 }
 
-fn format_seconds(duration: Duration) -> String {
+/// What the signals a gxserver is likely to end on mean.
+fn signal_meaning(signal: i32) -> Option<&'static str> {
+    Some(match signal {
+        4 => "an illegal instruction, gxserver crashed",
+        6 => "it aborted",
+        7 | 11 => "gxserver crashed",
+        9 => "it was killed",
+        15 => "it was asked to stop",
+        _ => return None,
+    })
+}
+
+pub(crate) fn format_seconds(duration: Duration) -> String {
     format!("{:.1} s", duration.as_secs_f64())
 }
 
@@ -221,6 +287,13 @@ fn format_exit_code(code: u32) -> String {
 }
 
 fn exit_code_meaning(code: u32) -> Option<&'static str> {
+    #[cfg(not(windows))]
+    return match code {
+        0 => Some("it stopped normally"),
+        1 => Some("it stopped on an error it printed"),
+        _ => None,
+    };
+    #[cfg(windows)]
     Some(match code {
         0 => "it stopped normally",
         1 => "it stopped on an error it printed above",

@@ -21,8 +21,10 @@ pub(crate) mod project_board_images;
 pub(crate) mod projects_and_previous_sessions;
 pub(crate) mod sidebar_state;
 pub(crate) mod typed_operations;
-#[cfg(target_os = "windows")]
-pub(crate) mod windows_gxserver_exit;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub(crate) mod gxserver_exit;
+#[cfg(not(target_os = "windows"))]
+pub(crate) mod gxserver_start_failure;
 
 pub(crate) use automation::*;
 pub(crate) use command_terminal_sessions::*;
@@ -39,5 +41,7 @@ pub(crate) use project_board_images::*;
 pub(crate) use projects_and_previous_sessions::*;
 pub(crate) use sidebar_state::*;
 pub(crate) use typed_operations::*;
-#[cfg(target_os = "windows")]
-pub(crate) use windows_gxserver_exit::*;
+#[cfg(any(target_os = "windows", target_os = "linux"))]
+pub(crate) use gxserver_exit::*;
+#[cfg(not(target_os = "windows"))]
+pub(crate) use gxserver_start_failure::*;

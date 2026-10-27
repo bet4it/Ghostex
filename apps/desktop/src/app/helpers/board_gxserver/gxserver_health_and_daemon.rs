@@ -679,7 +679,7 @@ pub(crate) fn gpui_gxserver_launch_log_path() -> PathBuf {
     shared_settings::ghostex_storage_paths()
         .logs_dir
         .join("gxserver")
-        .join("macos-launch.log")
+        .join("launch.log")
 }
 
 /// CDXC:ServerDaemon 2026-10-16 WHY:
@@ -792,8 +792,11 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
         .lock()
         .map_err(|_| "gxserver launcher lock was poisoned.".to_string())?;
     let mut steps = Vec::new();
+    let log_offset =
+        std::fs::metadata(gpui_gxserver_launch_log_path()).map_or(0, |metadata| metadata.len());
     gpui_spawn_local_gxserver_launchd_job(binary, &mut steps)
         .map_err(|error| format!("{error}\n{}", steps.join("\n")))?;
+    gpui_note_gxserver_launch(log_offset);
     Ok(steps)
 }
 
@@ -1046,47 +1049,58 @@ fn gpui_spawn_local_gxserver_launchd_job(
     }
 }
 
-/// Launches the daemon exactly like the macOS client used to: a
-/// shell-detached `nohup <gxserver> --foreground` so the process is
-/// app-independent and survives quitting Ghostex. The app never retains the
-/// child as ownership. (Linux has no Dock background-attribution concern, so
-/// the detached-child launch remains correct there.)
+/// Launches the daemon detached from the app (its own session), so it is app-independent and
+/// survives quitting Ghostex, while the app keeps the process to see how it ends.
+/// (Linux has no Dock background-attribution concern, so a detached child stays correct there.)
 #[cfg(target_os = "linux")]
 pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<String>, String> {
-    let Some(binary_path) = binary.to_str() else {
-        return Err("gxserver failed to launch.".to_string());
-    };
+    use std::os::unix::process::CommandExt as _;
+
     let launch_log = gpui_prepare_gxserver_launch_log()?;
-    let Some(launch_log_path) = launch_log.to_str() else {
-        return Err("gxserver failed to launch.".to_string());
-    };
-    let command = format!(
-        "nohup {} --foreground >>{} 2>&1 </dev/null &",
-        gpui_shell_single_quote(binary_path),
-        gpui_shell_single_quote(launch_log_path),
-    );
-    let mut shell = std::process::Command::new("/bin/sh");
-    terminal_environment::apply_color_capable_process_command(&mut shell);
-    terminal_environment::remove_session_identity_from_process_command(&mut shell);
+    let log_offset = std::fs::metadata(&launch_log).map_or(0, |metadata| metadata.len());
+    let stdout = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&launch_log)
+        .map_err(|error| format!("gxserver failed to launch: {error}"))?;
+    let stderr = stdout
+        .try_clone()
+        .map_err(|error| format!("gxserver failed to launch: {error}"))?;
+    let mut command = std::process::Command::new(binary);
+    terminal_environment::apply_color_capable_process_command(&mut command);
+    terminal_environment::remove_session_identity_from_process_command(&mut command);
     // Agent sessions inherit gxserver's environment.
-    crate::restore_wayland_display_for_process_command(&mut shell);
+    crate::restore_wayland_display_for_process_command(&mut command);
     let current_path = env::var("PATH").ok();
-    shell.env(
+    command.env(
         "PATH",
         gpui_normalized_user_tool_path(current_path.as_deref()),
     );
-    let status = shell
-        .arg("-c")
-        .arg(&command)
+    command
+        .arg("--foreground")
         .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .status()
-        .map_err(|_| "gxserver failed to launch.".to_string())?;
-    if !status.success() {
-        return Err("gxserver failed to launch.".to_string());
+        .stdout(std::process::Stdio::from(stdout))
+        .stderr(std::process::Stdio::from(stderr));
+    // CDXC:ServerDaemon 2026-10-28 WHY:
+    // Its own session, as `nohup … &` gave it before: no controlling terminal and outside the
+    // app's process group, so closing the terminal Ghostex was started from or quitting Ghostex
+    // never signals it. Started directly rather than through a shell so the app holds the process
+    // and sees it end (gxserver_exit.rs).
+    // SAFETY: `setsid` is async-signal-safe and touches nothing of the parent's state.
+    unsafe {
+        command.pre_exec(|| {
+            if libc::setsid() == -1 {
+                return Err(std::io::Error::last_os_error());
+            }
+            Ok(())
+        });
     }
-    Ok(vec!["launcher: detached nohup start accepted".to_string()])
+    let child = command
+        .spawn()
+        .map_err(|error| format!("gxserver failed to launch: {error}"))?;
+    gpui_note_gxserver_launch(log_offset);
+    gpui_watch_gxserver_exit(child, launch_log, log_offset);
+    Ok(vec!["launcher: detached process start accepted".to_string()])
 }
 
 /// CDXC:PlatformSupport 2026-09-28 WHY:
@@ -1098,6 +1112,7 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
     use std::os::windows::process::CommandExt;
 
     let launch_log = gpui_prepare_gxserver_launch_log()?;
+    let log_offset = std::fs::metadata(&launch_log).map_or(0, |metadata| metadata.len());
     let stdout = std::fs::OpenOptions::new()
         .create(true)
         .append(true)
@@ -1117,7 +1132,7 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
         .creation_flags(CREATE_NEW_PROCESS_GROUP | CREATE_NO_WINDOW)
         .spawn()
         .map_err(|_| "gxserver failed to launch.".to_string())?;
-    gpui_watch_windows_gxserver_exit(child, launch_log);
+    gpui_watch_gxserver_exit(child, launch_log, log_offset);
     Ok(vec![
         "launcher: detached process start accepted".to_string(),
     ])

@@ -45,6 +45,12 @@ impl GhostexGpuiApp {
     ) {
         let bootstrap_generation =
             GPUI_GXSERVER_BOOTSTRAP_GENERATION.fetch_add(1, Ordering::SeqCst) + 1;
+        // A new attempt (Try again in the sidebar, a restart): the sidebar shows it loading again
+        // and the last attempt's failure toast goes, until this attempt answers or fails.
+        if self.gpui_gxserver_start_failure_shown() {
+            self.set_gpui_gxserver_start_failure(None, cx);
+            self.remove_gpui_app_toast(GPUI_GXSERVER_DAEMON_TOAST_ID, cx);
+        }
         #[cfg(target_os = "windows")]
         let windows_first_run_setup_active =
             self.windows_first_run_setup_state != GpuiWindowsFirstRunSetupState::Ready;
@@ -188,6 +194,7 @@ impl GhostexGpuiApp {
                         return;
                     }
                     let _ = this.update(cx, |this, cx| {
+                        this.set_gpui_gxserver_start_failure(None, cx);
                         #[cfg(target_os = "windows")]
                         if windows_first_run_setup_active {
                             this.windows_first_run_setup_state =
@@ -470,9 +477,47 @@ impl GhostexGpuiApp {
                 if !failure_shown {
                     startup_diagnostics.push(format!("+{}ms probe {attempt}: {detail}", startup_started.elapsed().as_millis()));
                 }
-                #[cfg(target_os = "windows")]
+                #[cfg(any(target_os = "windows", target_os = "linux"))]
                 if !failure_shown {
-                    startup_diagnostics.extend(gpui_take_windows_gxserver_exit_notes(startup_started));
+                    startup_diagnostics.extend(gpui_take_gxserver_exit_notes(startup_started));
+                }
+                // The gxserver this attempt started has already stopped with an error: say why now
+                // instead of after the start patience (gxserver_start_failure.rs). Ghostex keeps
+                // starting it every 30 s below and clears this the moment one answers.
+                #[cfg(not(target_os = "windows"))]
+                if !failure_shown
+                    && !matches!(health, GpuiLocalGxserverHealthState::Healthy { .. })
+                    && let Some(failure) = cx
+                        .background_executor()
+                        .spawn(async { gpui_gxserver_start_failure() })
+                        .await
+                {
+                    failure_shown = true;
+                    startup_diagnostics.push(format!(
+                        "+{}ms {}",
+                        startup_started.elapsed().as_millis(),
+                        failure.exit_note
+                    ));
+                    let report_diagnostics = startup_diagnostics.clone();
+                    let report = cx
+                        .background_executor()
+                        .spawn(async move { gpui_gxserver_startup_failure_report(&report_diagnostics) })
+                        .await;
+                    let _ = this.update(cx, |this, cx| {
+                        this.show_gpui_gxserver_bootstrap_toast(
+                            "error",
+                            ghostex_gx_core::SERVICE_START_FAILED_TITLE,
+                            &failure.reason,
+                            true,
+                            cx,
+                        );
+                        if let Some(toast) = this.app_toasts.iter_mut().find(|toast| toast.id == GPUI_GXSERVER_DAEMON_TOAST_ID) {
+                            toast.copy_text = Some(report);
+                        }
+                        this.sync_gpui_app_toast_window(cx);
+                        this.set_gpui_gxserver_start_failure(Some(failure.reason.clone()), cx);
+                    });
+                    continue;
                 }
                 // A start that is moving counts as progress until it has run for the startup patience; the launch every 30 s below is what lets a hung one be replaced.
                 if let GpuiLocalGxserverHealthState::Starting { starting_for, .. } = &health
@@ -486,6 +531,7 @@ impl GhostexGpuiApp {
                             if failure_shown {
                                 this.remove_gpui_app_toast(GPUI_GXSERVER_DAEMON_TOAST_ID, cx);
                             }
+                            this.set_gpui_gxserver_start_failure(None, cx);
                             #[cfg(windows)]
                             if windows_first_run_setup_active && tools_available {
                                 this.windows_first_run_setup_state = GpuiWindowsFirstRunSetupState::Ready;
@@ -612,6 +658,11 @@ impl GhostexGpuiApp {
                         }
                     }
                     this.sync_gpui_app_toast_window(cx);
+                    #[cfg(not(target_os = "windows"))]
+                    this.set_gpui_gxserver_start_failure(
+                        Some("It has not answered for three minutes. Ghostex keeps trying; the failure toast can copy the details.".to_string()),
+                        cx,
+                    );
                 });
             }
         })

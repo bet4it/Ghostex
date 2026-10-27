@@ -506,6 +506,25 @@ fn empty_state(input: &AssembleInput<'_>, selection: Option<&SpaceSelection>) ->
     // `unavailable` is the local placeholder group, so the loading and waiting branches are this
     // computer's on every tab.
     let unavailable = !input.local_machine_loaded;
+    // CDXC:ServerDaemon 2026-10-28 WHY:
+    // A service that cannot start (its port taken, an exit right after starting) used to leave
+    // "Loading sessions…" up for the three-minute start patience with the reason only in a log.
+    // Once the app knows why, the sidebar says so here, at once, with a button that starts it again.
+    if let Some(reason) = input
+        .host
+        .start_failure
+        .as_deref()
+        .filter(|reason| unavailable && !reason.trim().is_empty())
+    {
+        return EmptyState {
+            loading: false,
+            error: true,
+            can_add_project,
+            copy: super::daemon_wait::SERVICE_START_FAILED_TITLE.to_string(),
+            detail: reason.trim().to_string(),
+            action_label: super::daemon_wait::TRY_AGAIN_LABEL.to_string(),
+        };
+    }
     let wait = unavailable.then(|| DaemonWait::at(input.host.unavailable, input.now_ms));
     let error = wait.is_some_and(|wait| wait != DaemonWait::Skeleton);
     let loading = wait == Some(DaemonWait::Skeleton);

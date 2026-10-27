@@ -505,6 +505,10 @@ pub struct SidebarHostInputs {
     /// The empty state reads it to tell a first run from a list the user emptied.
     pub recent_project_count: usize,
     pub unavailable: UnavailableState,
+    /// Why this computer's Ghostex service could not start, in plain words, once the app knows
+    /// (the port is taken, it stopped right after starting). The empty sidebar says it in place of
+    /// "Loading sessions…" while this computer has not loaded.
+    pub start_failure: Option<String>,
     /// The workspace this window shows on this computer (saved with the window). `None` = the
     /// default workspace. Remote machines' sections are not filtered by workspace.
     pub window_workspace_id: Option<String>,
