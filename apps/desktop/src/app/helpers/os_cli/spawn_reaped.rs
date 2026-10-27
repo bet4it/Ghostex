@@ -9,13 +9,16 @@ pub(crate) trait SpawnReaped {
 
 impl SpawnReaped for std::process::Command {
     fn spawn_reaped(&mut self) -> std::io::Result<()> {
-        let mut child = self.spawn()?;
-        // A thread that cannot start leaves the program unreaped, as before.
-        let _ = std::thread::Builder::new()
+        // The waiter starts first, so a thread that cannot start fails the launch instead of leaving the program unreaped.
+        let (sender, receiver) = std::sync::mpsc::sync_channel::<std::process::Child>(1);
+        std::thread::Builder::new()
             .name("ghostex-child-wait".into())
             .spawn(move || {
-                let _ = child.wait();
-            });
+                if let Ok(mut child) = receiver.recv() {
+                    let _ = child.wait();
+                }
+            })?;
+        let _ = sender.send(self.spawn()?);
         Ok(())
     }
 }
