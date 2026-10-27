@@ -88,6 +88,8 @@ pub struct QuestionsState {
     // ---- unanswered questions --------------------------------------------
     /// The Previous question pill's place and the last jump (`crate::questions::open_questions`).
     pub open_questions: crate::questions::open_questions::OpenQuestionsState,
+    /// The For later marks set here that gxserver has not confirmed yet (`crate::questions::later`).
+    pub later: crate::questions::later::LaterState,
 }
 
 /// One question form's picks while it is open, and its send.

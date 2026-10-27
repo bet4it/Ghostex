@@ -241,7 +241,7 @@ pub struct TurnLifecycle {
 /// | `screenProbed` | not probed yet (sticky once true) |
 /// | `agentSessionId` | snapshot or replaced: cleared; state: unchanged |
 /// | `accountSwitch`, `apiRetry`, `pendingModelSelection`, `asyncQuestionsSince`, `forkedAt` | a daemon without queue support; otherwise always written, `null` meaning none |
-/// | `retiredAsyncQuestionIds` | a daemon without queue support; otherwise always written |
+/// | `retiredAsyncQuestionIds`, `laterQuestionIds` | a daemon without queue support; otherwise always written |
 ///
 /// Payload shapes are kept loose (`Value`) until the native chat needs each one typed; every one
 /// has a TypeScript interface in `packages/shared/session-chat.ts`.
@@ -301,6 +301,11 @@ pub struct ChatSideState {
     pub forked_at: Tri<i64>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub retired_async_question_ids: Option<Vec<String>>,
+    /// The question forms and pages the user put off "For later" (form or page ids,
+    /// server/src/session_chat_open_questions.rs): still answerable, but not counted as waiting.
+    /// Absent means unchanged.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub later_question_ids: Option<Vec<String>>,
 }
 
 /// `sessionChatSnapshot` and `sessionChatReplaced`: an authoritative tail window.

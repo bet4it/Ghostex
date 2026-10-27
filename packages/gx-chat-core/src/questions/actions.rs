@@ -81,6 +81,26 @@ pub fn handle(state: &mut ChatState, action: &UserAction, context: &ChatContext)
         ActionKind::PreviousQuestion => {
             effects.extend(crate::questions::open_questions::previous(state, context));
         }
+        ActionKind::JumpToQuestion => {
+            let id = action
+                .param("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            effects.extend(crate::questions::open_questions::jump_to_id(
+                state, context, id,
+            ));
+        }
+        ActionKind::QuestionForLater => {
+            let id = action
+                .param("id")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            let later = action
+                .param("later")
+                .and_then(Value::as_bool)
+                .unwrap_or(true);
+            effects.extend(crate::questions::later::set(state, id, later));
+        }
         ActionKind::FormNotes => {
             let id = action
                 .param("form")

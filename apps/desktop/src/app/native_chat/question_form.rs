@@ -339,13 +339,22 @@ impl NativeChatView {
         } else {
             format!("{} questions", questions.len())
         };
+        // Put off For later (gx-chat-core questions/later.rs): it says so in grey instead of the
+        // amber Waiting, and stays answerable.
+        let later = form["later"] == true;
         let (glyph, state) = match phase.as_str() {
             "sending" => (None, "Sending…"),
             "queued" => (Some("titlebar/clock.svg"), "Queued"),
+            _ if later => (Some("titlebar/clock.svg"), "For later"),
             _ => (Some("titlebar/clock.svg"), "Waiting"),
         };
         let state = SINGLE_LINE_CARD
-            .pill(glyph, Some(state.to_string()), ask_color(p), p)
+            .pill(
+                glyph,
+                Some(state.to_string()),
+                if later { p.muted } else { ask_color(p) },
+                p,
+            )
             .into_any_element();
         let head = question_ask_head(
             CHECKLIST_GLYPH,
@@ -393,6 +402,7 @@ impl NativeChatView {
                     slot.child(ask_info_hint(SKIPPED_HINT, p))
                 })
                 .into_any_element(),
+            self.later_button(id, enabled, later, p, cx),
             self.skip_all_button(id, enabled, p, cx),
             self.ask_primary_button(
                 SharedString::from(format!("question-form-send:{id}")),
@@ -666,6 +676,34 @@ impl NativeChatView {
             "Skip all".to_string(),
             Some(("Skip all".to_string(), skip_all_chord())),
             json!({"type":"formSkipAll","form":id}),
+            p,
+            cx,
+        )
+    }
+
+    /// "For later" while the form waits, "Back to unanswered" once it is put off
+    /// (gx-chat-core questions/later.rs, where the user's decision lives).
+    fn later_button(
+        &self,
+        id: &str,
+        enabled: bool,
+        later: bool,
+        p: &ChatAppearance,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        if !enabled {
+            return div().into_any_element();
+        }
+        self.ask_soft_button(
+            SharedString::from(format!("question-form-later:{id}")),
+            if later {
+                "Back to unanswered"
+            } else {
+                "For later"
+            }
+            .to_string(),
+            None,
+            json!({"type": "questionForLater", "id": id, "later": !later}),
             p,
             cx,
         )

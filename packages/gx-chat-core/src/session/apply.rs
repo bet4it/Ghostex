@@ -72,6 +72,9 @@ pub fn apply_state_frame(
     if let Some(ids) = frame.state.retired_async_question_ids.clone() {
         state.session.retired_async_question_ids = ids;
     }
+    if let Some(ids) = frame.state.later_question_ids.clone() {
+        state.session.later_question_ids = ids;
+    }
     apply_selected_options(state, frame.state.selected_options.as_ref());
     state.session.terminal_notice = frame.state.terminal_notice.clone();
     crate::session::terminal::apply_terminal_activity(
@@ -137,6 +140,7 @@ pub fn apply_agent_identity(state: &mut ChatState, patch: &AgentIdentity) {
         session.async_questions_since = None;
         session.forked_at = None;
         session.retired_async_question_ids = Vec::new();
+        session.later_question_ids = Vec::new();
     }
     if patch.agent.is_some() {
         session.agent = patch.agent.clone();
@@ -394,6 +398,9 @@ pub fn apply_authoritative(
     }
     if let Some(ids) = result.state.retired_async_question_ids.clone() {
         state.session.retired_async_question_ids = ids;
+    }
+    if let Some(ids) = result.state.later_question_ids.clone() {
+        state.session.later_question_ids = ids;
     }
     state.session.terminal_notice = result.state.terminal_notice.clone();
     // The status machine decides whether this becomes the working strip's activity, a transient

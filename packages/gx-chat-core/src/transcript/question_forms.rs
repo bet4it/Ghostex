@@ -60,6 +60,26 @@ fn fence_spans(markdown: &str) -> Vec<(usize, usize, String, String)> {
     found
 }
 
+/// The fences in one message's Markdown that draw a card summary mode keeps in view (`cards` in
+/// `turns.rs`): a question form that asks something and a published page (```visual with a
+/// `page`), each as written, fence lines included.
+pub fn card_fences(markdown: &str) -> Vec<String> {
+    let lines = split_lf(markdown);
+    fence_spans(markdown)
+        .into_iter()
+        .filter(|(_, _, language, body)| {
+            if is_questions_language(language) {
+                let form = parse_form(body);
+                form.error.is_empty() && !form.questions.is_empty()
+            } else {
+                ghostex_gx_visual::is_visual_language(language)
+                    && ghostex_gx_visual::page_reference(body).is_some()
+            }
+        })
+        .map(|(open, close, _, _)| lines[open..=close].join("\n"))
+        .collect()
+}
+
 /// The finished ```questions fences in one message's Markdown, as `(id, body)`.
 pub fn form_fences(markdown: &str) -> Vec<(String, String)> {
     finished_fences(markdown)

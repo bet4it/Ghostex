@@ -215,6 +215,14 @@ impl NativeChatView {
                     )
                 }
             });
+        // Where the page sits in the ? pill's list: a page still waiting offers For later, one put
+        // off says so and offers Back to unanswered (gx-chat-core questions/later.rs).
+        let waiting = page_id
+            .as_deref()
+            .filter(|_| !answered)
+            .and_then(|page_id| self.question_section_of(page_id))
+            .filter(|section| section == "unanswered" || section == "later");
+        let later = waiting.as_deref() == Some("later");
         let picture = page_id
             .as_deref()
             .and_then(|page_id| self.page_thumbnail(page_id, answered, cx));
@@ -423,6 +431,32 @@ impl NativeChatView {
                         .child(label),
                 )
             })
+            .when(later, |this| {
+                this.child(
+                    div()
+                        .flex()
+                        .items_center()
+                        .gap(px(4.0 * s))
+                        .flex_shrink_0()
+                        .px(px(8.0 * s))
+                        .py(px(2.0 * s))
+                        .rounded_full()
+                        .bg(p.muted.opacity(0.14))
+                        .text_size(px(11.0 * s))
+                        .font_weight(FontWeight::SEMIBOLD)
+                        .text_color(p.muted)
+                        .child(
+                            svg()
+                                .path("titlebar/clock.svg")
+                                .size(px(11.0 * s))
+                                .text_color(p.muted),
+                        )
+                        .child("For later"),
+                )
+            })
+            .when_some(waiting.zip(page_id.clone()), |this, (_, page_id)| {
+                this.child(later_button(key, &page_id, later, p, cx))
+            })
             .when(answered, |this| {
                 let good = super::page_answers::answered_color(p);
                 this.child(
@@ -486,6 +520,48 @@ impl NativeChatView {
 }
 
 /// The filled button the card opens its page with (also the hover label over the picture).
+/// "For later" on a page still waiting, "Back to unanswered" on one put off: the question form's
+/// quiet button (`ask_soft_button`), which keeps its press from opening the page behind it.
+fn later_button(
+    key: &str,
+    page_id: &str,
+    later: bool,
+    p: &ChatAppearance,
+    cx: &Context<NativeChatView>,
+) -> AnyElement {
+    let s = p.scale;
+    let (rest, hover) = if p.light { (0.07, 0.11) } else { (0.10, 0.15) };
+    let hover_fill = p.foreground.opacity(hover);
+    let label = if later {
+        "Back to unanswered"
+    } else {
+        "For later"
+    };
+    let action = json!({"type": "questionForLater", "id": page_id, "later": !later});
+    div()
+        .id(SharedString::from(format!("visual-page-later:{key}")))
+        .role(gpui::Role::Button)
+        .aria_label(label)
+        .flex_shrink_0()
+        .h(px(28.0 * s))
+        .px(px(11.0 * s))
+        .flex()
+        .items_center()
+        .rounded(px(8.0 * s))
+        .bg(p.foreground.opacity(rest))
+        .text_color(p.foreground)
+        .text_size(px(12.5 * s))
+        .font_weight(FontWeight::MEDIUM)
+        .chat_cursor_pointer()
+        .hover(move |style| style.bg(hover_fill))
+        .child(label)
+        .on_click(cx.listener(move |this, _, _, cx| {
+            cx.stop_propagation();
+            this.invoke(action.clone(), cx)
+        }))
+        .into_any_element()
+}
+
 fn primary_button(label: &'static str, p: &ChatAppearance) -> AnyElement {
     let s = p.scale;
     div()

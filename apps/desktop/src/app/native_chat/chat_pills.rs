@@ -51,6 +51,8 @@ pub(super) struct ChatPillBounds {
     tasks: Rc<Cell<Bounds<Pixels>>>,
     subagents: Rc<Cell<Bounds<Pixels>>>,
     background: Rc<Cell<Bounds<Pixels>>>,
+    /// The ? pill, which its question list (questions_list.rs) opens against.
+    pub(super) questions: Rc<Cell<Bounds<Pixels>>>,
 }
 
 impl ChatPillBounds {
@@ -140,6 +142,7 @@ fn trigger_id(id: &str) -> &'static str {
         "threads" => "chat-pill-threads",
         "tasks" => "chat-pill-tasks",
         "background" => "chat-pill-background",
+        super::questions_list::QUESTIONS_MENU => super::questions_list::QUESTIONS_TRIGGER,
         _ => "chat-pill-subagents",
     }
 }
@@ -156,6 +159,7 @@ fn icon(id: &str) -> &'static str {
 fn menu_width(id: &str) -> f32 {
     match id {
         "tasks" => 360.0,
+        super::questions_list::QUESTIONS_MENU => super::questions_list::QUESTIONS_MENU_WIDTH,
         _ => 440.0,
     }
 }
@@ -286,15 +290,23 @@ impl NativeChatView {
     ///
     /// CDXC:SessionChat 2026-10-24 DECISION:
     /// User: "for questions if there's 2 or more questions i want to go between showing ? and showing the number pls (every x seconds)". With two or more unanswered questions the pill shows the ? for 2 s, then the count for 2 s, and so on (`countSwapMs` in packages/gx-chat-core/visual/scroll-bottom.json); with one it stays a ?. The swap is a plain cut, not a crossfade, because a GPUI fade redraws the whole chat for every frame of it. One timer per chat drives it (question_ping.rs), dropped when fewer than two wait, and the pill's fixed width keeps the row still. The phone does the same in ChatPills.tsx.
+    ///
+    /// CDXC:SessionChat 2026-10-27 DECISION:
+    /// The ? pill also holds the chat's question list (questions_list.rs; the user's words are on gx-chat-core's questions/open_questions.rs): it shows while the chat has any question form or question page, answered and For later ones included, and keeps its amber dot, ping and count only while one is unanswered. Resting the pointer on it opens the list; a click still steps to the previous unanswered question, and opens the list when none waits. Supersedes showing the pill only while a question is unanswered.
     pub(super) fn previous_question_icon_pill(
         &self,
         p: &ChatAppearance,
         cx: &Context<Self>,
     ) -> Option<AnyElement> {
-        self.open_question_pill_text()?;
-        let color = p.card_muted;
         let open = &self.snapshot["openQuestions"];
+        if open["total"].as_u64().unwrap_or(0) == 0 && self.open_question_pill_text().is_none() {
+            return None;
+        }
+        let waiting = open["count"].as_u64().unwrap_or(0) > 0;
+        let color = p.card_muted;
         let label = text(open, "accessibilityLabel");
+        let menu_open = self.chat_menu_is_open(super::questions_list::QUESTIONS_TRIGGER);
+        let measured = self.pill_bounds.questions.clone();
         let content = if self.question_ping.showing_count() {
             div()
                 .text_size(px(11.5 * p.scale))
@@ -310,22 +322,36 @@ impl NativeChatView {
             icon_pill("chat-previous-question", content, p)
                 .relative()
                 .aria_label(label)
+                .aria_expanded(menu_open)
                 .border_color(p.foreground.opacity(0.1))
+                .when(menu_open, |pill| pill.bg(p.foreground.opacity(0.08)))
                 .hover(|style| style.bg(p.foreground.opacity(0.06)))
-                .tooltip(|window, cx| {
-                    gpui_component::tooltip::Tooltip::new("Previous question").build(window, cx)
-                })
-                .on_hover(cx.listener(|chat, hovered: &bool, _, cx| {
-                    chat.question_pill_hovered(*hovered, cx)
+                .on_hover(cx.listener(|chat, hovered: &bool, window, cx| {
+                    chat.question_pill_hovered(*hovered, cx);
+                    chat.question_list_pill_hovered(*hovered, window, cx);
                 }))
-                .on_click(cx.listener(|chat, _, _, cx| {
+                .on_click(cx.listener(move |chat, _, window, cx| {
                     cx.stop_propagation();
-                    chat.previous_question(cx)
+                    if waiting {
+                        if chat.chat_menu_is_open(super::questions_list::QUESTIONS_TRIGGER) {
+                            chat.close_pill_menu(cx);
+                        }
+                        chat.previous_question(cx)
+                    } else {
+                        chat.open_questions_menu(false, window, cx)
+                    }
                 }))
-                .children(super::question_ping::attention_dot(
-                    self.question_ping_frame(),
-                    p,
-                ))
+                .when(waiting, |pill| {
+                    pill.children(super::question_ping::attention_dot(
+                        self.question_ping_frame(),
+                        p,
+                    ))
+                })
+                .child(
+                    canvas(move |bounds, _, _| measured.set(bounds), |_, _, _, _| {})
+                        .absolute()
+                        .inset(px(-p.scale)),
+                )
                 .into_any_element(),
         )
     }
@@ -449,7 +475,7 @@ impl NativeChatView {
     }
 
     /// Opens `id`'s menu against its pill, or shuts it when it is the one on screen.
-    fn toggle_pill_menu(
+    pub(super) fn toggle_pill_menu(
         &mut self,
         id: &str,
         trigger: Bounds<Pixels>,
@@ -482,6 +508,9 @@ impl NativeChatView {
         if id == super::session_details::SESSION_DETAILS_MENU {
             return self.session_details_menu_height();
         }
+        if id == super::questions_list::QUESTIONS_MENU {
+            return self.questions_menu_height();
+        }
         if id == "filesLinks" {
             let scale = ChatAppearance::current(&self.snapshot).scale;
             let pane = f32::from(self.bounds.get().size.height) / scale;
@@ -508,6 +537,7 @@ impl NativeChatView {
             "tasks" => self.tasks_menu_body(p, cx),
             "subagents" => self.fleet_menu_body(p, cx),
             "background" => self.background_menu_body(p),
+            super::questions_list::QUESTIONS_MENU => self.questions_menu_body(p, cx),
             super::session_details::SESSION_DETAILS_MENU => self.session_details_menu_body(p, cx),
             _ => None,
         }
@@ -531,6 +561,9 @@ impl NativeChatView {
         }
         if trigger == super::session_details::SESSION_DETAILS_TRIGGER {
             self.session_details_menu_closed(cx);
+        }
+        if trigger == super::questions_list::QUESTIONS_TRIGGER {
+            self.questions_menu_closed();
         }
     }
 }

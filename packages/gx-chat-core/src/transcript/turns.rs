@@ -41,6 +41,40 @@ pub struct SummaryModeTurn {
     /// While the turn runs: the id of the agent's newest row, whose tool calls start open so the
     /// running call shows. `None` once the turn has settled.
     pub running_row: Option<String>,
+    /// The page cards and question forms of the turn's rows, one row per message that holds any
+    /// (its id plus [`CARDS_SUFFIX`]), drawn under the prompt while the fold that holds the
+    /// message is closed (`card_rows`).
+    pub cards: Vec<ChatMessage>,
+}
+
+/// What a summary turn's card row adds to the id of the message it was taken from.
+pub const CARDS_SUFFIX: &str = "#cards";
+
+/// The rows of `work` that hold page cards or question forms, each cut down to those cards.
+///
+/// CDXC:SessionChat 2026-10-27 DECISION:
+/// User: "in summary mode view please make the inline htmls appear shown not hidden under folds so i can scroll to older inline htmls." In summary mode a turn's page cards (```visual pages from `ghostex show`) and question forms stay in view under its prompt while the fold that holds them ("Agent reply", or the work no fold shows) is closed; opening the fold shows them in their reply instead, so a card is never drawn twice. Normal mode is unchanged.
+/// SEE-ALSO: apps/desktop/src/app/native_chat/transcript.rs and apps/mobile/app/src/chat/native/transcript/Transcript.tsx draw them.
+pub fn card_rows(work: &[ChatMessage]) -> Vec<ChatMessage> {
+    work.iter()
+        .filter(|row| row.role == ChatRole::Assistant && row.id != STREAMING_ID)
+        .filter_map(|row| {
+            let markdown = crate::transcript::prose::prose_markdown(&row.blocks);
+            if !markdown.contains("```") && !markdown.contains("~~~") {
+                return None;
+            }
+            let fences = crate::transcript::question_forms::card_fences(&markdown);
+            if fences.is_empty() {
+                return None;
+            }
+            let mut card = row.clone();
+            card.id = format!("{}{CARDS_SUFFIX}", row.id);
+            card.blocks = vec![ChatBlock::Text {
+                text: fences.join("\n\n"),
+            }];
+            Some(card)
+        })
+        .collect()
 }
 
 /// One entry of the verbose transcript.
@@ -100,6 +134,7 @@ pub fn summary_mode_turns(
                 user: message.clone(),
                 outcome: Vec::new(),
                 running_row: None,
+                cards: Vec::new(),
             });
         } else if let Some(current) = turns.last_mut() {
             current.active_work.push(message.clone());
@@ -109,6 +144,7 @@ pub fn summary_mode_turns(
         }
     }
     for turn in &mut turns {
+        turn.cards = card_rows(&turn.active_work);
         if let Some(final_message) = &turn.final_message {
             turn.earlier_replies = earlier_replies(&turn.active_work, final_message);
         }
@@ -474,5 +510,72 @@ pub fn worked_duration_label(started_at: Option<i64>, completed_at: Option<i64>)
         format!("Worked for {minutes}m {remainder}s")
     } else {
         format!("Worked for {minutes}m")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn row(id: &str, role: &str, text: &str) -> ChatMessage {
+        serde_json::from_value(serde_json::json!({
+            "id": id,
+            "role": role,
+            "source": "transcript",
+            "blocks": [{"type": "text", "text": text}],
+        }))
+        .unwrap()
+    }
+
+    const PAGE: &str = "```visual\n{\"page\":{\"title\":\"Mockups\",\"url\":\"http://127.0.0.1:1/visual/0123456789abcdef0123456789abcdef\"}}\n```";
+    const FORM: &str = "```questions\n{\"questions\":[{\"tag\":\"Q1\",\"title\":\"Ship it?\",\"choices\":[\"Yes\",\"No\"]}]}\n```";
+
+    #[test]
+    fn a_summary_turn_keeps_its_page_cards_and_forms_in_view() {
+        let messages = vec![
+            row("u1", "user", "Make mockups"),
+            row(
+                "w1",
+                "assistant",
+                &format!("Here they are.\n\n{PAGE}\n\nMore words."),
+            ),
+            row(
+                "w2",
+                "assistant",
+                "Working on it, no cards here. ```inline``` is not a fence.",
+            ),
+            row("f1", "assistant", &format!("Done. One question:\n\n{FORM}")),
+            row("u2", "user", "Thanks"),
+            row("f2", "assistant", "You're welcome."),
+        ];
+        let turns = summary_mode_turns(&messages, &["f1".to_string(), "f2".to_string()], false);
+        assert_eq!(turns.len(), 2);
+        let cards: Vec<(&str, String)> = turns[0]
+            .cards
+            .iter()
+            .map(|card| {
+                (
+                    card.id.as_str(),
+                    crate::transcript::prose::prose_markdown(&card.blocks),
+                )
+            })
+            .collect();
+        assert_eq!(
+            cards,
+            vec![
+                ("w1#cards", PAGE.to_string()),
+                ("f1#cards", FORM.to_string()),
+            ],
+            "only the cards, without the words around them, from work rows and the reply alike"
+        );
+        assert!(turns[1].cards.is_empty());
+    }
+
+    #[test]
+    fn a_withdrawal_or_a_plain_visual_is_no_card() {
+        let withdraw = "```questions\n{\"withdraw\":[\"Q1\"]}\n```";
+        let chart = "```visual\n{\"type\":\"bar\",\"data\":[]}\n```";
+        let rows = vec![row("a", "assistant", &format!("{withdraw}\n\n{chart}"))];
+        assert!(card_rows(&rows).is_empty());
     }
 }

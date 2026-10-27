@@ -69,6 +69,8 @@ pub fn owner(kind: &ActionKind) -> Option<Family> {
         | ActionKind::FormSkipAll
         | ActionKind::FormToggle
         | ActionKind::PreviousQuestion
+        | ActionKind::JumpToQuestion
+        | ActionKind::QuestionForLater
         | ActionKind::AsyncQuestionToggle
         | ActionKind::AsyncQuestionNavigate
         | ActionKind::AsyncQuestionText

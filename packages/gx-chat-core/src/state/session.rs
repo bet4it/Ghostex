@@ -33,6 +33,9 @@ pub struct SessionState {
     pub prompt: Option<Value>,
     /// The async questions the user has already retired. Absent means unchanged.
     pub retired_async_question_ids: Vec<String>,
+    /// The question forms and pages the user put off "For later", as gxserver keeps them (form or
+    /// page ids, `crate::questions::later`). Absent means unchanged.
+    pub later_question_ids: Vec<String>,
     /// Questions older than this stamp no longer count. Absent means unchanged, `null` means none.
     pub async_questions_since: Option<i64>,
     /// When this session was forked from another (epoch ms): questions asked before then belong to
@@ -125,6 +128,7 @@ impl Default for SessionState {
             lifecycle: None,
             prompt: None,
             retired_async_question_ids: Vec::new(),
+            later_question_ids: Vec::new(),
             async_questions_since: None,
             forked_at: None,
             agent: None,

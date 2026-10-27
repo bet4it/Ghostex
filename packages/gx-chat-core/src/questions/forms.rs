@@ -498,6 +498,7 @@ fn notes_from_answers(form: &QuestionForm, answers: &Value) -> String {
 
 /// The document's `questionForms`: each form with what the reader picked, or what was sent.
 pub fn project(state: &ChatState) -> BTreeMap<String, Value> {
+    let later = crate::questions::open_questions::later_waiting(state);
     state
         .transcript_view
         .question_forms
@@ -543,6 +544,11 @@ pub fn project(state: &ChatState) -> BTreeMap<String, Value> {
                     json!(phase == "answered" && !entry.expanded),
                 );
                 object.insert("otherLabel".to_string(), json!(OTHER_CHOICE));
+                // Put off For later while it still waits (`questions/later.rs`).
+                object.insert(
+                    "later".to_string(),
+                    json!(phase == "open" && later.contains(&form.id)),
+                );
                 object.insert("drafts".to_string(), json!(drafts));
                 object.insert("takesNotes".to_string(), json!(takes_notes));
                 object.insert("notes".to_string(), json!(notes));

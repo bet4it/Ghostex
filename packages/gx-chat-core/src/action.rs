@@ -167,6 +167,8 @@ action_kinds! {
     FormSkipAll => "formSkipAll",
     FormToggle => "formToggle",
     PreviousQuestion => "previousQuestion",
+    JumpToQuestion => "jumpToQuestion",
+    QuestionForLater => "questionForLater",
     AsyncQuestionToggle => "asyncQuestionToggle",
     AsyncQuestionNavigate => "asyncQuestionNavigate",
     AsyncQuestionText => "asyncQuestionText",

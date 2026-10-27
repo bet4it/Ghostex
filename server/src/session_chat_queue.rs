@@ -103,6 +103,8 @@ pub struct SessionChatQueueSnapshot {
     /// When the session was forked from another (`session_chat_open_questions::read_forked_at`).
     pub forked_at: Option<i64>,
     pub retired_async_question_ids: Vec<String>,
+    /// The question forms and pages put off "For later" (`session_chat_open_questions::read_later_ids`).
+    pub later_question_ids: Vec<String>,
     pub pending_model_selection: Option<crate::session_chat_model_selection::PendingModelSelection>,
 }
 
@@ -121,6 +123,10 @@ impl SessionChatQueueSnapshot {
             json!(self.async_questions_since),
         );
         target.insert("forkedAt".to_string(), json!(self.forked_at));
+        target.insert(
+            "laterQuestionIds".to_string(),
+            json!(self.later_question_ids),
+        );
         target.insert(
             "accountSwitch".to_string(),
             self.account_switch.clone().unwrap_or(Value::Null),
@@ -159,6 +165,7 @@ impl SessionChatQueueSnapshot {
         revision.push_str(&serde_json::to_string(&self.forked_at).unwrap_or_default());
         revision
             .push_str(&serde_json::to_string(&self.retired_async_question_ids).unwrap_or_default());
+        revision.push_str(&serde_json::to_string(&self.later_question_ids).unwrap_or_default());
         for prompt in &self.queue {
             revision.push_str(&prompt.id);
             revision.push(':');
@@ -785,6 +792,9 @@ fn read_snapshot(
             db, project_id, session_id,
         ),
         forked_at: crate::session_chat_open_questions::read_forked_at(db, project_id, session_id),
+        later_question_ids: crate::session_chat_open_questions::read_later_ids(
+            db, project_id, session_id,
+        ),
         account_switch: crate::accounts::switch_progress::read(db, project_id, session_id),
         api_retry: read_api_retry(db, project_id, session_id),
         queue,

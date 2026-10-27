@@ -1015,6 +1015,11 @@ pub(crate) fn build_items(
                         .map(|message| builder.message_or_placeholder(message, eager, Draw::Row))
                         .collect(),
                     latest_reply: latest_reply == Some(index),
+                    cards: turn
+                        .cards
+                        .iter()
+                        .map(|message| builder.message_or_placeholder(message, eager, Draw::Row))
+                        .collect(),
                 }
             })
             .collect()
@@ -1179,11 +1184,18 @@ pub(crate) fn drop_hidden_rows(items: &mut Vec<TranscriptItem>, hidden: &[String
                 work,
                 outcome,
                 earlier_replies,
+                cards,
                 ..
             } => {
                 work.retain(shown);
                 outcome.retain(shown);
                 earlier_replies.retain(shown);
+                cards.retain(|row| {
+                    !row.get("id")
+                        .and_then(Value::as_str)
+                        .and_then(|id| id.strip_suffix(crate::transcript::turns::CARDS_SUFFIX))
+                        .is_some_and(|id| hidden.iter().any(|hidden| hidden == id))
+                });
             }
             TranscriptItem::CompletedWork {
                 work, artifacts, ..

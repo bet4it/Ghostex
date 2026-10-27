@@ -86,6 +86,10 @@ pub struct Document {
     /// so their cards say so (`transcript::open_questions::withdrawn_pages`).
     #[serde(default, skip_serializing_if = "BTreeMap::is_empty")]
     pub withdrawn_pages: BTreeMap<String, crate::transcript::open_questions::WithdrawnPage>,
+    /// The question pages and forms put off "For later" that still wait for answers, so their
+    /// cards say so and offer "Back to unanswered" (`questions::later`).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub later_questions: Vec<String>,
     /// Per completed-work row: the read is in flight, or it failed and offers a retry.
     pub deferred_work: BTreeMap<String, DeferredWorkRow>,
     /// Claude Code workflow runs drawn as cards, by Workflow call id

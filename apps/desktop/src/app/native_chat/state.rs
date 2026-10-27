@@ -191,6 +191,8 @@ pub(crate) struct NativeChatView {
     pub(super) question_flash: Option<super::open_questions::QuestionFlash>,
     /// The "Previous question" pill's attention ping (question_ping.rs).
     pub(super) question_ping: super::question_ping::QuestionPing,
+    /// The ? pill's question list: its hover and folded sections (questions_list.rs).
+    pub(super) question_list: super::questions_list::QuestionList,
     /// The find the row being drawn gives its text views, set only while a searched row is drawn
     /// (search.rs, `begin_row_find`).
     pub(super) row_find: Option<gpui_component::text::TextFind>,
@@ -456,6 +458,7 @@ impl NativeChatView {
             open_question_jump_revision: None,
             question_flash: None,
             question_ping: Default::default(),
+            question_list: Default::default(),
             row_find: None,
             row_label_find: None,
             search_folds_sent: None,

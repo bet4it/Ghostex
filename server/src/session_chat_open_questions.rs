@@ -41,6 +41,12 @@ use crate::storage::open_gxserver_database;
 
 /// Where a session's open questions are kept.
 const RUNTIME_KEY: &str = "sessionChatOpenQuestions";
+/// Where the forms and pages the user put off "For later" are kept (form or page ids). They stay
+/// answerable but leave the count, so no pink dot, no `answer requested (n)` and no notification
+/// (the SessionStatus 2026-10-27 DECISION in gx-chat-core's questions/later.rs).
+const LATER_KEY: &str = "sessionChatQuestionsForLater";
+/// How many For later marks a session keeps at most; answered ones are dropped as they settle.
+const LATER_LIMIT: usize = 500;
 /// The agent's last words reach its transcript a moment after the turn-end hook.
 const SETTLE_DELAY: Duration = Duration::from_millis(1_500);
 /// How often running sessions are brought up to date.
@@ -96,6 +102,107 @@ pub(crate) fn open_question_count(session: &Value) -> usize {
         .pointer(&format!("/runtimeSettings/{RUNTIME_KEY}/count"))
         .and_then(Value::as_u64)
         .unwrap_or(0) as usize
+}
+
+/// The forms and pages this session's user put off For later, as last recorded.
+pub(crate) fn later_ids(session: &Value) -> Vec<String> {
+    session
+        .pointer(&format!("/runtimeSettings/{LATER_KEY}"))
+        .and_then(Value::as_array)
+        .map(|ids| {
+            ids.iter()
+                .filter_map(Value::as_str)
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// [`later_ids`] read straight from the database, for the chat's frames (`laterQuestionIds`).
+pub(crate) fn read_later_ids(
+    db: &rusqlite::Connection,
+    project_id: &str,
+    session_id: &str,
+) -> Vec<String> {
+    let value: Option<String> = db
+        .query_row(
+            &format!(
+                "SELECT json_extract(runtimeSettingsJson, '$.{LATER_KEY}') FROM sessions WHERE projectId = ?1 AND sessionId = ?2"
+            ),
+            rusqlite::params![project_id, session_id],
+            |row| row.get(0),
+        )
+        .optional()
+        .ok()
+        .flatten()
+        .flatten();
+    value
+        .and_then(|text| serde_json::from_str(&text).ok())
+        .unwrap_or_default()
+}
+
+/// Writes the session's For later list (`None` or empty clears it) and tells every client: the
+/// chat's frame carries the list, the sidebar's presentation the count.
+fn write_later(
+    state: &AppState,
+    db: &rusqlite::Connection,
+    project_id: &str,
+    session_id: &str,
+    ids: &[String],
+) -> anyhow::Result<()> {
+    let changed = if ids.is_empty() {
+        db.execute(
+            &format!(
+                r#"UPDATE sessions SET runtimeSettingsJson = json_remove(runtimeSettingsJson, '$.{LATER_KEY}')
+                WHERE projectId = ?1 AND sessionId = ?2
+                AND json_extract(runtimeSettingsJson, '$.{LATER_KEY}') IS NOT NULL"#
+            ),
+            rusqlite::params![project_id, session_id],
+        )?
+    } else {
+        db.execute(
+            &format!(
+                r#"UPDATE sessions SET runtimeSettingsJson = json_set(runtimeSettingsJson, '$.{LATER_KEY}', json(?3))
+                WHERE projectId = ?1 AND sessionId = ?2"#
+            ),
+            rusqlite::params![project_id, session_id, serde_json::to_string(ids)?],
+        )?
+    };
+    if changed > 0 {
+        let repository = DomainRepository::new(db, state.metadata.server_id.as_str());
+        if let Some(session) = repository.get_session(project_id, session_id)? {
+            crate::session_chat_interactive::emit_session_chat_prompt_state_frame(state, &session);
+        }
+    }
+    Ok(())
+}
+
+/// `answerSessionChatPrompt` with `kind: "questionForLater"`: puts a form or page off For later
+/// (`later`), or back to unanswered, then brings the session's count up to date. Blocking.
+pub(crate) fn set_later(
+    state: &AppState,
+    project_id: &str,
+    session_id: &str,
+    id: &str,
+    later: bool,
+) -> anyhow::Result<()> {
+    let db = open_gxserver_database(&state.paths)?;
+    let mut ids = read_later_ids(&db, project_id, session_id);
+    let known = ids.iter().any(|known| known == id);
+    if known == later {
+        return Ok(());
+    }
+    if later {
+        ids.push(id.to_string());
+        if ids.len() > LATER_LIMIT {
+            ids.drain(..ids.len() - LATER_LIMIT);
+        }
+    } else {
+        ids.retain(|known| known != id);
+    }
+    write_later(state, &db, project_id, session_id, &ids)?;
+    refresh(state, project_id, session_id, None);
+    Ok(())
 }
 
 /// When this session was forked from another, in epoch ms: the time Ghostex created it. The chat
@@ -326,6 +433,13 @@ pub(crate) fn refresh(
             None => return,
         }
     };
+    // For later questions still wait, but they are not counted and never notify. A mark whose
+    // question was answered, withdrawn or asked again is forgotten.
+    let later = later_ids(&session);
+    let (open, newly, still) = leave_out_later(open, newly, &later);
+    if !is_thread && still.len() != later.len() {
+        let _ = write_later(state, &db, project_id, session_id, &still);
+    }
     let ids: Vec<&str> = open.iter().map(|asker| asker.id.as_str()).collect();
     let count: usize = open.iter().map(OpenAsker::count).sum();
     let recorded = session.pointer(&format!("/runtimeSettings/{RUNTIME_KEY}"));
@@ -346,6 +460,26 @@ pub(crate) fn refresh(
             turn_end == Some(true),
         );
     }
+}
+
+/// Splits the For later questions off: what is counted, what may notify, and the marks still worth
+/// keeping (those whose question still waits).
+fn leave_out_later(
+    open: Vec<OpenAsker>,
+    newly: Vec<OpenAsker>,
+    later: &[String],
+) -> (Vec<OpenAsker>, Vec<OpenAsker>, Vec<String>) {
+    let still: Vec<String> = later
+        .iter()
+        .filter(|id| open.iter().any(|asker| asker.id == **id))
+        .cloned()
+        .collect();
+    let counted = |asker: &OpenAsker| !later.contains(&asker.id);
+    (
+        open.into_iter().filter(counted).collect(),
+        newly.into_iter().filter(counted).collect(),
+        still,
+    )
 }
 
 /// Called from every place an agent's activity changes, beside the notification feed: a turn
@@ -549,5 +683,45 @@ fn notify(
                 details: Some(json!({ "sessionId": session_id })),
             });
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn asker(id: &str, waiting: usize) -> OpenAsker {
+        OpenAsker {
+            id: id.to_string(),
+            kind: AskerKind::Page,
+            form: None,
+            waiting,
+            latest_turn: true,
+        }
+    }
+
+    #[test]
+    fn for_later_questions_are_not_counted_and_never_notify() {
+        let open = vec![asker("a", 2), asker("b", 3)];
+        let newly = vec![asker("b", 3)];
+        let later = vec!["b".to_string(), "answered-since".to_string()];
+        let (counted, notify, still) = leave_out_later(open, newly, &later);
+        assert_eq!(counted.iter().map(OpenAsker::count).sum::<usize>(), 2);
+        assert!(notify.is_empty());
+        assert_eq!(
+            still,
+            vec!["b".to_string()],
+            "a mark whose question settled is forgotten"
+        );
+    }
+
+    #[test]
+    fn the_later_list_reads_from_the_session_record() {
+        let session = json!({"runtimeSettings": {LATER_KEY: ["p1", 3, "f2"]}});
+        assert_eq!(
+            later_ids(&session),
+            vec!["p1".to_string(), "f2".to_string()]
+        );
+        assert!(later_ids(&json!({})).is_empty());
     }
 }

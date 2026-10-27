@@ -109,6 +109,7 @@ impl NativeChatView {
                 work,
                 outcome,
                 latest_reply,
+                cards,
             } => {
                 let reply = final_message.as_deref().filter(|reply| reply.is_object());
                 // A running turn's "Active work" fold starts open and has a key of its own, so
@@ -129,6 +130,33 @@ impl NativeChatView {
                     .child(self.message_row(user, &p, window, cx));
                 for output in outcome {
                     row = row.child(self.message_row(output, &p, window, cx));
+                }
+                // The turn's page cards and question forms, except those of a message the open
+                // fold below draws itself (gx-chat-core `card_rows`, where the user's decision
+                // lives).
+                let in_open_fold: Vec<&str> = if !expanded {
+                    Vec::new()
+                } else if let Some(reply) = reply {
+                    earlier_replies
+                        .iter()
+                        .map(|row| row["id"].as_str().unwrap_or_default())
+                        .chain(reply["id"].as_str())
+                        .collect()
+                } else if *active {
+                    work.iter()
+                        .map(|row| row["id"].as_str().unwrap_or_default())
+                        .collect()
+                } else {
+                    Vec::new()
+                };
+                for card in cards {
+                    let source = card["id"]
+                        .as_str()
+                        .unwrap_or_default()
+                        .trim_end_matches("#cards");
+                    if !in_open_fold.contains(&source) {
+                        row = row.child(self.message_row(card, &p, window, cx));
+                    }
                 }
                 if reply.is_some() || *active {
                     row = row.child(
