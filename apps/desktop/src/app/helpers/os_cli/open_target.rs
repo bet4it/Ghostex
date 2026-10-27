@@ -23,8 +23,7 @@ pub(crate) fn gpui_spawn_open_target_command(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "Could not launch the selected Open In target.".to_string())
 }
 
@@ -73,8 +72,7 @@ pub(crate) fn gpui_spawn_open_target_app_name(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "Could not launch the selected Open In target.".to_string())
 }
 
@@ -93,8 +91,7 @@ pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String>
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| {
             "The operating system could not open the requested Ghostex Settings target.".to_string()
         })
@@ -113,8 +110,7 @@ pub(crate) fn gpui_open_with_application(
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "The app could not open the file.".to_string())
 }
 
@@ -148,8 +144,7 @@ pub(crate) fn gpui_reveal_path_in_finder(path: &Path) -> Result<(), String> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| format!("Could not reveal that item in {GPUI_FILE_MANAGER_NAME}."))
 }
 
@@ -166,8 +161,7 @@ pub(crate) fn gpui_reveal_path_in_finder(path: &Path) -> Result<(), String> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| format!("Could not reveal that item in {GPUI_FILE_MANAGER_NAME}."))
 }
 
@@ -188,8 +182,7 @@ pub(crate) fn gpui_reveal_path_in_finder(path: &Path) -> Result<(), String> {
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| format!("Could not reveal that item in {GPUI_FILE_MANAGER_NAME}."))
 }
 
@@ -200,8 +193,7 @@ pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String>
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "The OS opener is unavailable for this Ghostex Settings action.".to_string())
 }
 
@@ -213,8 +205,7 @@ pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String>
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .spawn()
-        .map(|_| ())
+        .spawn_reaped()
         .map_err(|_| "The OS opener is unavailable for this Ghostex Settings action.".to_string())
 }
 
