@@ -48,9 +48,20 @@ pub struct ToolLabel {
 }
 
 /// The label for a call the agent did not describe, or `None` when nothing readable comes out.
-pub fn tool_label(name: &str, input: &Value, working_directory: Option<&str>) -> Option<ToolLabel> {
+///
+/// CDXC:SessionChat 2026-10-27 WHY: A label names what a call did, so it reads as done ("Created
+/// proof.txt") only once the call has finished well. While a call waits for approval or runs, and
+/// after it was declined or failed, the same words read as what it does ("Create proof.txt"): a
+/// Codex `touch` blocked in Read Only and then declined showed "Created proof-web-readonly.txt"
+/// although no file was ever made.
+pub fn tool_label(
+    name: &str,
+    input: &Value,
+    working_directory: Option<&str>,
+    finished: bool,
+) -> Option<ToolLabel> {
     let actions = tool_actions(name, input, working_directory);
-    let text = join_actions(&actions)?;
+    let text = join_actions(&actions, finished)?;
     let glyph = actions.first().and_then(|first| {
         actions
             .iter()
@@ -985,7 +996,40 @@ fn list(objects: impl IntoIterator<Item = String>) -> String {
 
 /// One label for every action: neighbours with the same verb share it ("Read a and b"), and the
 /// rest follow in order, lower-cased after the first ("Read a, searched for b, ran c").
-fn join_actions(actions: &[Action]) -> Option<String> {
+/// The verb for a call that has not finished well: what it does rather than what it did.
+fn unfinished_verb(verb: &'static str) -> &'static str {
+    match verb {
+        "Browsed the web" => "Browse the web",
+        "Copied" => "Copy",
+        "Counted lines in" => "Count lines in",
+        "Created" => "Create",
+        "Deleted" => "Delete",
+        "Downloaded" => "Download",
+        "Edited" => "Edit",
+        "Fetched" => "Fetch",
+        "Found files" => "Find files",
+        "Listed" => "List",
+        "Looked up tools for" => "Look up tools for",
+        "Moved" => "Move",
+        "Opened" => "Open",
+        "Ran" => "Run",
+        "Ran a script" => "Run a script",
+        "Searched for" => "Search for",
+        "Searched the page for" => "Search the page for",
+        "Searched the web for" => "Search the web for",
+        "Sent input to a running command" => "Send input to a running command",
+        "Updated the plan" => "Update the plan",
+        "Used" => "Use",
+        "Used the skill" => "Use the skill",
+        "Viewed" => "View",
+        "Waited for a running command" => "Wait for a running command",
+        "Wrote" => "Write",
+        // "Read" is spelled the same in both.
+        other => other,
+    }
+}
+
+fn join_actions(actions: &[Action], finished: bool) -> Option<String> {
     let mut groups: Vec<(&'static str, Vec<String>)> = Vec::new();
     for action in actions {
         match groups.last_mut() {
@@ -1008,6 +1052,11 @@ fn join_actions(actions: &[Action]) -> Option<String> {
         .into_iter()
         .enumerate()
         .map(|(index, (verb, objects))| {
+            let verb = if finished {
+                verb
+            } else {
+                unfinished_verb(verb)
+            };
             let verb = if index == 0 {
                 verb.to_string()
             } else {

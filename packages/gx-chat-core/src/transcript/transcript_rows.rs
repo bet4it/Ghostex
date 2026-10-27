@@ -146,10 +146,14 @@ pub fn tool_rows(
             let mut description = tool_description(input);
             let mut glyph = tool_glyph(pair.call_name().unwrap_or_default());
             if description.is_empty() {
-                if let Some(label) = pair
-                    .call_name()
-                    .and_then(|name| tool_label(name, input, working_directory))
-                {
+                if let Some(label) = pair.call_name().and_then(|name| {
+                    tool_label(
+                        name,
+                        input,
+                        working_directory,
+                        pair.result.is_some() && !pair.result_is_error(),
+                    )
+                }) {
                     description = label.text;
                     glyph = label.glyph.unwrap_or(glyph);
                 }

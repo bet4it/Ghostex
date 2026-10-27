@@ -121,7 +121,7 @@ fn running_call_label(state: &ChatState) -> Option<String> {
                         return Some(description);
                     }
                     if let Some(label) =
-                        crate::transcript::tool_label::tool_label(name, input, None)
+                        crate::transcript::tool_label::tool_label(name, input, None, false)
                     {
                         return Some(label.text);
                     }
