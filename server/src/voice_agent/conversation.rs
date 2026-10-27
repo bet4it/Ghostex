@@ -1032,11 +1032,22 @@ impl Conversation {
                     .and_then(Value::as_str)
                     .unwrap_or_default();
                 if status == "failed" {
-                    let message = event
-                        .pointer("/response/status_details/error/message")
-                        .and_then(Value::as_str)
-                        .unwrap_or("The provider could not answer.")
-                        .to_string();
+                    let failure = json!({
+                        "type": "response.done",
+                        "error": event.pointer("/response/status_details/error").cloned().unwrap_or(Value::Null),
+                    });
+                    let report = self.provider.describe_error(&failure);
+                    let message = if report.message == "The provider reported an error." {
+                        "The provider could not answer.".to_string()
+                    } else {
+                        report.message.clone()
+                    };
+                    super::warn_error(
+                        &self.state,
+                        "voiceAgent.responseFailed",
+                        &message,
+                        report.details,
+                    );
                     self.to_client(json!({"type": "error", "code": "providerError", "message": message, "fatal": false}));
                 }
                 self.schedule_response_after_tools();
@@ -1058,10 +1069,14 @@ impl Conversation {
                     .voice_change
                     .take_if(|change| !event_id.is_empty() && change.event_id == event_id)
                 {
-                    super::warn(
+                    let report = self.provider.describe_error(&event);
+                    let mut details = report.details;
+                    details["voice"] = json!(change.voice);
+                    super::warn_error(
                         &self.state,
                         "voiceAgent.voiceChangeRefused",
-                        json!({"provider": self.provider.id(), "voice": change.voice, "code": code, "message": error.get("message")}),
+                        &report.message,
+                        details,
                     );
                     self.voice_answer(&change.voice, "nextConversation", "refused");
                     return Ok(());
@@ -1070,16 +1085,13 @@ impl Conversation {
                 if code != "response_cancel_not_active"
                     && code != "conversation_already_has_active_response"
                 {
-                    let message = error
-                        .get("message")
-                        .and_then(Value::as_str)
-                        .unwrap_or("The provider reported an error.")
-                        .to_string();
-                    super::warn(
+                    let message = super::warn_provider_error(
                         &self.state,
                         "voiceAgent.providerError",
-                        json!({"provider": self.provider.id(), "code": code, "message": message}),
-                    );
+                        self.provider,
+                        &event,
+                    )
+                    .message;
                     self.to_client(json!({"type": "error", "code": "providerError", "message": message, "fatal": false}));
                 }
             }

@@ -399,38 +399,48 @@ async fn start_conversation(
         while let Some(frame) = upstream.next().await {
             let Ok(WsMessage::Text(text)) = frame else {
                 if frame.is_err() {
-                    return Err(format!("{} closed the connection.", provider.label()));
+                    return Err(None);
                 }
                 continue;
             };
             let event: Value = serde_json::from_str(text.as_str()).unwrap_or(Value::Null);
             match event.get("type").and_then(Value::as_str) {
                 Some("session.updated") => return Ok(()),
-                Some("error") => {
-                    return Err(event
-                        .pointer("/error/message")
-                        .and_then(Value::as_str)
-                        .unwrap_or("The provider refused the voice session settings.")
-                        .to_string())
-                }
+                Some("error") => return Err(Some(event)),
                 _ => {}
             }
         }
-        Err(format!("{} closed the connection.", provider.label()))
+        Err(None)
     })
     .await;
     match configured {
         Ok(Ok(())) => {}
-        Ok(Err(message)) => {
+        Ok(Err(None)) => {
             super::warn(
                 state,
                 "voiceAgent.sessionRefused",
-                json!({"provider": provider.id(), "message": message}),
+                json!({"provider": provider.id(), "eventType": "closed"}),
             );
-            fail(socket, "providerError", &message).await;
+            fail(
+                socket,
+                "providerError",
+                &format!("{} closed the connection.", provider.label()),
+            )
+            .await;
+            return None;
+        }
+        Ok(Err(Some(event))) => {
+            let report =
+                super::warn_provider_error(state, "voiceAgent.sessionRefused", provider, &event);
+            fail(socket, "providerError", &report.message).await;
             return None;
         }
         Err(_) => {
+            super::warn(
+                state,
+                "voiceAgent.sessionRefused",
+                json!({"provider": provider.id(), "eventType": "timeout"}),
+            );
             fail(
                 socket,
                 "providerUnavailable",
@@ -490,8 +500,8 @@ pub(super) fn bad_key_message(provider: Provider, client_remote: bool) -> String
     }
 }
 
-/// Names the recognizer should expect: Ghostex, the agents and the user's project names (xAI takes
-/// at most 100 terms of 50 characters).
+/// Names the recognizer should expect, most useful first: Ghostex, the agents, then the user's
+/// project names. Each provider keeps what its limit allows (`Provider::session_update`).
 async fn keyterms(state: &Arc<AppState>) -> Vec<String> {
     let mut terms: Vec<String> = ["Ghostex", "Claude", "Codex", "Cursor", "OpenCode", "Gemini"]
         .iter()
@@ -500,15 +510,10 @@ async fn keyterms(state: &Arc<AppState>) -> Vec<String> {
     if let Ok(projects) = super::sessions::list_projects_async(state).await {
         for project in projects {
             let name = project.name.trim().to_string();
-            if !name.is_empty()
-                && name.chars().count() <= 50
-                && !name.starts_with("Chat 20")
-                && !terms.contains(&name)
-            {
+            if !name.is_empty() && !name.starts_with("Chat 20") && !terms.contains(&name) {
                 terms.push(name);
             }
         }
     }
-    terms.truncate(100);
     terms
 }

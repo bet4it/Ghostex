@@ -20,6 +20,8 @@ mod memory;
 mod paragraphs;
 mod prompt;
 mod provider;
+#[cfg(test)]
+mod provider_tests;
 mod question_forms;
 mod recordings;
 mod recordings_http;
@@ -54,10 +56,26 @@ fn warn_error(
     error: &str,
     details: serde_json::Value,
 ) {
-    let _ = state.logger.log(crate::logging::GxserverLogInput {
+    log_warn_error(
+        &state.logger,
+        &state.metadata.server_id,
+        event,
+        error,
+        details,
+    );
+}
+
+fn log_warn_error(
+    logger: &crate::logging::GxserverLogger,
+    server_id: &str,
+    event: &str,
+    error: &str,
+    details: serde_json::Value,
+) {
+    let _ = logger.log(crate::logging::GxserverLogInput {
         level: crate::logging::LogLevel::Warn,
         event: event.to_string(),
-        server_id: Some(state.metadata.server_id.clone()),
+        server_id: Some(server_id.to_string()),
         request_id: None,
         client: None,
         duration_ms: None,
@@ -79,4 +97,25 @@ fn warn(state: &crate::server::AppState, event: &str, details: serde_json::Value
         error: None,
         details: Some(details),
     });
+}
+
+/// Logs an `error` event a Realtime provider sent (a rejected `session.update`, a refused voice, a
+/// failed reply) as `event`, with the provider, the event type, code and parameter in the details and
+/// the provider's sentence in `error`, so `ghostex logs --grep voice` shows why a call failed. The
+/// sentence goes in `error` because the log hides a `message` detail. Returns what the event said.
+fn warn_provider_error(
+    state: &crate::server::AppState,
+    event: &str,
+    provider: provider::Provider,
+    provider_event: &serde_json::Value,
+) -> provider::ProviderError {
+    let report = provider.describe_error(provider_event);
+    log_warn_error(
+        &state.logger,
+        &state.metadata.server_id,
+        event,
+        &report.message,
+        report.details.clone(),
+    );
+    report
 }
