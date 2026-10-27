@@ -10,6 +10,7 @@
     "release:actions": "node tooling/release-gpui-actions.mjs start",
     "release:actions:publish": "node tooling/release-gpui-actions.mjs publish",
     "release:aur": "node tooling/release-gpui/publish-aur.mjs",
+    "release:ota": "node tooling/release-mobile/ota-release.mjs start",
     "release:preflight": "node tooling/release-preflight-fast.mjs",
     "release:verify": "node tooling/release-final-verify.mjs",
     "release:watch": "node tooling/release-gpui/watch-run.mjs",
