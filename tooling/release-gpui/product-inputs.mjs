@@ -236,13 +236,13 @@ const LINUX_DESKTOP_ARTIFACT_NAMES = Object.freeze({
     deb: (version) => [`ghostex_${version}_amd64.deb`],
     rpm: (version) => [`ghostex-${version}-1.x86_64.rpm`],
     tar: (version) => [`ghostex-${version}-linux-x64.tar.zst`],
-    appimage: (version) => [`ghostex-${version}-linux-x64.AppImage`],
+    appimage: (version) => [`ghostex-${version}-linux-x64.AppImage`, `ghostex-${version}-linux-x64.AppImage.zsync`],
   }),
   arm64: Object.freeze({
     deb: (version) => [`ghostex_${version}_arm64.deb`],
     rpm: (version) => [`ghostex-${version}-1.aarch64.rpm`],
     tar: (version) => [`ghostex-${version}-linux-arm64.tar.zst`],
-    appimage: (version) => [`ghostex-${version}-linux-arm64.AppImage`],
+    appimage: (version) => [`ghostex-${version}-linux-arm64.AppImage`, `ghostex-${version}-linux-arm64.AppImage.zsync`],
   }),
 });
 
@@ -275,7 +275,9 @@ function linuxDesktopProduct(format, arch = 'x64') {
       { pathspec: 'media/sounds/**' },
       { pathspec: 'tooling/release-gpui/linux-stage.sh' },
       { pathspec: `tooling/release-gpui/linux-${format}.sh` },
-      ...(format === 'appimage' ? [{ pathspec: 'tooling/packaging/appimage/**' }] : []),
+      ...(format === 'appimage'
+        ? [{ pathspec: 'tooling/packaging/appimage/**' }, { pathspec: 'tooling/release-gpui/appimage-update-info.mjs' }]
+        : []),
       { pathspec: '.github/workflows/release-gpui-linux.yml' },
     ],
     platform: { arch, os: 'linux', runnerLabel: arch === 'arm64' ? 'ubuntu-24.04-arm' : 'ubuntu-24.04' },

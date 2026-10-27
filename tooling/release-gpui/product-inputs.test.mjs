@@ -94,9 +94,13 @@ describe('release product input map', () => {
     expect(productDefinition('linux-deb-arm64').artifacts(version)).toEqual(['ghostex_7.8.0_arm64.deb']);
     expect(productDefinition('linux-rpm-arm64').artifacts(version)).toEqual(['ghostex-7.8.0-1.aarch64.rpm']);
     expect(productDefinition('linux-tar-arm64').artifacts(version)).toEqual(['ghostex-7.8.0-linux-arm64.tar.zst']);
-    expect(productDefinition('linux-appimage-x64').artifacts(version)).toEqual(['ghostex-7.8.0-linux-x64.AppImage']);
+    expect(productDefinition('linux-appimage-x64').artifacts(version)).toEqual([
+      'ghostex-7.8.0-linux-x64.AppImage',
+      'ghostex-7.8.0-linux-x64.AppImage.zsync',
+    ]);
     expect(productDefinition('linux-appimage-arm64').artifacts(version)).toEqual([
       'ghostex-7.8.0-linux-arm64.AppImage',
+      'ghostex-7.8.0-linux-arm64.AppImage.zsync',
     ]);
     expect(productDefinition('android').artifacts(version)).toEqual(['ghostex-android.apk']);
     expect(productDefinition('gxserver-linux-arm64').artifacts(version)).toEqual(['gxserver-linux-arm64.tar.gz']);

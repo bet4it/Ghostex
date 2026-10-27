@@ -12,6 +12,9 @@ release_gpui_require_command mksquashfs
 release_gpui_require_command unsquashfs
 release_gpui_require_command tar
 release_gpui_require_command curl
+release_gpui_require_command node
+release_gpui_require_command zsyncmake
+release_gpui_require_command appstreamcli
 release_gpui_prepare_output "$REPO_ROOT" "$OUTPUT"
 
 # CDXC:Release 2026-10-26 WHY:
@@ -34,6 +37,21 @@ arm64)
 	;;
 esac
 
+# CDXC:Release 2026-10-27 WHY:
+# AppImage managers find updates through this update information (embedded in
+# the runtime's .upd_info section by appimage-update-info.mjs) and the .zsync
+# file published next to each image; AppManager showed an empty Update Link
+# without them (GitHub issue #320). Each architecture names only its own zsync
+# file, so an x64 install never "updates" to the ARM64 image.
+APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|maddada|Ghostex|latest|ghostex-*-linux-${LINUX_ARCH}.AppImage.zsync"
+APPIMAGE_HOMEPAGE="https://ghostex.dev"
+APPSTREAM_ID="dev.ghostex.ghostex"
+RELEASE_DATE="$(awk -v heading="## $VERSION - " 'index($0, heading) == 1 { print substr($0, length(heading) + 1); exit }' "$REPO_ROOT/CHANGELOG.md")"
+[[ "$RELEASE_DATE" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || {
+	echo "CHANGELOG.md has no '## $VERSION - YYYY-MM-DD' heading for the AppStream release entry" >&2
+	exit 1
+}
+
 # CDXC:Release 2026-10-26: shared staged root, see linux-deb.sh. The AppImage
 # wraps opt/ghostex and the desktop entry and icon; usr/bin is left out because
 # the app installs its own `ghostex` and `gx` commands into ~/.local/bin on
@@ -55,7 +73,8 @@ rm -rf "$WORK"
 mkdir -p "$WORK"
 trap 'rm -rf "$WORK"' EXIT
 APPDIR="$WORK/Ghostex.AppDir"
-mkdir -p "$APPDIR/opt" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps"
+mkdir -p "$APPDIR/opt" "$APPDIR/usr/share/applications" "$APPDIR/usr/share/icons/hicolor/256x256/apps" \
+	"$APPDIR/usr/share/metainfo"
 cp -a "$PACKAGE_ROOT/opt/ghostex" "$APPDIR/opt/ghostex"
 cp "$PACKAGE_ROOT/usr/share/icons/hicolor/256x256/apps/ghostex.png" "$APPDIR/usr/share/icons/hicolor/256x256/apps/ghostex.png"
 cp "$PACKAGE_ROOT/usr/share/icons/hicolor/256x256/apps/ghostex.png" "$APPDIR/ghostex.png"
@@ -65,8 +84,45 @@ ln -s ghostex.png "$APPDIR/.DirIcon"
 # Exec with the AppImage's own path when they install this entry.
 sed -e 's|^Exec=.*|Exec=ghostex %U|' \
 	"$PACKAGE_ROOT/usr/share/applications/ghostex.desktop" >"$APPDIR/ghostex.desktop"
-printf 'X-AppImage-Version=%s\n' "$VERSION" >>"$APPDIR/ghostex.desktop"
+# X-AppImage-Homepage is what AppManager shows as the Web Page.
+printf 'X-AppImage-Version=%s\nX-AppImage-Homepage=%s\n' "$VERSION" "$APPIMAGE_HOMEPAGE" >>"$APPDIR/ghostex.desktop"
 cp "$APPDIR/ghostex.desktop" "$APPDIR/usr/share/applications/ghostex.desktop"
+# AppStream metadata: software centers and AppImage catalogs read the homepage,
+# description and release from it.
+METAINFO="$APPDIR/usr/share/metainfo/$APPSTREAM_ID.metainfo.xml"
+cat >"$METAINFO" <<METAINFO_XML
+<?xml version="1.0" encoding="UTF-8"?>
+<component type="desktop-application">
+  <id>$APPSTREAM_ID</id>
+  <name>Ghostex</name>
+  <summary>AI development workspaces and terminals</summary>
+  <metadata_license>CC0-1.0</metadata_license>
+  <project_license>MIT</project_license>
+  <developer id="dev.ghostex">
+    <name>Mohamad Yahia</name>
+  </developer>
+  <description>
+    <p>Ghostex runs your coding agents side by side, each with its own terminal and chat, next to the projects, worktrees, browser and files they work on.</p>
+  </description>
+  <launchable type="desktop-id">ghostex.desktop</launchable>
+  <url type="homepage">$APPIMAGE_HOMEPAGE</url>
+  <url type="bugtracker">https://github.com/maddada/Ghostex/issues</url>
+  <url type="vcs-browser">https://github.com/maddada/Ghostex</url>
+  <categories>
+    <category>Development</category>
+  </categories>
+  <provides>
+    <binary>ghostex</binary>
+  </provides>
+  <content_rating type="oars-1.1"/>
+  <releases>
+    <release version="$VERSION" date="$RELEASE_DATE">
+      <url type="details">https://github.com/maddada/Ghostex/releases/tag/v$VERSION</url>
+    </release>
+  </releases>
+</component>
+METAINFO_XML
+appstreamcli validate --no-net --explain "$METAINFO"
 install -m 755 "$REPO_ROOT/tooling/packaging/appimage/AppRun" "$APPDIR/AppRun"
 
 # The payload id AppRun compares with the copy in the user's data folder: the
@@ -89,6 +145,7 @@ fi
 	echo "AppImage runtime $APPIMAGE_RUNTIME_RELEASE/$APPIMAGE_RUNTIME_NAME does not match its pinned sha256" >&2
 	exit 1
 }
+node "$SCRIPT_DIR/appimage-update-info.mjs" write "$RUNTIME" "$APPIMAGE_UPDATE_INFORMATION"
 
 # Deterministic image: root-owned entries, one timestamp, sorted by mksquashfs.
 # zstd is what the type2 runtime reads fastest; 1 MiB blocks hold the payload
@@ -101,12 +158,20 @@ mksquashfs "$APPDIR" "$SQUASHFS" \
 APPIMAGE="$OUTPUT/ghostex-${VERSION}-linux-${LINUX_ARCH}.AppImage"
 cat "$RUNTIME" "$SQUASHFS" >"$APPIMAGE"
 chmod 755 "$APPIMAGE"
+# The zsync file holds the image's SHA-1 and block checksums: managers compare
+# that SHA-1 with the installed image to tell whether an update is out, and
+# download only the blocks that changed. Its URL is the image's own name beside
+# it on the release; one fixed mtime keeps it reproducible.
+touch -d @946684800 "$APPIMAGE"
+ZSYNC="$APPIMAGE.zsync"
+zsyncmake -u "$(basename "$APPIMAGE")" -o "$ZSYNC" "$APPIMAGE"
 
 # Read the image back the way the runtime does: the squashfs starts right after
 # the runtime, and AppRun, the payload id, the entry and the icon are inside.
 OFFSET="$(stat -c '%s' "$RUNTIME")"
 MEMBERS="$(unsquashfs -o "$OFFSET" -lc "$APPIMAGE" | sed 's|^squashfs-root||')"
 for required in /AppRun /.ghostex-appimage /ghostex.desktop /ghostex.png /.DirIcon \
+	"/usr/share/metainfo/$APPSTREAM_ID.metainfo.xml" \
 	/opt/ghostex/Ghostex /opt/ghostex/ghostex-gpui-runtime /opt/ghostex/gxserver/bin/gxserver \
 	/opt/ghostex/gxserver/bin/ghostex /opt/ghostex/resources/on-demand-resources.json \
 	/opt/ghostex/gxserver/skills/ghostex-cli/SKILL.md; do
@@ -119,6 +184,15 @@ if grep -q '^/opt/ghostex/libcef\.so$' <<<"$MEMBERS"; then
 	echo "AppImage bundles libcef.so; CEF must stay an on-demand component" >&2
 	exit 1
 fi
+EMBEDDED="$(node "$SCRIPT_DIR/appimage-update-info.mjs" read "$APPIMAGE")"
+[[ "$EMBEDDED" == "$APPIMAGE_UPDATE_INFORMATION" ]] || {
+	echo "AppImage carries update information '$EMBEDDED', not '$APPIMAGE_UPDATE_INFORMATION'" >&2
+	exit 1
+}
+grep -q "^SHA-1: $(sha1sum "$APPIMAGE" | awk '{ print $1 }')$" "$ZSYNC" || {
+	echo "$ZSYNC does not describe $APPIMAGE" >&2
+	exit 1
+}
 
-release_gpui_write_manifest "$OUTPUT" "linux-appimage-$LINUX_ARCH" "$VERSION" "$APPIMAGE"
+release_gpui_write_manifest "$OUTPUT" "linux-appimage-$LINUX_ARCH" "$VERSION" "$APPIMAGE" "$ZSYNC"
 printf 'Built Linux %s AppImage in %s\n' "$LINUX_ARCH" "$OUTPUT"

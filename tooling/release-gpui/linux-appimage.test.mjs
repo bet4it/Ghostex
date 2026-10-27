@@ -17,7 +17,8 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, describe, expect, test } from 'vitest';
 
-import { customerDownloadEntries } from './customer-downloads.mjs';
+import { findElfSection, readUpdateInformation, withUpdateInformation } from './appimage-update-info.mjs';
+import { customerDownloadEntries, renderCustomerDownloadNotes } from './customer-downloads.mjs';
 import { productDefinition } from './product-inputs.mjs';
 import { PUBLISH_STAGES, stageArtifactNames } from './publish-stage.mjs';
 
@@ -46,6 +47,17 @@ describe('the Linux AppImage release product', () => {
       ['Linux x64', 2, ['AppImage', 'AUR (ghostex-bin)']],
       ['Linux ARM64', 2, ['AppImage']],
     ]);
+    /* The zsync files are published for AppImage managers, not linked for people. */
+    expect(assets.filter((name) => name.endsWith('.zsync'))).toHaveLength(2);
+    expect(renderCustomerDownloadNotes('7.8.0', assets)).not.toContain('.zsync');
+  });
+
+  test('names each architecture its own zsync file in the update information', () => {
+    const script = readFileSync(path.join(repoRoot, 'tooling/release-gpui/linux-appimage.sh'), 'utf8');
+    expect(script).toContain(
+      'APPIMAGE_UPDATE_INFORMATION="gh-releases-zsync|maddada|Ghostex|latest|ghostex-*-linux-${LINUX_ARCH}.AppImage.zsync"'
+    );
+    expect(script).toContain('X-AppImage-Homepage=');
   });
 
   test('pins the type2 runtime by digest for both architectures', () => {
@@ -56,6 +68,51 @@ describe('the Linux AppImage release product', () => {
         new RegExp(`APPIMAGE_RUNTIME_NAME="${name}"\\n\\s*APPIMAGE_RUNTIME_SHA256="[0-9a-f]{64}"`, 'u')
       );
     }
+  });
+});
+
+/* A minimal little-endian ELF64 file: a header, `.upd_info` (1024 zero bytes) and the section name table. */
+function elfWithUpdateInformationSection() {
+  const names = Buffer.from('\0.upd_info\0.shstrtab\0', 'latin1');
+  const updInfoOffset = 64;
+  const namesOffset = updInfoOffset + 1024;
+  const headersOffset = namesOffset + names.length;
+  const file = Buffer.alloc(headersOffset + 3 * 64);
+  Buffer.from([0x7f, 0x45, 0x4c, 0x46, 2, 1, 1]).copy(file, 0);
+  file.writeBigUInt64LE(BigInt(headersOffset), 0x28);
+  file.writeUInt16LE(64, 0x3a);
+  file.writeUInt16LE(3, 0x3c);
+  file.writeUInt16LE(2, 0x3e);
+  const section = (index, nameOffset, offset, size) => {
+    const at = headersOffset + index * 64;
+    file.writeUInt32LE(nameOffset, at);
+    file.writeBigUInt64LE(BigInt(offset), at + 0x18);
+    file.writeBigUInt64LE(BigInt(size), at + 0x20);
+  };
+  section(1, 1, updInfoOffset, 1024);
+  section(2, 11, namesOffset, names.length);
+  names.copy(file, namesOffset);
+  return file;
+}
+
+describe('the AppImage update information', () => {
+  test('is written into .upd_info zero-padded and leaves every other byte alone', () => {
+    const original = elfWithUpdateInformationSection();
+    original.fill(0xaa, 64, 64 + 1024);
+    const info = 'gh-releases-zsync|maddada|Ghostex|latest|ghostex-*-linux-x64.AppImage.zsync';
+    const patched = withUpdateInformation(original, info);
+    const { offset, size } = findElfSection(patched, '.upd_info');
+    expect({ offset, size }).toEqual({ offset: 64, size: 1024 });
+    expect(patched.subarray(offset, offset + info.length).toString('utf8')).toBe(info);
+    expect(readUpdateInformation(patched)).toBe(info);
+    expect(patched.subarray(offset + info.length, offset + size).every((byte) => byte === 0)).toBe(true);
+    expect(patched.subarray(0, offset).equals(original.subarray(0, offset))).toBe(true);
+    expect(patched.subarray(offset + size).equals(original.subarray(offset + size))).toBe(true);
+  });
+
+  test('refuses text the section cannot hold with its terminating zero', () => {
+    expect(() => withUpdateInformation(elfWithUpdateInformationSection(), 'x'.repeat(1024))).toThrow(/holds 1023/u);
+    expect(() => findElfSection(Buffer.alloc(64), '.upd_info')).toThrow(/ELF64/u);
   });
 });
 

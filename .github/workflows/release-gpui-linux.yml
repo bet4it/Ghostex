@@ -191,7 +191,7 @@ jobs:
       - name: Install native packaging dependencies
         run: |
           tooling/release-gpui/retry.sh 3 5 -- sudo apt-get update
-          tooling/release-gpui/retry.sh 3 5 -- sudo apt-get install -y cmake ninja-build pkg-config rpm squashfs-tools zstd libasound2-dev libfontconfig1-dev libfreetype-dev libx11-dev libxcb1-dev libxkbcommon-x11-dev
+          tooling/release-gpui/retry.sh 3 5 -- sudo apt-get install -y cmake ninja-build pkg-config rpm squashfs-tools zsync appstream zstd libasound2-dev libfontconfig1-dev libfreetype-dev libx11-dev libxcb1-dev libxkbcommon-x11-dev
       - name: Install pinned Zig toolchain
         run: |
           tooling/release-gpui/retry.sh 3 5 -- bash -c 'curl -fsSL https://mise.run | sh'
@@ -364,8 +364,12 @@ jobs:
           # Unpack the published image with its own runtime (no FUSE needed)
           # and prove what a user's first launch relies on: AppRun, the payload
           # id it copies by, the desktop entry and icon, and a payload that
-          # still leaves CEF to the on-demand component.
+          # still leaves CEF to the on-demand component. Then what AppImage
+          # managers read: the runtime's own answer for the update information,
+          # the zsync file beside the image, the homepage and the metainfo.
           APPIMAGE_PATH="$(realpath "build/release-gpui/${{ inputs.version }}/linux-appimage-$LINUX_ARCH/ghostex-${{ inputs.version }}-linux-$LINUX_ARCH.AppImage")"
+          test "$("$APPIMAGE_PATH" --appimage-updateinformation)" = "gh-releases-zsync|maddada|Ghostex|latest|ghostex-*-linux-$LINUX_ARCH.AppImage.zsync"
+          grep -qx "Filename: $(basename "$APPIMAGE_PATH")" "$APPIMAGE_PATH.zsync"
           APPIMAGE_TEST_DIR="$(mktemp -d)"
           trap 'rm -rf "$APPIMAGE_TEST_DIR"' EXIT
           (cd "$APPIMAGE_TEST_DIR" && "$APPIMAGE_PATH" --appimage-extract >/dev/null)
@@ -378,6 +382,8 @@ jobs:
           test -x "$ROOT/opt/ghostex/gxserver/bin/ghostex"
           test ! -e "$ROOT/opt/ghostex/libcef.so"
           test ! -e "$ROOT/DEBIAN"
+          grep -qx 'X-AppImage-Homepage=https://ghostex.dev' "$ROOT/ghostex.desktop"
+          appstreamcli validate --no-net "$ROOT/usr/share/metainfo/dev.ghostex.ghostex.metainfo.xml"
       - name: Build the DEB package
         if: ${{ contains(inputs.packages, 'deb') }}
         env:

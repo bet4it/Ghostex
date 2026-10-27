@@ -420,10 +420,10 @@ while any other exit `0` means only that a job changed state.
 gh release view vX.Y.Z --repo maddada/Ghostex --json isDraft,isPrerelease,assets --jq '.isDraft,.isPrerelease,(.assets[].name)'
 ```
 
-Expect about 27 assets: `ghostex-X.Y.Z-arm64.dmg`, `ghostex_X.Y.Z_amd64.deb`,
+Expect about 29 assets: `ghostex-X.Y.Z-arm64.dmg`, `ghostex_X.Y.Z_amd64.deb`,
 `ghostex-X.Y.Z-1.x86_64.rpm`, `ghostex-X.Y.Z-linux-x64.tar.zst`,
 `ghostex_X.Y.Z_arm64.deb`, `ghostex-X.Y.Z-1.aarch64.rpm`,
-`ghostex-X.Y.Z-linux-arm64.tar.zst`, `ghostex-X.Y.Z-linux-{x64,arm64}.AppImage`,
+`ghostex-X.Y.Z-linux-arm64.tar.zst`, `ghostex-X.Y.Z-linux-{x64,arm64}.AppImage` with its `.AppImage.zsync`,
 `ghostex-X.Y.Z-windows-{x64,arm64}.exe`, the Velopack
 files, `ghostex-android.apk`, `gxserver-linux-{x64,arm64}.tar.gz`,
 `gxserver-wsl-windows-{x64,arm64}.zip` and `release-provenance-X.Y.Z.json`.
@@ -431,7 +431,7 @@ files, `ghostex-android.apk`, `gxserver-linux-{x64,arm64}.tar.gz`,
 The body must start with the download block, and every customer asset
 (DMG, both Windows installers, the x64 and ARM64 deb, rpm,
 tarball and AppImage, APK) must be linked there; `release:verify` checks both. Checksums, Velopack files,
-gxserver runtimes and provenance stay as unlisted assets.
+gxserver runtimes, the AppImage `.zsync` files (read by AppImage managers for updates) and provenance stay as unlisted assets.
 
 From Windows (the normal case), skip the macOS-only DMG and Homebrew checks.
 Also skip the repo check, because `main` has moved past the tag by now:
