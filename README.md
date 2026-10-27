@@ -10,19 +10,16 @@
   <a href="#install"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20Android%20%C2%B7%20iOS.svg?variant=secondary&mode=dark" /><img src="https://shieldcn.dev/badge/platforms-macOS%20%C2%B7%20Windows%20%C2%B7%20Linux%20%C2%B7%20Android%20%C2%B7%20iOS.svg?variant=secondary&mode=light" alt="Supported platforms: macOS, Windows, Linux, Android, iOS" /></picture></a>
 </p>
 
+<h1 align="center">
+  The best native all-in-one agents workspace
+</h1>
+
 <p align="center">
 <a href="https://discord.gg/df7b3G92CS"><picture><source media="(prefers-color-scheme: dark)" srcset="https://shieldcn.dev/badge/Discord-Join%20the%20community.svg?variant=branded&logo=discord&mode=dark" /><img src="https://shieldcn.dev/badge/Discord-Join%20the%20community.svg?variant=branded&logo=discord&mode=light" alt="Join the Discord" /></picture></a>
 </p>
 
 <h3 align="center"><a href="#install"><ins>Download Ghostex</ins></a> &nbsp;·&nbsp; <a href="https://ghostex.dev">Website</a> &nbsp;·&nbsp; <a href="https://youtu.be/QzjFB4J6-8E">Watch the 3-minute tour</a></h3>
 
-<p align="center">
-  <a href="https://github.com/user-attachments/assets/1013fbfc-a556-4624-8794-1508af8a5653">
-    <picture>
-      <img width="960" alt="image" src="https://github.com/user-attachments/assets/1013fbfc-a556-4624-8794-1508af8a5653" />
-    </picture>
-  </a>
-</p>
 <p align="center">
   <a href="https://github.com/user-attachments/assets/74906504-c9b1-42e8-aa06-04f2f0439045">
     <picture>
