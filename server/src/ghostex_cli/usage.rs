@@ -171,6 +171,10 @@ pub fn usage() -> String {
             "Report a mobile client attach (OS and app version only) to the machine's usage analytics",
         ),
         format_help_command(
+            "client-view --client mobile --view <mobile_*> [--json]",
+            "Report which phone screen was opened (the screen's fixed name only) to the machine's usage analytics",
+        ),
+        format_help_command(
             "saved-prompts <action> --payload-json json --json",
             "Read and update the daemon-owned Saved Prompts library",
         ),

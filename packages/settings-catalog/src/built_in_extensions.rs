@@ -165,6 +165,28 @@ pub fn enabled_features_with(read: impl Fn(&str) -> Option<bool>) -> Vec<&'stati
         .collect()
 }
 
+/// The catalog's own copy of `id` when it is a built-in extension that has an on/off switch, so a
+/// caller holding a runtime string gets back a `&'static str` that can only be a catalog id.
+pub fn switchable_id(id: &str) -> Option<&'static str> {
+    entry(id)
+        .filter(|entry| entry.get("settingsKey").is_some())
+        .and_then(|entry| entry.get("id").and_then(J::as_str))
+}
+
+/// The ids of every built-in extension with an on/off switch that is on and whose gate is open,
+/// in catalog order, reading saved values through `read`. An entry without a switch is always on
+/// and says nothing about what someone chose, so it is left out. gxserver's daily analytics
+/// heartbeat sends this list.
+pub fn enabled_ids_with(read: impl Fn(&str) -> Option<bool>) -> Vec<&'static str> {
+    GHOSTEX_OFFICIAL_EXTENSIONS
+        .as_array()
+        .iter()
+        .filter(|entry| entry.get("settingsKey").is_some())
+        .filter_map(|entry| entry.get("id").and_then(J::as_str))
+        .filter(|id| on_with(id, &read))
+        .collect()
+}
+
 /// The ids of every whole-feature entry that is off, the complement of
 /// [`enabled_features_with`]. gxserver sends this to the phone as `builtInFeaturesOff`.
 ///

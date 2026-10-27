@@ -323,9 +323,9 @@ impl GhostexGpuiApp {
         CDXC:Telemetry 2026-08-26:
         This launcher is the single entry point for every app-modal open route
         (titlebar actions, hotkeys, command palette, sidebar bridge messages), so
-        Find, the Extensions store, and Settings report `surface.opened` from
-        here. Modals outside the spec enum — including per-extension
-        modals — send nothing.
+        Find, Settings, Quick Access, Previous Sessions, the Agents Hub and
+        extension modals report `surface.opened` from here (an extension's id
+        is whitelisted by gxserver, 2026-10-27). Other modals send nothing.
         */
         if let Some(surface) = gpui_telemetry_surface_for_app_modal(modal) {
             record_gpui_surface_opened_telemetry(surface, cx.background_executor());

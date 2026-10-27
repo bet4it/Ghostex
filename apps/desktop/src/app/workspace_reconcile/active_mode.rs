@@ -38,7 +38,8 @@ impl GhostexGpuiApp {
         Option+1..5, the command palette, and the sidebar focus helpers — funnels
         through set_active_mode, so this is the one place a `surface.opened` ping
         belongs. Re-selecting the current workarea is not a switch, and only the
-        fixed spec enum is reportable (extension workareas send nothing).
+        fixed spec enum is reportable (extension views send their id, which
+        gxserver whitelists or reports as `custom`, 2026-10-27).
         */
         if previous_mode != mode
             && let Some(surface) = gpui_telemetry_surface_for_titlebar_mode(mode)

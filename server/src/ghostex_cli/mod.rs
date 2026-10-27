@@ -633,6 +633,8 @@ fn run_command(name: &str, args: &[String]) -> CliResult<()> {
         recognise.
         */
         "client-hello" => run_bridge_action("recordClientEvent", Parser::ClientHello, plain, args),
+        // CDXC:Telemetry 2026-10-27: the phone's screen-opened ping, the hello's sibling.
+        "client-view" => run_bridge_action("recordClientEvent", Parser::ClientView, plain, args),
         "sleep-session" => run_bridge_action(
             "sleepSession",
             Parser::SessionBoolean("sleeping"),
