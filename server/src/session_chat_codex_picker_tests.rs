@@ -186,3 +186,37 @@ fn codex_permissions_menu_reads_its_current_row() {
         None
     );
 }
+
+#[test]
+fn codex_dialogs_drawn_beside_older_lines_are_still_read() {
+    use super::codex_permissions::{full_access_confirmation_open, permissions_menu_current};
+    // Verbatim desktop screen (Codex 0.164, 2026-10-27): the box is drawn over the right half,
+    // beside the conversation's older lines.
+    let beside = concat!(
+        "• Permission selection requested: Approve for me\n",
+        "• Permission selection requested: Read Only\n",
+        "› Run exactly this one shell command and nothing else, then repl  Enable full access?\n",
+        "                                                                  When Codex runs with full access, it can edit any file on your\n",
+        "                                                                  computer and run commands with network, without your approval.\n",
+        "• I’ll run the requested command.                                 Exercise caution when enabling full access. This significantly\n",
+        "                                                                  increases the risk of data loss, leaks, or unexpected behavior.\n",
+        "✗ You canceled the request to run touch proof-readonly.txt\n",
+        "• Exited (status 1) touch proof-readonly.txt                    › 1. Yes, continue anyway  Apply full access for this session\n",
+        "  └ (no output)                                                   2. Cancel                Go back without enabling full access\n",
+        "■ Conversation interrupted - use /feedback if something went wro  enter select · esc back\n",
+        "› Ask Codex to do anything\n",
+        "  GPT-6-Sol high · 01a17e2e-bab7-7ca1-a2a0-575fa9dc1b69 · 11.2K used · proj2 · main · Context 5% used · weekly 99% left\n",
+        "  ? for shortcuts                                                                                                                                                              ⚠ 1 warning · f2 to view\n",
+    );
+    assert!(full_access_confirmation_open(beside));
+    let menu = concat!(
+        "• Ran touch x                                    Update Model Permissions\n",
+        "  └ (no output)                                    1. Ask for approval     Asks first\n",
+        "• done                                           › 2. Read Only (current)  Reads only\n",
+        "                                                   enter select · esc back\n",
+    );
+    assert_eq!(
+        permissions_menu_current(menu),
+        Some(Some("read-only".to_string()))
+    );
+}

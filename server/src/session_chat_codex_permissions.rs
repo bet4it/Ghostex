@@ -31,23 +31,43 @@ fn command_staged(screen: &str, command: &str) -> bool {
     })
 }
 
+/// The lines of the Codex dialog titled `title` as the dialog itself draws them, newest dialog
+/// first found from the bottom.
+///
+/// CDXC:SessionChat 2026-10-27 WHY: In a wide Ghostex terminal Codex draws its `/permissions` menu and its "Enable full access?" box over the right of the screen, beside the conversation's older lines, so a row such as `› 1. Yes, continue anyway` starts mid-line. Reading rows only at the start of a line never saw the box, and a Full Access pick from the chat stayed open in Codex's confirmation (found testing the desktop app). Each line is read from the dialog's own left edge, two columns left of its title, where Codex puts its row cursor.
+fn dialog_lines(screen: &str, title: &str) -> Option<Vec<String>> {
+    // Columns matter here, so the lines keep their spacing until the dialog's part is cut out.
+    let lines: Vec<String> = screen
+        .split('\n')
+        .map(crate::session_chat_options::strip_ansi_sgr)
+        .collect();
+    let (index, column) = lines.iter().enumerate().rev().find_map(|(index, line)| {
+        let byte = line.find(title)?;
+        Some((index, line[..byte].chars().count().saturating_sub(2)))
+    })?;
+    Some(
+        lines[index..]
+            .iter()
+            .map(|line| collapse_spaces(&line.chars().skip(column).collect::<String>()))
+            .collect(),
+    )
+}
+
 /// Codex's "Enable full access?" confirmation, open with its accept row selected.
-fn full_access_confirmation_open(screen: &str) -> bool {
-    screen.contains(FULL_ACCESS_TITLE)
-        && screen_lines(screen).iter().any(|line| {
+pub(super) fn full_access_confirmation_open(screen: &str) -> bool {
+    dialog_lines(screen, FULL_ACCESS_TITLE).is_some_and(|lines| {
+        lines.iter().any(|line| {
             line.trim_start()
                 .strip_prefix(CODEX_CURSOR)
                 .is_some_and(|row| row.trim_start().starts_with(FULL_ACCESS_ACCEPT_ROW))
         })
+    })
 }
 
 /// The numbered rows of Codex's `/permissions` menu, once it has loaded them.
 fn permissions_menu_rows(screen: &str) -> Option<Vec<String>> {
-    let lines = screen_lines(screen);
-    let title = lines
-        .iter()
-        .rposition(|line| line.trim() == PERMISSIONS_MENU_TITLE)?;
-    let rows: Vec<String> = lines[title + 1..]
+    let lines = dialog_lines(screen, PERMISSIONS_MENU_TITLE)?;
+    let rows: Vec<String> = lines[1..]
         .iter()
         .filter_map(|line| {
             let row = line.trim_start();
