@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 10.38.1 - 2026-10-27
+
+**Ghostex 10.38.1 is out.** On iPhone, Scan code reads a computer's pairing QR up close, and removing a computer on the phone takes one tap.
+
+### 📱 On the phone
+
+- **Scan code on iPhone opens Apple's own scanner,** which switches to the macro lens for a QR held close, so a computer's pairing code scans as easily as with the Camera app.
+- **Removing a computer takes one tap to confirm** instead of typing its name.
+
 ## 10.38.0 - 2026-10-27
 
 **Ghostex 10.38.0 is out.** Codex sessions get a Mode button, the chat's ? pill becomes Chat Resources with every page, form and chart, session links stop picking up unrelated tickets and take links you add by hand, approval cards show one hotkey per row, Claude cloud sessions open as a chat, and Linux gets signed, self-updating AppImages and a working mouse wheel in the Browser.
