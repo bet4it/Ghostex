@@ -164,13 +164,20 @@ pub(crate) enum GpuiAppToastAction {
     OpenAccounts { provider: Option<String> },
     /// Settings > Extensions, where views are turned on.
     OpenViewSettings,
+    /// A fixed native project-path bridge payload a planned toast carries
+    /// (`ghostex_gx_core::ToastButton`), such as Copy Path on a remote project.
+    NativeProjectPathAction {
+        label: String,
+        payload: serde_json::Value,
+    },
 }
 
 impl GpuiAppToastAction {
-    pub(crate) fn label(&self) -> &'static str {
+    pub(crate) fn label(&self) -> &str {
         match self {
             Self::OpenAccounts { .. } => "Open Accounts",
             Self::OpenViewSettings => "Open Settings",
+            Self::NativeProjectPathAction { label, .. } => label,
         }
     }
 }
@@ -552,7 +559,7 @@ impl GpuiAppToastWindow {
         ink: Hsla,
     ) -> AnyElement {
         let app = self.app.clone();
-        let label = action.label();
+        let label = action.label().to_string();
         div()
             .id(format!("toast-action-{toast_id}"))
             .mt(px(6.0))

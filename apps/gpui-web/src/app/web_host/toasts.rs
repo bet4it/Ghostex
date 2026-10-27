@@ -143,6 +143,9 @@ impl GhostexGpuiApp {
                 "Views are turned on in the Ghostex app's Settings > Extensions.",
                 cx,
             ),
+            GpuiAppToastAction::NativeProjectPathAction { payload, .. } => {
+                self.receive_sidebar_native_project_path_action_payload(&payload.to_string(), cx);
+            }
         }
     }
 

@@ -176,6 +176,9 @@ pub use crate::sidebar_actions::{
     titlebar_sleep_inactive_ids,
 };
 pub use crate::sidebar_actions::{
+    plan_remote_project_open, RemoteProjectOpen, ToastButton, REMOTE_SSH_OPEN_TARGET_IDS,
+};
+pub use crate::sidebar_actions::{
     remote_focus_group, RuntimeActiveGroup, RUNTIME_GROUP_SENT_TRUST_MS,
 };
 pub use crate::sidebar_command_run::{

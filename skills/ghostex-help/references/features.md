@@ -3210,6 +3210,12 @@ sessions, so any client can control agents on any machine.
   editor its own Ghostex has, so if Code says that computer doesn't have it yet,
   open the VS Code view on that computer once (or update Ghostex there) and retry.
   Folder links in remote chats also browse the remote folder in VS Code.
+  A remote project's Open Folder (its right-click menu, Quick Access) opens the
+  project in the Files view. Open In with VS Code, VS Code Insiders, VSCodium,
+  Cursor, Windsurf, Trae or Antigravity opens the remote folder over Remote-SSH,
+  and Zed opens it over SSH (not on a native Windows machine); the editor's
+  command line tool must be installed. Other apps can only open folders on this
+  computer, so they show a warning with Copy Path.
   Remote localhost links open in the built-in Browser through that computer,
   even when ordinary web links are set to open in your external browser.
   When a machine cannot connect, its tab's cloud turns red and its list says

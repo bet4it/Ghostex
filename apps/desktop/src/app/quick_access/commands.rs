@@ -63,19 +63,17 @@ impl GhostexGpuiApp {
         }
     }
 
-    /// Opens the active project's folder in Finder. A remote project has no local folder, which
-    /// the user is told, the way the sidebar's Open Folder tells it.
+    /// Opens the active project's folder in Finder. A remote project opens in the Files view, the
+    /// way the sidebar's Open Folder opens it (`ghostex_gx_core::plan_remote_project_open`).
     fn open_active_project_in_finder_from_quick_access(&mut self, cx: &mut gpui::Context<Self>) {
         let Some(project_id) = self.gpui_app_modal_active_project_id() else {
             return;
         };
-        if gpui_remote_project_reference_from_project_id(&project_id).is_some() {
-            self.dispatch_gpui_app_modal_toast(
-                "warning",
-                "Remote project open unavailable",
-                "Remote project locations cannot be opened in the local file manager.",
-                cx,
-            );
+        if self.open_remote_project_from_active_route(
+            &project_id,
+            ghostex_gx_core::RemoteProjectOpen::Folder,
+            cx,
+        ) {
             return;
         }
         let payload = json!({
@@ -100,6 +98,19 @@ impl GhostexGpuiApp {
         else {
             return;
         };
+        // A remote project's folder is on another computer: gx-core decides what the target can do.
+        if let Some(project_id) = self.gpui_app_modal_active_project_id()
+            && self.open_remote_project_from_active_route(
+                &project_id,
+                ghostex_gx_core::RemoteProjectOpen::Target {
+                    id: &target.id,
+                    label: Some(&target.label),
+                },
+                cx,
+            )
+        {
+            return;
+        }
         let Some(project_path) = self.active_project_open_in_path() else {
             window.push_notification(
                 Notification::warning("Open an active project before using Open In."),
