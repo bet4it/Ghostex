@@ -3705,7 +3705,9 @@ suggestion. A ticket linked that way before 2026-10-27 left the list unless you
 pinned it (or comes back under Suggested when the agent's own reply named it). An
 agent adds one it works on with `ghostex link add <url|#123|ABC-123>` from its own
 terminal. A PR or issue link of the project's own repos that you or the session's
-agent only wrote in the chat is offered under Suggested too. Suggested shows the five
+agent only wrote in the chat is offered under Suggested too. An orchestrator's own
+replies suggest nothing (they mostly repeat its threads' reports); there only the PR
+and issue links you write yourself are suggested. Suggested shows the five
 newest; when there are more, Show all under them lists the rest, and Show fewer folds
 them again. A suggestion's × (click it twice, like a linked link's) dismisses it for
 good: it moves under Removed, where Restore puts it back under Suggested, and a Linear

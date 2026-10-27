@@ -190,6 +190,12 @@ pub(crate) fn run_session_links_refresh_once(
                     full_scans -= 1;
                 }
                 if let Some(links) = scan_transcript(agent, &path, &project_id, &session_id) {
+                    // An orchestrator's own replies only repeat its threads' reports (Q683).
+                    let orchestrator =
+                        crate::coordinators::read_coordinator(&db, &project_id, &session_id)
+                            .ok()
+                            .flatten()
+                            .is_some();
                     let team_keys = crate::work_mode::project_linear_key(&project_id)
                         .and_then(cached_linear_team_keys)
                         .unwrap_or_default();
@@ -198,7 +204,7 @@ pub(crate) fn run_session_links_refresh_once(
                     remember_session_link_mentions(
                         &project_id,
                         &session_id,
-                        links.suggestions(&own_repos, &team_keys),
+                        links.suggestions(&own_repos, &team_keys, orchestrator),
                     );
                     for link in links
                         .opened

@@ -5,7 +5,7 @@
 //! User picked which links join a session by themselves: the branch's, earlier branches', "PRs and issues the agent opened", what the agent reports with `ghostex link add`, and the issues a linked PR closes. A PR or issue URL the chat only mentioned is offered under Suggested instead ("suggest").
 //!
 //! CDXC:SessionLinks 2026-10-27 DECISION:
-//! User: "pls check why are we linking those SPX linear tickets even tho they're fully unrelated? pls fix". Their 2026-10-24 rule stays ("if the user added linear api key and the linear issue id or link is mentioned in the thread"), and "mentioned in the thread" now means the user's own words: a Linear ID or URL links by itself only from the text of a user row the user wrote. The orchestrator "Mr Big Chungus" (G14iv) had SPX tickets from a thread report and from its own replies ("your SPX-123 session", a dozen times). Then, on agent-written IDs (Q666): "just show them as suggested, dont auto link those". An ID only the session's own agent wrote in its reply is offered under Suggested like a GitHub mention and never linked. Then, after another agent's IDs crowded an orchestrator's Suggested list (Q668, "Only the session's own agent's replies"): another agent's message, a Ghostex thread report and a forwarded brief (all reach the agent as user rows) give no suggestion at all, Linear or GitHub; Suggested comes from the agent's own replies (Linear and GitHub) and the user's own words (GitHub URLs; the user's Linear IDs link). Machine text counts for nothing, neither link nor suggestion: harness text (system reminders, hooks, command output, a compaction summary, injected instructions and memory), tool calls and results, a fenced block and a `>` quoted line. A paste still counts as the user's words, since Chat sends every multi-line message as a paste. GitHub URLs stay suggestions from the project's own repos only. The pass keeps only IDs of the Linear teams the project's key sees; Ghostex knows no narrower team for a project. Supersedes linking every ID the user or the agent wrote.
+//! User: "pls check why are we linking those SPX linear tickets even tho they're fully unrelated? pls fix". Their 2026-10-24 rule stays ("if the user added linear api key and the linear issue id or link is mentioned in the thread"), and "mentioned in the thread" now means the user's own words: a Linear ID or URL links by itself only from the text of a user row the user wrote. The orchestrator "Mr Big Chungus" (G14iv) had SPX tickets from a thread report and from its own replies ("your SPX-123 session", a dozen times). Then, on agent-written IDs (Q666): "just show them as suggested, dont auto link those". An ID only the session's own agent wrote in its reply is offered under Suggested like a GitHub mention and never linked. Then, after another agent's IDs crowded an orchestrator's Suggested list (Q668, "Only the session's own agent's replies"): another agent's message, a Ghostex thread report and a forwarded brief (all reach the agent as user rows) give no suggestion at all, Linear or GitHub; Suggested comes from the agent's own replies (Linear and GitHub) and the user's own words (GitHub URLs; the user's Linear IDs link). Then, as the orchestrator still collected every ticket its threads' reports named by repeating them to the user (Q683, "No, not an orchestrator's replies"): an orchestrator's own replies suggest nothing, Linear or GitHub, and only the GitHub URLs the user wrote are suggested there; an ordinary session's agent replies keep suggesting. Machine text counts for nothing, neither link nor suggestion: harness text (system reminders, hooks, command output, a compaction summary, injected instructions and memory), tool calls and results, a fenced block and a `>` quoted line. A paste still counts as the user's words, since Chat sends every multi-line message as a paste. GitHub URLs stay suggestions from the project's own repos only. The pass keeps only IDs of the Linear teams the project's key sees; Ghostex knows no narrower team for a project. Supersedes linking every ID the user or the agent wrote.
 //!
 //! CDXC:SessionLinks 2026-10-24 WHY:
 //! A transcript is read once in full and then only from where the last read stopped (rows at or past the length it had), so a long session costs a full read once per gxserver run and a page or two per pass after that.
@@ -38,6 +38,8 @@ pub(crate) struct TranscriptLinks {
     pub(crate) mentions: Vec<SessionLinkRef>,
     /// Linear IDs (from URLs and bare `GHX-142` words) the user wrote (`own_words`).
     pub(crate) linear_mentions: Vec<String>,
+    /// The GitHub URLs among `mentions` the user wrote: all an orchestrator suggests.
+    pub(crate) user_github_mentions: Vec<SessionLinkRef>,
 }
 
 /// Whether a Linear ID (`SPX-123`) belongs to one of `team_keys`.
@@ -62,26 +64,35 @@ impl TranscriptLinks {
 
     /// What to offer under Suggested, newest last: PRs and issues of the project's own repos, and
     /// Linear tickets of the teams its Linear key sees that only an agent named (one the user
-    /// wrote links instead).
+    /// wrote links instead). An orchestrator's own replies suggest nothing (`orchestrator`): only
+    /// the GitHub URLs the user wrote are left.
     pub(crate) fn suggestions(
         &self,
         own_repos: &[String],
         team_keys: &[String],
+        orchestrator: bool,
     ) -> Vec<SessionLinkRef> {
         self.mentions
             .iter()
             .filter(|link| match link {
                 SessionLinkRef::Linear { identifier } => {
-                    of_linear_team(identifier, team_keys)
+                    !orchestrator
+                        && of_linear_team(identifier, team_keys)
                         && !self.linear_mentions.contains(identifier)
                 }
-                SessionLinkRef::Github { .. } => link.in_repos(own_repos),
+                SessionLinkRef::Github { .. } => {
+                    link.in_repos(own_repos)
+                        && (!orchestrator || self.user_github_mentions.contains(link))
+                }
             })
             .cloned()
             .collect()
     }
 
-    fn mention_github(&mut self, link: SessionLinkRef) {
+    fn mention_github(&mut self, link: SessionLinkRef, writer: Writer) {
+        if writer == Writer::User {
+            Self::push_unique(&mut self.user_github_mentions, link.clone());
+        }
         Self::push_newest(&mut self.mentions, link);
     }
 
@@ -194,7 +205,7 @@ impl Scanner {
     /// Reads the URLs and IDs in `text`, which `writer` wrote.
     fn scan_text(&mut self, text: &str, writer: Writer) {
         for link in urls_in(text, "https://github.com/").filter_map(|url| parse_github_url(&url)) {
-            self.links.mention_github(link);
+            self.links.mention_github(link, writer);
         }
         for link in urls_in(text, "https://linear.app/").filter_map(|url| parse_linear_url(&url)) {
             if let SessionLinkRef::Linear { identifier } = link {
@@ -416,7 +427,7 @@ mod tests {
         scanner.scan_text(text, Writer::Agent);
         scanner
             .links
-            .suggestions(own_repos, &[])
+            .suggestions(own_repos, &[], false)
             .into_iter()
             .map(|link| link.key())
             .collect()
@@ -470,7 +481,7 @@ mod tests {
             list
         };
         let suggested = links
-            .suggestions(&[], &["SPX".to_string()])
+            .suggestions(&[], &["SPX".to_string()], false)
             .iter()
             .filter_map(|link| match link {
                 SessionLinkRef::Linear { identifier } => Some(identifier.clone()),
@@ -558,7 +569,7 @@ mod tests {
         // GHX-9 the user wrote too, so it links instead; OTHER is not a team of the key.
         assert_eq!(scanner.links.linear_mentions, vec!["GHX-9"]);
         assert_eq!(
-            keys(scanner.links.suggestions(&[], &teams)),
+            keys(scanner.links.suggestions(&[], &teams, false)),
             vec!["linear:SPX-123"]
         );
     }
@@ -622,7 +633,7 @@ mod tests {
         .expect("scan");
         let own = vec!["maddada/ghostex".to_string()];
         let suggested: Vec<String> = links
-            .suggestions(&own, &["SPX".to_string()])
+            .suggestions(&own, &["SPX".to_string()], false)
             .iter()
             .map(SessionLinkRef::key)
             .collect();
@@ -635,6 +646,13 @@ mod tests {
             ]
         );
         assert!(links.linear_mentions.is_empty());
+        // An orchestrator's own reply suggests nothing; the URL the user wrote still does (Q683).
+        let orchestrator: Vec<String> = links
+            .suggestions(&own, &["SPX".to_string()], true)
+            .iter()
+            .map(SessionLinkRef::key)
+            .collect();
+        assert_eq!(orchestrator, vec!["issue:maddada/ghostex#705"]);
     }
 
     #[test]
