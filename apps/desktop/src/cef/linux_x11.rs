@@ -400,17 +400,6 @@ pub(super) fn append_platform_command_line_switches(command_line: &mut cef::Comm
     // Thin overlay scrollbars instead of tracked ones with a white track on dark pages
     // (CDXC:CefRuntime 2026-10-07 in cef/windows.rs).
     super::shell::append_chromium_feature(command_line, "enable-features", "OverlayScrollbar");
-    append_wheel_scrolling_switch(command_line);
-}
-
-/// CDXC:PlatformSupport 2026-10-27 WHY:
-/// The mouse wheel scrolled no page under window managers that keep a passive button grab on their client windows (xfwm4 grabs every button on every window; Mutter and KWin grab them on unfocused ones), GitHub issue #338. X turns each wheel notch into an XI2 scroll-valuator motion followed by an emulated button 4/5 press; that press activates the window manager's grab on GPUI's top-level window, and because Chromium's input window sits inside it, the grab and its replay send Chromium's window a Leave(Grab) and an Enter(Ungrab, detail Ancestor). Chromium's X11EventSource treats that Enter as the pointer arriving and forgets every device's last scroll-valuator position, so the next notch's motion computes a delta of 0: 0 wheel events from 5 notches under Xorg + xf86-input-libinput + xfwm4, and about 17% of touchpad travel lost the same way. Standalone Chrome never sees it because its input window is the grabbed client window itself, so the grab crosses no window.
-/// With high-precision scrolling off, Chromium scrolls from the server's emulated wheel buttons, which the grab still replays to the page: 5 notches scroll 600px. The cost is that a touchpad scrolls in wheel-sized steps instead of pixel by pixel. Neither the grab, the crossing events nor Chromium's reaction can be changed from the embedder, and XSendEvent cannot deliver an XI2 event to re-seed the position.
-fn append_wheel_scrolling_switch(command_line: &mut cef::CommandLine) {
-    use cef::ImplCommandLine as _;
-    command_line.append_switch(Some(&cef::CefString::from(
-        "disable-high-precision-scrolling",
-    )));
 }
 
 /*
@@ -724,6 +713,7 @@ pub(super) fn set_native_view_frame(
     } else {
         1.0
     };
+    pointer_focus::note_scale(window, scale);
     let scaled_x = (x * scale).round() as i32;
     let scaled_y = (y * scale).round() as i32;
     let scaled_width = (width * scale).round().max(1.0) as u32;

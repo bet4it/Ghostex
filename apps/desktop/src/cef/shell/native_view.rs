@@ -28,6 +28,25 @@ pub(crate) fn receive_native_pointer_focus(native_view: *mut c_void) {
     }
 }
 
+/// Delivers a wheel scroll to the browser shown in `native_view` at view coordinates `x`, `y`
+/// (the X11 adapter's lost-scroll delivery, CDXC:PlatformSupport 2026-10-27 in
+/// cef/linux_x11_lost_scroll.rs).
+#[cfg(target_os = "linux")]
+pub(crate) fn send_native_view_mouse_wheel(
+    native_view: *mut c_void,
+    x: i32,
+    y: i32,
+    modifiers: u32,
+    delta_x: i32,
+    delta_y: i32,
+) {
+    let browser = CEF_BROWSERS_BY_NATIVE_VIEW
+        .with(|browsers| browsers.borrow().get(&(native_view as usize)).cloned());
+    if let Some(host) = browser.and_then(|browser| browser.host()) {
+        host.send_mouse_wheel_event(Some(&cef::MouseEvent { x, y, modifiers }), delta_x, delta_y);
+    }
+}
+
 #[cfg(target_os = "linux")]
 thread_local! {
     static NATIVE_PARENT_BY_GPUI_WINDOW: RefCell<HashMap<gpui::WindowId, usize>> = RefCell::new(HashMap::new());
