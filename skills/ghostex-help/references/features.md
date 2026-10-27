@@ -3080,8 +3080,8 @@ microphone, allow it: on a Mac under Microphone in System Settings > Privacy &
 Security, on Windows with Microphone access and Let desktop apps access your
 microphone in Windows Settings > Privacy & security > Microphone.
 
-On an Android phone, the headset button in the top bar (on the session list
-and inside a session) starts the same conversation with the voice agent on the
+On an Android phone, the Voice button in the bar at the bottom of the session
+list (and the headset at the top of a session) starts the same conversation with the voice agent on the
 computer you are looking at. The key stays on that computer; the phone never
 stores one. When the agent shows a session, the voice screen offers an
 "Open <session>" button that opens its chat while the conversation keeps
@@ -3154,8 +3154,8 @@ sessions, so any client can control agents on any machine.
   If the connection fails while saved sessions are still visible, the Sessions
   list shows a warning with the failure reason and a Retry button. The warning
   clears once the list successfully refreshes.
-  To find a session on the phone, tap the search button at the top right of the
-  Sessions list and type part of its name or tag; it searches the open and
+  To find a session on the phone, tap Search in the bar at the bottom of the
+  Sessions list (beside Voice, Web and Machines) and type part of its name or tag; it searches the open and
   closed sessions of every connected computer, newest first, like the desktop's
   Sessions search. Tapping an open session opens it; tapping a closed one (shown
   with a hollow dot) brings it back on its computer and opens it. Closed

@@ -727,6 +727,23 @@ mod tests {
     }
 
     #[test]
+    fn mobile_summary_carries_dim_sleeping_sessions_only_when_on() {
+        let result = json!({ "ok": true, "projects": [], "sessions": [] });
+        let off = to_mobile_session_list(&result, &serde_json::Map::new());
+        assert!(off.get("dimSleepingSessions").is_none());
+        let mut settings = serde_json::Map::new();
+        settings.insert("dimSleepingSessions".to_string(), json!(false));
+        assert!(to_mobile_session_list(&result, &settings)
+            .get("dimSleepingSessions")
+            .is_none());
+        settings.insert("dimSleepingSessions".to_string(), json!(true));
+        assert_eq!(
+            to_mobile_session_list(&result, &settings)["dimSleepingSessions"],
+            json!(true)
+        );
+    }
+
+    #[test]
     fn format_active_time_invalid_is_dash() {
         assert_eq!(format_active_time(None), "-");
         assert_eq!(format_active_time(Some(&json!("not a date"))), "-");
