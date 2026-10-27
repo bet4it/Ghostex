@@ -238,7 +238,7 @@ pub use crate::sidebar_view::{
     WorkLinearProject, WorkPullRequest, WorktreeView, ARMED_ACTION_CLOSE_AFTER_DONE,
     ARMED_ACTION_DELAYED_SEND, DAEMON_RETRY_INTERVAL_MS, LOCAL_MACHINE_ID, MACHINE_STATE_CONNECTED,
     OTHER_SPACE_ID, RENAME_SHAKE_FRESH_MS, SESSIONS_LOADING_DETAIL, SESSIONS_LOADING_TITLE,
-    UNTAGGED_TAG_FILTER,
+    SUGGESTED_SHOWN_FIRST, UNTAGGED_TAG_FILTER,
 };
 pub use crate::sidebar_view::{
     collection_groups, machine_switch_memory, owner_project_group_id, plan_machine_switch_restore,

@@ -41,7 +41,9 @@ use super::link_chips::{
 use super::tooltips::{SidebarTooltipSpan, sidebar_tooltip, tooltip_with_gap};
 use crate::GhostexGpuiApp;
 use crate::app::helpers::*;
-use ghostex_gx_core::{SessionKey, SessionLink, SessionLinkTone, SessionLinks};
+use ghostex_gx_core::{
+    SUGGESTED_SHOWN_FIRST, SessionKey, SessionLink, SessionLinkTone, SessionLinks,
+};
 
 /// How long a × waits for its confirming click.
 const REMOVE_ARMED_FOR: Duration = Duration::from_secs(3);
@@ -75,6 +77,16 @@ pub(crate) enum SessionLinksListHost {
 /// The list's height for what it shows: a folded group is its header line, an open one its rows
 /// too. The host caps it (half the window for the card).
 pub(crate) fn session_links_list_height(links: Option<&SessionLinks>, folded: &[String]) -> f32 {
+    session_links_list_height_showing(links, folded, false)
+}
+
+/// `session_links_list_height`, with every suggestion shown (`all_suggested`) or the first
+/// `SUGGESTED_SHOWN_FIRST` and the "Show all" row.
+fn session_links_list_height_showing(
+    links: Option<&SessionLinks>,
+    folded: &[String],
+    all_suggested: bool,
+) -> f32 {
     let Some(links) = links else {
         return HEADER_HEIGHT + 60.0;
     };
@@ -99,12 +111,15 @@ pub(crate) fn session_links_list_height(links: Option<&SessionLinks>, folded: &[
     if !links.suggested.is_empty() {
         children.push(SECTION_HEIGHT);
         if open("suggested") {
+            let shown = suggestions_shown(links.suggested.len(), all_suggested);
             children.extend(
-                links
-                    .suggested
+                links.suggested[..shown]
                     .iter()
                     .map(|suggestion| entry_height(&suggestion.as_link())),
             );
+            if links.suggested.len() > SUGGESTED_SHOWN_FIRST {
+                children.push(SECTION_HEIGHT);
+            }
         }
     }
     let removed: Vec<f32> = links
@@ -125,6 +140,15 @@ pub(crate) fn session_links_list_height(links: Option<&SessionLinks>, folded: &[
     let gaps = children.len().saturating_sub(1) as f32 * 2.0;
     // The header, the scroll area's 6px padding top and bottom, and the 1px border.
     HEADER_HEIGHT + 12.0 + 2.0 + children.iter().sum::<f32>() + gaps
+}
+
+/// How many of `count` suggestions the list draws.
+fn suggestions_shown(count: usize, all_suggested: bool) -> usize {
+    if all_suggested {
+        count
+    } else {
+        count.min(SUGGESTED_SHOWN_FIRST)
+    }
 }
 
 /// The clear space a row's card needs so it opens beyond the row rather than over its buttons:
@@ -208,6 +232,8 @@ pub(crate) struct SessionLinksList {
     /// The groups folded shut, by id (`open`, `finished`, `suggested`, `removed`), as
     /// `sessionLinksFoldedGroups` says.
     folded: Vec<String>,
+    /// "Show all" was clicked under Suggested: every suggestion shows until "Show fewer".
+    all_suggested: bool,
     /// The tallest the list's own window may grow; past it the list scrolls.
     max_height: f32,
     /// The height the list last gave its window.
@@ -259,6 +285,7 @@ impl SessionLinksList {
             hovered: None,
             removing: Vec::new(),
             folded: folded_session_link_groups(),
+            all_suggested: false,
             max_height,
             fitted_height: None,
             scroll: ScrollHandle::new(),
@@ -641,9 +668,13 @@ impl SessionLinksList {
 
     /// The list's height for what it shows now, capped by `max_height`.
     pub(crate) fn fitted_height(&self) -> f32 {
-        session_links_list_height(self.shown_links().as_ref(), &self.folded)
-            .min(self.max_height)
-            .max(80.0)
+        session_links_list_height_showing(
+            self.shown_links().as_ref(),
+            &self.folded,
+            self.all_suggested,
+        )
+        .min(self.max_height)
+        .max(80.0)
     }
 
     /// The list as drawn: gxserver's, with the links removed here already under Removed.
@@ -722,6 +753,34 @@ impl SessionLinksList {
                     .child(count.to_string()),
             )
             .on_click(cx.listener(move |list, _, _, cx| list.toggle_section(section, cx)))
+            .into_any_element()
+    }
+
+    /// The row under the first suggestions: "Show all N" shows the rest in place, "Show fewer"
+    /// folds them again (CDXC:SessionLinks 2026-10-27 on `SUGGESTED_SHOWN_FIRST`). Drawn like a
+    /// section header, which is the list's other line that only shows or hides rows.
+    fn render_show_all_suggested(&self, count: usize, cx: &mut Context<Self>) -> AnyElement {
+        let label = if self.all_suggested {
+            "Show fewer".to_string()
+        } else {
+            format!("Show all {count}")
+        };
+        h_flex()
+            .id("session-links-suggested-show-all")
+            .h(px(SECTION_HEIGHT))
+            .px(px(8.0))
+            .items_center()
+            .text_size(px(11.0))
+            .text_color(chrome_ink().opacity(0.55))
+            .cursor_pointer()
+            .hover(|row| row.text_color(chrome_ink().opacity(0.85)))
+            .role(gpui::Role::Button)
+            .aria_label(label.clone())
+            .child(label)
+            .on_click(cx.listener(|list, _, _, cx| {
+                list.all_suggested = !list.all_suggested;
+                cx.notify();
+            }))
             .into_any_element()
     }
 
@@ -815,8 +874,12 @@ impl Render for SessionLinksList {
                 cx,
             ));
             if !self.is_folded("suggested") {
-                for suggestion in &links.suggested {
+                let shown = suggestions_shown(links.suggested.len(), self.all_suggested);
+                for suggestion in &links.suggested[..shown] {
                     body = body.child(self.render_suggestion(suggestion, cx));
+                }
+                if links.suggested.len() > SUGGESTED_SHOWN_FIRST {
+                    body = body.child(self.render_show_all_suggested(links.suggested.len(), cx));
                 }
             }
         }

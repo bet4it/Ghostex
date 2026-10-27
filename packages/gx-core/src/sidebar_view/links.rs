@@ -10,6 +10,12 @@
 
 use ghostex_gx_protocol::presentation::PresentationSessionLinks;
 
+/// Suggestions a links list shows before its "Show all" row.
+///
+/// CDXC:SessionLinks 2026-10-27 DECISION:
+/// User (Q669): "5, then a Show all row". The Suggested group shows its five newest; when there are more, a "Show all N" row under them shows the rest in place and turns into "Show fewer", which folds them again. gxserver sends up to 40. Every list draws it the same way: the desktop's links list (the header's dropdown and the sidebar's card), the web build's (the same view) and the phone's sheet (apps/mobile/app/src/chat/native/sessionLinks.ts keeps the same number).
+pub const SUGGESTED_SHOWN_FIRST: usize = 5;
+
 /// A session's links, in the client's own vocabulary.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SessionLinks {

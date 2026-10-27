@@ -25,8 +25,10 @@ use super::{
     parse_github_url, stored_session_links, SessionLinkKind, SessionLinkRef, SessionLinkSource,
 };
 
-/// Suggestions a session shows at most.
-const MAX_SUGGESTED: usize = 5;
+/// Suggestions a session sends at most: the lists show five and a "Show all" row for the rest
+/// (CDXC:SessionLinks 2026-10-27 on `SUGGESTED_SHOWN_FIRST` in packages/gx-core/src/sidebar_view/links.rs).
+/// The transcript scan keeps no more mentions than this either (`MAX_MENTIONS`).
+const MAX_SUGGESTED: usize = 40;
 /// Removed links the "Removed (N)" group lists at most.
 const MAX_REMOVED: usize = 30;
 

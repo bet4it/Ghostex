@@ -75,7 +75,7 @@ ghostex orchestrator start-thread --title "<its task, 3 to 6 words>" --task "<br
 - When a thread's task is a Linear ticket or a GitHub issue, link it to the thread right after
   `start-thread`: `ghostex link add <ABC-123|url|#123|owner/repo#123> --session <thread-ref>`
   (add `--issue` for a bare `#123` that is an issue, not a PR). A ticket named only in the brief
-  does not link by itself; it only shows under the thread's Suggested links.
+  does not link by itself and is not even suggested.
 - Threads that need the same files run one after another. Use `--worktree` only when running them
   in parallel really matters; the thread then works on its own branch in its own folder. Without it
   the thread works in the project folder.

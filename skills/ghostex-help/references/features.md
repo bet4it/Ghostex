@@ -3691,14 +3691,17 @@ its own), the issue or Linear ticket its branch names, the PRs and issues the
 agent opened (`gh pr create`, `gh issue create`), the issues a linked PR closes,
 and the Linear tickets you name in the chat yourself (with a Linear API key set;
 only IDs of the Linear teams that key sees count). Only your own messages link a
-ticket: one only an agent named (in its reply, or in another agent's message or a
-thread report sent into the chat) is offered under Suggested instead, to link with
-one click, and a ticket ID in a tool's output, a file the agent read, a quoted (`>`)
-line or a fenced block counts for nothing. A ticket linked from an agent's words
-before 2026-10-27 moved to Suggested unless you pinned it. An agent adds one it works
-on with `ghostex link add <url|#123|ABC-123>` from its own terminal. A PR or issue
-link of the project's own repos that was only pasted into the chat is offered under
-Suggested too. The work area header shows up
+ticket: one only the session's agent named in its reply is offered under Suggested
+instead, to link with one click. A ticket ID or link in another agent's message, a
+thread report or an orchestrator's brief, in a tool's output, a file the agent read,
+a quoted (`>`) line or a fenced block counts for nothing, neither link nor
+suggestion. A ticket linked that way before 2026-10-27 left the list unless you
+pinned it (or comes back under Suggested when the agent's own reply named it). An
+agent adds one it works on with `ghostex link add <url|#123|ABC-123>` from its own
+terminal. A PR or issue link of the project's own repos that you or the session's
+agent only wrote in the chat is offered under Suggested too. Suggested shows the five
+newest; when there are more, Show all under them lists the rest, and Show fewer folds
+them again. The work area header shows up
 to three of them after the session's title, open work first, each with its number,
 state and checks, then +N for the rest (or a List pill when they all fit), which
 opens the whole list: each link with its icon (a branch for a pull request, the
