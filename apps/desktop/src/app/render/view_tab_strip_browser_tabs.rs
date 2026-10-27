@@ -184,12 +184,9 @@ impl GhostexGpuiApp {
                     })
             })
             .when(asleep && !is_showing, |this| this.opacity(0.72))
-            .managed_tooltip_with_placement(
-                ManagedTooltipPlacement::Below,
-                move |window, cx| {
-                    titlebar_tooltip(view_tab_strip_tooltip_text(&tooltip_title), window, cx)
-                },
-            )
+            .managed_tooltip_with_placement(ManagedTooltipPlacement::Below, move |window, cx| {
+                titlebar_tooltip(view_tab_strip_tooltip_text(&tooltip_title), window, cx)
+            })
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, _event: &MouseDownEvent, window, cx| {

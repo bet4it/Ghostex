@@ -12,7 +12,6 @@ pub(crate) mod general;
 pub(crate) mod hotkeys;
 pub(crate) mod integrations;
 pub(crate) mod machine_picker;
-pub(crate) mod windows_link_notice;
 pub(crate) mod open_forms;
 pub(crate) mod open_targets;
 pub(crate) mod orchestrator_playbook;
@@ -22,6 +21,7 @@ pub(crate) mod remote;
 pub(crate) mod theme;
 pub(crate) mod voice_agent;
 pub(crate) mod voice_agent_history;
+pub(crate) mod windows_link_notice;
 pub(crate) mod workspaces;
 
 use super::model::SettingsTabId;

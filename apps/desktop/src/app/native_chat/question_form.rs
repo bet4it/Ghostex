@@ -389,7 +389,9 @@ impl NativeChatView {
                 .line_height(px(18.0 * s))
                 .text_color(status_color)
                 .when(!status.is_empty(), |slot| slot.child(status))
-                .when(status_is_hint, |slot| slot.child(ask_info_hint(SKIPPED_HINT, p)))
+                .when(status_is_hint, |slot| {
+                    slot.child(ask_info_hint(SKIPPED_HINT, p))
+                })
                 .into_any_element(),
             self.skip_all_button(id, enabled, p, cx),
             self.ask_primary_button(

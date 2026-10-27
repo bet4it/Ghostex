@@ -255,12 +255,9 @@ impl GhostexGpuiApp {
             // Under the tab: beside it the bubble covers the neighbouring tab. With window glass
             // enabled on macOS or Windows, its frosted tooltip host draws it above the page;
             // otherwise it stays in this window, nudged clear of the page where space allows.
-            .managed_tooltip_with_placement(
-                ManagedTooltipPlacement::Below,
-                move |window, cx| {
-                    titlebar_tooltip(view_tab_strip_tooltip_text(&tooltip), window, cx)
-                },
-            )
+            .managed_tooltip_with_placement(ManagedTooltipPlacement::Below, move |window, cx| {
+                titlebar_tooltip(view_tab_strip_tooltip_text(&tooltip), window, cx)
+            })
             .on_mouse_down(
                 MouseButton::Left,
                 cx.listener(move |this, _event: &MouseDownEvent, window, cx| {
