@@ -3942,6 +3942,21 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   Claude and Codex histories stay separate. Switching account buttons changes
   the live limits; the shared history remains the same. Totals come from saved
   conversation logs, so they may omit usage whose logs are missing.
+- An extension you install from the Store opens where it says on its card. A view
+  extension (Canvas, Tower) gets a view tab in the view picker. A terminal-pane
+  extension, such as Lazygit, opens its command in a terminal split beside the
+  focused pane (or a new tab: Open location on its Settings page), in the active
+  project's folder. Every enabled extension that opens on its own (terminal panes,
+  views, modals) is an **Open <name>** row in Quick Access's Commands (type its name),
+  and is listed in the header's ⋯ menu > Extensions; a pinned extension also has its
+  icon in the work area header. A newly installed terminal-pane extension starts
+  pinned; turn **Pinned** off on its Settings page to remove the icon. A
+  terminal-pane extension needs its command on this computer (Lazygit needs
+  `lazygit`): when it is missing, opening the extension says so, and on a Mac with
+  Homebrew its **Install with Homebrew** button runs `brew install <command>` in a
+  new terminal; open the extension again once it finishes. Terminal-pane extensions
+  run only for local projects. CLI: `ghostex extensions list`, `ghostex extensions
+  install <id>`, `ghostex extensions state <id> --set pinned=true`.
 - **Claude** is a built-in extension, off by default: turn it on with its switch
   in Settings > Extensions > Store (Features) to use claude.ai inside Ghostex.
   It adds a Claude button to the sidebar's bottom bar, just left of Commands.

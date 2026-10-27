@@ -120,9 +120,9 @@ pub use crate::project_docs::{
 pub use crate::quick_access::{
     quick_access_store_groups, FixedClock, HotkeyPlatform, HotkeyPlatformWire, QuickAccessClock,
     QuickAccessCollection, QuickAccessContext, QuickAccessController, QuickAccessData,
-    QuickAccessEffect, QuickAccessHiddenItems, QuickAccessOpenTarget, QuickAccessRecoveredDraft,
-    QuickAccessRunState, QuickAccessSession, QuickAccessStorage, QuickAccessStoreGroup,
-    QuickAccessTab, QuickAccessUpdate,
+    QuickAccessEffect, QuickAccessExtension, QuickAccessHiddenItems, QuickAccessOpenTarget,
+    QuickAccessRecoveredDraft, QuickAccessRunState, QuickAccessSession, QuickAccessStorage,
+    QuickAccessStoreGroup, QuickAccessTab, QuickAccessUpdate,
 };
 pub use crate::renderer_commands::*;
 pub use crate::selectors::{

@@ -146,6 +146,8 @@ impl GhostexGpuiApp {
             GpuiAppToastAction::NativeProjectPathAction { payload, .. } => {
                 self.receive_sidebar_native_project_path_action_payload(&payload.to_string(), cx);
             }
+            // Raised only by the app's terminal extensions, which a page does not open.
+            GpuiAppToastAction::RunInNewTerminal { .. } => {}
         }
     }
 

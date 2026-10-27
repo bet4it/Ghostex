@@ -170,6 +170,14 @@ pub(crate) enum GpuiAppToastAction {
         label: String,
         payload: serde_json::Value,
     },
+    /// A command run in a new terminal split right of `pane_id`, such as a terminal extension's
+    /// Install with Homebrew. `pane_id` is the Agents workspace pane (`WorkspacePaneId`).
+    RunInNewTerminal {
+        label: String,
+        title: String,
+        command: String,
+        pane_id: u64,
+    },
 }
 
 impl GpuiAppToastAction {
@@ -177,7 +185,9 @@ impl GpuiAppToastAction {
         match self {
             Self::OpenAccounts { .. } => "Open Accounts",
             Self::OpenViewSettings => "Open Settings",
-            Self::NativeProjectPathAction { label, .. } => label,
+            Self::NativeProjectPathAction { label, .. } | Self::RunInNewTerminal { label, .. } => {
+                label
+            }
         }
     }
 }

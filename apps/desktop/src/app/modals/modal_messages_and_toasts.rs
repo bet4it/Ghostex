@@ -214,6 +214,14 @@ impl GhostexGpuiApp {
             GpuiAppToastAction::NativeProjectPathAction { payload, .. } => {
                 self.receive_sidebar_native_project_path_action_payload(&payload.to_string(), cx);
             }
+            GpuiAppToastAction::RunInNewTerminal {
+                title,
+                command,
+                pane_id,
+                ..
+            } => {
+                self.run_toast_command_in_new_terminal(title, command, *pane_id, cx);
+            }
         }
     }
 

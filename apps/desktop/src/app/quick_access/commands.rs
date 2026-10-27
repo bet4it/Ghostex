@@ -1,5 +1,5 @@
 //! The Quick Access Commands rows whose message had no owner: All Automations, Open File/Folder
-//! Location and every "Open In: X".
+//! Location, every "Open In: X" and every "Open <extension>".
 //!
 //! CDXC:AppModal 2026-09-25 WHY:
 //! These rows post `openAutomationsPage`, `openCurrentProjectInFinder` and
@@ -23,8 +23,9 @@ use crate::app::helpers::*;
 use crate::*;
 
 /// The `sidebarCommand` types this file answers.
-pub(crate) const QUICK_ACCESS_COMMAND_ROW_TYPES: [&str; 4] = [
+pub(crate) const QUICK_ACCESS_COMMAND_ROW_TYPES: [&str; 5] = [
     ghostex_gx_core::APP_LIFECYCLE_MESSAGE_TYPE,
+    "launchExtension",
     "openAutomationsPage",
     "openCurrentProjectInFinder",
     "openCurrentProjectInTarget",
@@ -46,6 +47,13 @@ impl GhostexGpuiApp {
             ghostex_gx_core::APP_LIFECYCLE_MESSAGE_TYPE => {
                 if let Some(action) = command.get("action").and_then(Value::as_str) {
                     self.run_app_lifecycle_action(action, cx);
+                }
+            }
+            // An "Open <extension>" row (`extensions/launch.rs`); the web build lists none.
+            #[cfg(not(target_family = "wasm"))]
+            "launchExtension" => {
+                if let Some(extension_id) = command.get("extensionId").and_then(Value::as_str) {
+                    self.launch_extension_from_quick_access(extension_id, window, cx);
                 }
             }
             "openAutomationsPage" => {
