@@ -3475,8 +3475,8 @@ with For later on its card: it stops counting as unanswered (no pink dot, no cou
 on the chat's ? pill, no notification) but stays answerable, and Back to
 unanswered on the card undoes it. Answering it ends For later by itself. The
 choice is kept by Ghostex, so the computer, the web page and the phone agree.
-The ? pill on the chat's working row lists the chat's generated content: question
-forms, HTML pages (with or without questions) and charts, each row marked HTML,
+The ? pill on the chat's working row opens Chat Resources, a list of the chat's
+generated content: question forms, HTML pages (with or without questions) and charts, each row marked HTML,
 Q&A or Chart. All, Html, Q&A and Charts at the top pick what it shows. Questions
 sit in folding sections (Unanswered, For later, Answered, Withdrawn), pages that
 ask nothing under Pages and charts under Charts, newest first, each with its

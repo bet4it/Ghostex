@@ -278,7 +278,7 @@ impl NativeChatView {
         let s = p.scale;
         let header = super::chat_pills::pill_menu_header(
             "titlebar/question-mark.svg",
-            "Content",
+            "Chat Resources",
             text(&open, "summary"),
             None,
             p,
@@ -322,7 +322,7 @@ impl NativeChatView {
                 }))
                 .child(super::chat_pills::pill_menu_column(
                     "chat-questions",
-                    "Generated content",
+                    "Chat Resources",
                     header,
                     Some(
                         div()

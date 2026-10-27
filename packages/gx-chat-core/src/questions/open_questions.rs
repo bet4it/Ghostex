@@ -399,7 +399,7 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
         count,
         text: "Previous question \u{2191}".to_string(),
         accessibility_label: match count {
-            0 => format!("Questions: {summary}. Show the list"),
+            0 => format!("Chat Resources: {summary}. Show the list"),
             1 => "1 unanswered question: go to it".to_string(),
             _ => format!("{count} unanswered questions: go to the previous one"),
         },
