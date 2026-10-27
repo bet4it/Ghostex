@@ -60,6 +60,10 @@ impl SessionLinkSource {
 /// The `via` of a `Mentioned` link that joined from the user's own words.
 pub(crate) const MENTIONED_BY_USER: &str = "user";
 
+/// The `via` of a removed `Mentioned` item that was a suggestion a person dismissed with its ×
+/// (`dismiss_suggestion`): Restore puts it back under Suggested, not among the links.
+pub(crate) const DISMISSED_SUGGESTION: &str = "suggestion";
+
 /// One stored link.
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct StoredSessionLink {
@@ -138,6 +142,48 @@ impl StoredSessionLinks {
         changed
     }
 
+    /// A suggestion a person dismissed with its ×: it goes under Removed (so Restore brings it
+    /// back as a suggestion) and the chat never suggests it again. Returns whether anything
+    /// changed.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 DECISION:
+    /// User: "i should be able to press x on suggested ones to remove them also please". A Suggested row has the same × as a linked one (click twice to confirm). The dismissed suggestion is kept like a removed link, on `removed` with a `removedItems` entry marked `DISMISSED_SUGGESTION`, so it leaves for good, shows under Removed ("Mentioned in chat") and Restore puts it back under Suggested. A Linear ticket the user later types themselves still links (`relink_typed`).
+    pub(crate) fn dismiss_suggestion(&mut self, link: SessionLinkRef) -> bool {
+        let key = link.key();
+        if self.contains(&key) {
+            return self.remove(&key);
+        }
+        let changed = self.remove(&key);
+        self.removed_items.retain(|item| item.link.key() != key);
+        self.removed_items.push(StoredSessionLink {
+            link,
+            source: SessionLinkSource::Mentioned,
+            via: Some(DISMISSED_SUGGESTION.to_string()),
+            url: None,
+            added_at: Some(now_iso()),
+        });
+        changed
+    }
+
+    /// Whether `key` is on Removed only because a person dismissed it as a suggestion.
+    pub(crate) fn is_dismissed_suggestion(&self, key: &str) -> bool {
+        self.is_removed(key)
+            && self.removed_items.iter().any(|item| {
+                item.link.key() == key && item.via.as_deref() == Some(DISMISSED_SUGGESTION)
+            })
+    }
+
+    /// A Linear ticket the user typed after dismissing it as a suggestion: off Removed, so the
+    /// pass links it like any ticket the user names. Returns whether anything changed.
+    pub(crate) fn relink_typed(&mut self, key: &str) -> bool {
+        if !self.is_dismissed_suggestion(key) {
+            return false;
+        }
+        self.removed.retain(|removed| removed != key);
+        self.removed_items.retain(|item| item.link.key() != key);
+        true
+    }
+
     /// Adds a link a person (or `ghostex link add`) asked for, taking it off the removed list.
     pub(crate) fn add_by_hand(&mut self, link: StoredSessionLink) -> bool {
         let key = link.link.key();
@@ -196,6 +242,10 @@ impl StoredSessionLinks {
         self.removed_items = kept;
         let mut changed = was_removed;
         for mut item in back {
+            // A dismissed suggestion goes back under Suggested, not among the links.
+            if item.via.as_deref() == Some(DISMISSED_SUGGESTION) {
+                continue;
+            }
             // A person brought it back, so `recheck_mentions` leaves it alone.
             if item.source == SessionLinkSource::Mentioned && item.via.is_none() {
                 item.via = Some(MENTIONED_BY_USER.to_string());
@@ -396,6 +446,29 @@ mod tests {
         // Dropped, not removed: the user naming it later still links it.
         assert!(stored.removed.is_empty());
         assert!(!stored.recheck_mentions(&[]));
+    }
+
+    #[test]
+    fn a_dismissed_suggestion_stays_out_until_restored_or_typed() {
+        let link = SessionLinkRef::Linear {
+            identifier: "SPX-7".to_string(),
+        };
+        let mut stored = StoredSessionLinks::default();
+        assert!(stored.dismiss_suggestion(link.clone()));
+        assert!(stored.is_removed("linear:SPX-7"));
+        assert!(stored.is_dismissed_suggestion("linear:SPX-7"));
+        // The pass cannot bring it back by itself.
+        assert!(!stored.add_found(linear("SPX-7", SessionLinkSource::Mentioned, None)));
+        // Restore puts it back under Suggested: off Removed, not linked.
+        assert!(stored.restore("linear:SPX-7"));
+        assert!(!stored.is_removed("linear:SPX-7") && !stored.contains("linear:SPX-7"));
+        // Dismissed again, then typed by the user: it may link.
+        stored.dismiss_suggestion(link);
+        assert!(stored.relink_typed("linear:SPX-7"));
+        assert!(stored.add_found(linear("SPX-7", SessionLinkSource::Mentioned, Some("user"))));
+        // A link a person removed is not one the user's typing brings back.
+        stored.remove("linear:SPX-7");
+        assert!(!stored.relink_typed("linear:SPX-7"));
     }
 
     #[test]

@@ -174,10 +174,17 @@ impl SessionLinks {
             .into_iter()
             .partition(|link| keys.contains(&link.key));
         links.items = kept;
+        // A suggestion's × dismisses it, which also lands it under Removed.
+        let (dismissed, suggested): (Vec<SuggestedSessionLink>, Vec<SuggestedSessionLink>) = links
+            .suggested
+            .into_iter()
+            .partition(|link| keys.contains(&link.key));
+        links.suggested = suggested;
         let mut removed: Vec<SuggestedSessionLink> = gone
             .iter()
-            .filter(|link| !links.removed.iter().any(|known| known.key == link.key))
             .map(SessionLink::as_removed)
+            .chain(dismissed)
+            .filter(|link| !links.removed.iter().any(|known| known.key == link.key))
             .collect();
         removed.append(&mut links.removed);
         links.removed = removed;
@@ -697,6 +704,19 @@ mod tests {
         };
         assert_eq!(published.without_removed(&["#2".to_string()]), published);
         assert_eq!(links().without_removed(&[]), links());
+    }
+
+    #[test]
+    fn a_dismissed_suggestion_leaves_suggested_at_once_and_leads_removed() {
+        let mut list = links();
+        list.suggested = vec![links().items[0].as_removed(), links().items[1].as_removed()];
+        list.items.clear();
+        let after = list.without_removed(&["#2".to_string()]);
+        let keys = |links: &[SuggestedSessionLink]| -> Vec<String> {
+            links.iter().map(|link| link.key.clone()).collect()
+        };
+        assert_eq!(keys(&after.suggested), vec!["#1"]);
+        assert_eq!(keys(&after.removed), vec!["#2"]);
     }
 
     #[test]

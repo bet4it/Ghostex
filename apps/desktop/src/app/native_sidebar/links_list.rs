@@ -266,8 +266,10 @@ impl SessionLinksList {
                 let delay = app.read(cx).configured_tooltip_delay();
                 // A removal gxserver has published needs no holding any more.
                 if let Some(links) = &links {
-                    list.removing
-                        .retain(|key| links.items.iter().any(|link| &link.key == key));
+                    list.removing.retain(|key| {
+                        links.items.iter().any(|link| &link.key == key)
+                            || links.suggested.iter().any(|link| &link.key == key)
+                    });
                 }
                 if links != list.links || folded != list.folded || delay != list.tooltip_delay {
                     list.links = links;
@@ -790,7 +792,11 @@ impl SessionLinksList {
         suggestion: &ghostex_gx_core::SuggestedSessionLink,
         cx: &mut Context<Self>,
     ) -> AnyElement {
-        let link = suggestion.url.clone().unwrap_or_default();
+        // A Linear ticket not read yet has no URL; its ID links it as well.
+        let link = suggestion
+            .url
+            .clone()
+            .unwrap_or_else(|| suggestion.label.clone());
         let sidebar_id = self.key.to_sidebar_session_id();
         let add = Self::icon_button(
             format!("session-link-add-{}", suggestion.key),
@@ -808,7 +814,21 @@ impl SessionLinksList {
             },
             cx,
         );
-        self.render_entry(&suggestion.as_link(), add, cx)
+        // Its × (on hover, twice to confirm, like a linked row's) dismisses it for good: it goes
+        // under Removed (CDXC:SessionLinks 2026-10-27 on `dismiss_suggestion` in
+        // server/src/session_links/store.rs).
+        let link = suggestion.as_link();
+        let hovered = self.hovered.as_deref() == Some(link.key.as_str());
+        let armed = self.armed.as_deref() == Some(link.key.as_str());
+        let actions = h_flex()
+            .flex_shrink_0()
+            .gap(px(2.0))
+            .child(add)
+            .when(hovered || armed, |actions| {
+                actions.child(self.render_remove_button(&link, cx))
+            })
+            .into_any_element();
+        self.render_entry(&link, actions, cx)
     }
 }
 
@@ -895,6 +915,21 @@ impl Render for SessionLinksList {
                     .child("This session has no links."),
             );
         }
+        // + opens the "Add a link" dialog, which takes the keyboard (this popup never does), and
+        // closes the list (CDXC:SessionLinks 2026-10-27 in window/add_session_link_modal.rs).
+        let add_link = Self::icon_button(
+            "session-links-add".to_string(),
+            "titlebar/plus.svg",
+            "Add a link",
+            |list, _, window, cx| {
+                let key = list.key.clone();
+                let _ = list.main_app.update(cx, |app, cx| {
+                    app.open_gpui_add_session_link_modal(&key, cx);
+                });
+                list.close(window, cx);
+            },
+            cx,
+        );
         let card = self.host == SessionLinksListHost::Card;
         div()
             .id("session-links-list")
@@ -941,7 +976,9 @@ impl Render for SessionLinksList {
                                     .text_size(px(12.0))
                                     .text_color(chrome_ink().opacity(0.55))
                                     .child(summary),
-                            ),
+                            )
+                            .child(div().flex_1())
+                            .child(div().pr(px(8.0)).child(add_link)),
                     )
                     .child(
                         div().relative().w_full().min_h_0().flex_1().child(

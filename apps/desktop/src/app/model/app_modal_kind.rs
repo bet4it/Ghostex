@@ -58,6 +58,9 @@ pub(crate) enum GpuiAppModalKind {
     /// Link a work-mode session to a PR, Linear issues, a Linear project or a GitHub issue, from
     /// the session's Link to submenu (work_link_picker_modal_lifecycle.rs).
     WorkLinkPicker,
+    /// Link a PR, an issue or a Linear ticket to a session by hand, from its links list's +
+    /// (add_session_link_modal_lifecycle.rs).
+    AddSessionLink,
     /// "Paste potentially unsafe text?" for terminal paste protection (terminal_input/paste_and_shortcuts.rs).
     TerminalPasteConfirm,
 }
@@ -105,6 +108,7 @@ impl GpuiAppModalKind {
             "feedback" => Some(Self::Feedback),
             "createLinearTicket" => Some(Self::CreateLinearTicket),
             "workLinkPicker" => Some(Self::WorkLinkPicker),
+            "addSessionLink" => Some(Self::AddSessionLink),
             "terminalPasteConfirm" => Some(Self::TerminalPasteConfirm),
             _ => None,
         }
@@ -150,6 +154,7 @@ impl GpuiAppModalKind {
             Self::Feedback => "feedback",
             Self::CreateLinearTicket => "createLinearTicket",
             Self::WorkLinkPicker => "workLinkPicker",
+            Self::AddSessionLink => "addSessionLink",
             Self::TerminalPasteConfirm => "terminalPasteConfirm",
         }
     }
@@ -192,6 +197,7 @@ impl GpuiAppModalKind {
             Self::Feedback => "Ghostex Send Bug / Feedback",
             Self::CreateLinearTicket => "Ghostex Create Linear Ticket",
             Self::WorkLinkPicker => "Ghostex Link Session",
+            Self::AddSessionLink => "Ghostex Add a Link",
             Self::TerminalPasteConfirm => "Ghostex Paste",
         }
     }
@@ -366,6 +372,10 @@ impl GpuiAppModalKind {
                 px(crate::app::window::WORK_LINK_PICKER_MODAL_WIDTH),
                 px(crate::app::window::WORK_LINK_PICKER_MODAL_INITIAL_HEIGHT),
             ),
+            Self::AddSessionLink => size(
+                px(crate::app::window::ADD_SESSION_LINK_MODAL_WIDTH),
+                px(crate::app::window::ADD_SESSION_LINK_MODAL_INITIAL_HEIGHT),
+            ),
             Self::Extension(id) => extension_modal_window_size(id),
             // `TERMINAL_PASTE_CONFIRM_MODAL_WIDTH` / `_INITIAL_HEIGHT` in window/terminal_paste_confirm_modal.rs.
             Self::TerminalPasteConfirm => size(px(440.0), px(180.0)),
@@ -498,7 +508,8 @@ impl GpuiAppModalKind {
             | Self::MakeCoordinator
             | Self::CoordinatorDetails
             | Self::CreateLinearTicket
-            | Self::WorkLinkPicker => serde_json::Value::Null,
+            | Self::WorkLinkPicker
+            | Self::AddSessionLink => serde_json::Value::Null,
             Self::UpdateAvailable => serde_json::json!({
                 "modal": self.modal_id(),
                 "type": "open",

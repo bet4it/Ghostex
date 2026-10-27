@@ -569,7 +569,7 @@ mod tests {
     fn only_the_sessions_own_agent_and_the_user_suggest() {
         let footer = "\n\nMessage from another agent\nAgent: claude\nSession: Thread\n\
                       Session ID: G1\nAgent ID: claude\nAgent Session ID: a\nReply to: S9:P1:G1";
-        let rows = vec![
+        let rows = [
             // A thread's report and a brief from the orchestrator, both with sender blocks.
             claude_row(
                 "user",

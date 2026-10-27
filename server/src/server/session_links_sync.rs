@@ -213,6 +213,8 @@ pub(crate) fn run_session_links_refresh_once(
                     changed |= stored.recheck_mentions(&links.linear_mentions);
                     for identifier in links.linear_mentions {
                         if of_linear_team(&identifier, &team_keys) {
+                            // Dismissed as a suggestion, then typed by the user: it links.
+                            changed |= stored.relink_typed(&format!("linear:{identifier}"));
                             changed |= stored.add_found(found(
                                 SessionLinkRef::Linear { identifier },
                                 SessionLinkSource::Mentioned,

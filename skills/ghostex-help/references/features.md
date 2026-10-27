@@ -3707,7 +3707,13 @@ agent adds one it works on with `ghostex link add <url|#123|ABC-123>` from its o
 terminal. A PR or issue link of the project's own repos that you or the session's
 agent only wrote in the chat is offered under Suggested too. Suggested shows the five
 newest; when there are more, Show all under them lists the rest, and Show fewer folds
-them again. The work area header shows up
+them again. A suggestion's × (click it twice, like a linked link's) dismisses it for
+good: it moves under Removed, where Restore puts it back under Suggested, and a Linear
+ticket you later type yourself still links. The + in the list's header (Add on the
+phone) links one by hand: type `SPX-123`, `#123` or `owner/repo#123`, or paste a
+GitHub or Linear link, and press Enter; Ghostex asks GitHub whether a bare number is
+a PR or an issue, and says so under the field when it can't read it or GitHub doesn't
+know it. The work area header shows up
 to three of them after the session's title, open work first, each with its number,
 state and checks, then +N for the rest (or a List pill when they all fit), which
 opens the whole list: each link with its icon (a branch for a pull request, the

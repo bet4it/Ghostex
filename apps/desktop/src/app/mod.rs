@@ -45,6 +45,7 @@ pub(crate) mod claude_web;
 pub(crate) mod command_pane_auto_minimize;
 pub(crate) mod command_pane_remote_action;
 pub(crate) mod coordinator_details_modal_lifecycle;
+pub(crate) mod add_session_link_modal_lifecycle;
 pub(crate) mod create_linear_ticket_modal_lifecycle;
 pub(crate) mod create_worktree_modal_lifecycle;
 pub(crate) mod delayed_send;

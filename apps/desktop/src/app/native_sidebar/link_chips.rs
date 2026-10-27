@@ -243,34 +243,38 @@ impl GhostexGpuiApp {
     /// offer for a merged PR (work_chips.rs), which takes the line while it waits.
     pub(crate) fn native_session_has_second_line(&self, session: &NativeSidebarSession) -> bool {
         let row = self.native_session_links_row(session);
-        session.work.as_ref().is_some_and(|work| work.offer_cleanup)
-            || !row.line.is_empty()
-            || row.badge.is_some_and(|badge| badge.suggested)
+        session.work.as_ref().is_some_and(|work| work.offer_cleanup) || !row.line.is_empty()
     }
 
     /// The badge a row's title shows with the Badge option: the number of links (the ones not
-    /// pinned), coloured by the most pressing one. Hidden while the row is hovered, like the row's
-    /// other badges. A session's quiet suggestions badge sits on the line under its name instead.
+    /// pinned), coloured by the most pressing one, or a session's quiet suggestions badge (muted
+    /// and dashed). Hidden while the row is hovered, like the row's other badges.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 DECISION:
+    /// User: "i see the links tag is shown on 2nd row, this is wrong it should always be on same row as header please (so all are singly row in sidebar)". The quiet suggestions badge sits on the title's line between the title and the time, like the linked badge, and the title truncates to make room; every row stays one line high. Supersedes the 2026-10-24 decision that put it on a line under the name ("show the option to link a thread with issues/prs etc under the name of the thread instead of on the same thread title row").
     pub(super) fn render_native_session_links_badge(
         &self,
         session: &NativeSidebarSession,
         appearance: &SidebarAppearance,
     ) -> Option<AnyElement> {
         let badge = self.native_session_links_row(session).badge?;
-        // The quiet suggestions badge sits on the line under the name instead
-        // (`render_native_session_link_line`).
-        if badge.suggested {
-            return None;
-        }
         let color = if badge.suggested {
             appearance.muted
         } else {
             session_link_tone_color(badge.tone)
         };
-        Some(
-            session_links_badge_body(badge.count, color, badge.suggested, appearance.scale)
-                .into_any_element(),
-        )
+        let body = session_links_badge_body(badge.count, color, badge.suggested, appearance.scale);
+        Some(if badge.suggested {
+            body.id(format!(
+                "native-session-links-suggested-{}",
+                session.session_id
+            ))
+            .role(gpui::Role::Image)
+            .aria_label(format!("{} suggested links", badge.count))
+            .into_any_element()
+        } else {
+            body.into_any_element()
+        })
     }
 
     /// The row's links line (the Always, Selected session and Open work only options, and the
@@ -290,29 +294,7 @@ impl GhostexGpuiApp {
         let row = self.native_session_links_row(session);
         let scale = appearance.scale;
         if row.line.is_empty() {
-            // CDXC:SessionLinks 2026-10-24 DECISION:
-            // User: "show the option to link a thread with issues/prs etc under the name of the thread instead of on the same thread title row", which they narrowed to "i said that for the case where it's showing me the link icon and telling me there's suggested links". The quiet suggestions badge of a session with suggestions but no links sits on a line under the session's name, where its chips would be; the regular Badge for linked links stays on the title row.
-            let badge = row.badge.filter(|badge| badge.suggested)?;
-            return Some(
-                h_flex()
-                    .h(px(LINK_LINE_HEIGHT * scale))
-                    .flex_shrink_0()
-                    .w_full()
-                    .min_w_0()
-                    .overflow_hidden()
-                    // Under the title.
-                    .pl(px((indent + 15.0 + 6.0) * scale))
-                    .child(
-                        session_links_badge_body(badge.count, appearance.muted, true, scale)
-                            .id(format!(
-                                "native-session-links-suggested-{}",
-                                session.session_id
-                            ))
-                            .role(gpui::Role::Image)
-                            .aria_label(format!("{} suggested links", badge.count)),
-                    )
-                    .into_any_element(),
-            );
+            return None;
         }
         let links: &SessionLinks = session.links.as_deref()?;
         let items: Vec<SessionLink> = row

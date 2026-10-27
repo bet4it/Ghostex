@@ -167,7 +167,7 @@ impl GhostexGpuiApp {
     ///
     /// CDXC:SessionLinks 2026-10-27 WHY:
     /// The links card's pin, remove and undo, a suggestion's link and the card's refresh were sent only for this computer's sessions, so a remote machine's session opened no card and its links could not be changed. They go to the machine that owns the session, like a remote row's sleep or close (gx_store/sidebar_remote.rs); its gxserver allows these calls from a remote client (server/src/protocol.rs).
-    fn session_links_machine(
+    pub(crate) fn session_links_machine(
         &self,
         session: &SessionKey,
     ) -> Option<Option<crate::app::model::GpuiRemoteGxserverRequestTarget>> {

@@ -33,6 +33,7 @@ fn opens_in_browser(kind: GpuiAppModalKind) -> bool {
             | GpuiAppModalKind::Feedback
             | GpuiAppModalKind::CreateLinearTicket
             | GpuiAppModalKind::WorkLinkPicker
+            | GpuiAppModalKind::AddSessionLink
     )
 }
 

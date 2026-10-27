@@ -37,6 +37,7 @@ pub(crate) mod project_views {
     include!(concat!(env!("OUT_DIR"), "/project_views.rs"));
 }
 mod coordinator_details_modal_lifecycle;
+mod add_session_link_modal_lifecycle;
 mod create_linear_ticket_modal_lifecycle;
 mod new_coordinator_modal_lifecycle;
 pub(crate) mod quick_access;
