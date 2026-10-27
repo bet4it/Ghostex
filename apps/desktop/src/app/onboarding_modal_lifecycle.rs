@@ -360,7 +360,14 @@ impl GhostexGpuiApp {
                 }
             }
             OnboardingCommand::OpenExternalUrl(url) => {
-                let _ = gpui_open_external_http_url(url.trim());
+                if let Err(error) = gpui_open_external_http_url(url.trim()) {
+                    self.show_gpui_onboarding_app_toast(
+                        "error",
+                        "Couldn't open your web browser",
+                        &error,
+                        cx,
+                    );
+                }
             }
             OnboardingCommand::IntroVideoSeen => {
                 self.persist_gpui_first_run_onboarding_marker(

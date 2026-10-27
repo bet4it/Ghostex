@@ -11,6 +11,7 @@ pub(crate) fn gpui_spawn_open_target_command(
     project_path: &Path,
 ) -> Result<(), String> {
     let mut process = std::process::Command::new("/usr/bin/env");
+    crate::restore_wayland_display_for_process_command(&mut process);
     process.arg(command);
     for arg in base_args {
         process.arg(arg);
@@ -177,7 +178,9 @@ pub(crate) fn gpui_reveal_path_in_finder(path: &Path) -> Result<(), String> {
         path.parent()
             .ok_or_else(|| "That item has no containing folder.".to_string())?
     };
-    std::process::Command::new("xdg-open")
+    let mut command = std::process::Command::new("xdg-open");
+    crate::restore_wayland_display_for_process_command(&mut command);
+    command
         .arg(folder)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
@@ -188,13 +191,25 @@ pub(crate) fn gpui_reveal_path_in_finder(path: &Path) -> Result<(), String> {
 
 #[cfg(all(unix, not(target_os = "macos")))]
 pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String> {
-    std::process::Command::new("xdg-open")
-        .arg(target)
-        .stdin(std::process::Stdio::null())
-        .stdout(std::process::Stdio::null())
-        .stderr(std::process::Stdio::null())
-        .spawn_reaped()
-        .map_err(|_| "The OS opener is unavailable for this Ghostex Settings action.".to_string())
+    // `gio open` covers desktops that ship GLib's opener without xdg-utils.
+    for (program, verb) in [("xdg-open", None), ("gio", Some("open"))] {
+        let mut command = std::process::Command::new(program);
+        crate::restore_wayland_display_for_process_command(&mut command);
+        command.args(verb);
+        let started = command
+            .arg(target)
+            .stdin(std::process::Stdio::null())
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn_reaped();
+        if started.is_ok() {
+            return Ok(());
+        }
+    }
+    Err(
+        "Neither xdg-open nor gio is installed, so Linux has no program to open it with."
+            .to_string(),
+    )
 }
 
 #[cfg(target_os = "windows")]

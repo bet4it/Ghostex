@@ -421,6 +421,17 @@ pub(crate) fn linux_inherited_wayland_display() -> Option<&'static str> {
         .and_then(|value| value.as_deref())
 }
 
+/// CDXC:PlatformSupport 2026-10-28 WHY:
+/// The Linux app hides `WAYLAND_DISPLAY` from its own environment to run as an X11 client (`force_gpui_x11_backend_for_windowed_cef` below), and every program it started inherited the gap. On Omarchy `xdg-open` started Chromium, which is set to run on Wayland only, and it quit at once with "Failed to connect to Wayland display" while `xdg-open` still reported success: the onboarding's YouTube link, Settings links, Open In and Reveal did nothing, and gxserver handed the gap to every agent session (browser sign-ins, `wl-copy`). Programs Ghostex starts get the inherited value back, as terminals already do (terminal_gpui_engine.rs); the app process itself stays X11.
+pub(crate) fn restore_wayland_display_for_process_command(command: &mut std::process::Command) {
+    #[cfg(target_os = "linux")]
+    if let Some(wayland_display) = linux_inherited_wayland_display() {
+        command.env("WAYLAND_DISPLAY", wayland_display);
+    }
+    #[cfg(not(target_os = "linux"))]
+    let _ = command;
+}
+
 #[cfg(target_os = "linux")]
 fn force_gpui_x11_backend_for_windowed_cef() {
     /*

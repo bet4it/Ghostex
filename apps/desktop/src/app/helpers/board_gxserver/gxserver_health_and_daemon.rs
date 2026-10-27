@@ -1068,6 +1068,8 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
     let mut shell = std::process::Command::new("/bin/sh");
     terminal_environment::apply_color_capable_process_command(&mut shell);
     terminal_environment::remove_session_identity_from_process_command(&mut shell);
+    // Agent sessions inherit gxserver's environment.
+    crate::restore_wayland_display_for_process_command(&mut shell);
     let current_path = env::var("PATH").ok();
     shell.env(
         "PATH",
