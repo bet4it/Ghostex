@@ -247,7 +247,7 @@ impl SourceFilter {
             SourceFilter::All => "All sources",
             SourceFilter::BuiltIn => "Built-in",
             SourceFilter::Installed => "Installed",
-            SourceFilter::Store => "Store",
+            SourceFilter::Store => "Available",
             SourceFilter::Custom => "Your views",
         }
     }

@@ -8,7 +8,7 @@ use crate::Platform;
 pub(crate) fn page(platform: Platform) -> Page {
     Page {
         id: "extensions",
-        title: "Store",
+        title: "Extensions",
         sections: vec![
             view_order(platform),
             official(platform),
@@ -74,10 +74,10 @@ pub(crate) fn official(platform: Platform) -> Section {
 pub(crate) fn store() -> Section {
     section(
         "store",
-        "Extensions Store",
+        "Get more",
         vec![row(
             "store",
-            "Extension store",
+            "Get more extensions",
             "Browse audited extensions, install them, and manage what is already installed.",
         )],
     )

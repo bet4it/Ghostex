@@ -534,7 +534,7 @@ impl ExtensionsTab {
             .child("\u{a0}repo. Reviewed and tested by @maddada.")
             .into_any_element();
         let body = self.render_store_list(p, window, cx);
-        plain_section(p, "Extensions Store", description, None, body)
+        plain_section(p, "Get more", description, None, body)
     }
 
     fn render_store_list(

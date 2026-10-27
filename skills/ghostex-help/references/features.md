@@ -26,7 +26,7 @@ same tabs back. Option/Alt+1 through 9 jump to the tabs in the order they appear
 in the strip; direct built-in view shortcuts can be assigned in Settings >
 Hotkeys, and hovering a tab shows its shortcut. Views other than Agents are
 extensions: they load on demand, sleep when idle (Auto Sleep), and can be hidden
-or reordered in Settings > Extensions > Store.
+or reordered in Settings > Extensions.
 
 The **+** button right after the last tab opens another view. Its top row,
 **Browser Tab**, always opens a new browser tab. Below it is every other view:
@@ -230,13 +230,13 @@ own window (for Kanban it reads **Open in new window** and moves the board to a
 Ghostex window of its own; see Project board). **Configure ▸** holds what a view can change about itself: **Modify
 home URL** for a website view, and **Command output** and **Configure view** for
 your own project views (Configure view opens that view's editor in Settings >
-Extensions > Store and focuses its name field). **Show in ▸** holds **This Project** and
+Extensions and focuses its name field). **Show in ▸** holds **This Project** and
 **This Space**, which are ticks: unticking one hides the view there and leaves
 it everywhere else (the space row is absent when the project is not in a
 space). When the view on screen is hidden like this or turned off in Settings,
 the panel moves to the tab beside it, as closing its tab would.
 **Choose where it's shown…** at the bottom of that submenu opens the
-view's full scope editor in Settings > Extensions > Store. **Close tab** removes the
+view's full scope editor in Settings > Extensions. **Close tab** removes the
 view from the strip.
 
 - **Agents**: the terminal grid. Panes run agent CLIs or plain shells, split
@@ -363,7 +363,7 @@ view from the strip.
   to remove the view), and web links and saved Browser actions open in the
   system browser. Nothing is downloaded until you press Install; once installed,
   the runtime starts quietly a few seconds after Ghostex opens, so pages open
-  fast. Settings > Extensions > Store > Built-in > Chromium runtime (CEF)
+  fast. Settings > Extensions > Built-in > Chromium runtime (CEF)
   installs, reinstalls or uninstalls it. Uninstall while the runtime is running
   removes it the next time Ghostex starts (Keep installed undoes that until
   then); on Windows a Reinstall while it runs is done at the next start too.
@@ -409,14 +409,14 @@ view from the strip.
   Right-click the Linear or Jira view tab and choose **Modify home URL for…** to
   reopen setup; choose **Follow** to restore the parent home. Middle-click or
   Cmd-click (Ctrl-click on Windows/Linux) a link to open it in a new background
-  Browser tab. Settings > Extensions > Store controls visibility (`linearViewTabHidden`,
+  Browser tab. Settings > Extensions controls visibility (`linearViewTabHidden`,
   `jiraViewTabHidden`).
 - **GitHub**: automatically opens the GitHub repository from the project's origin
   remote, including in worktrees. No URL setup is needed. It appears when a GitHub
   repository is available and supports opening links in new Browser tabs just like
-  Linear and Jira. Settings > Extensions > Store controls visibility (`githubViewTabHidden`).
+  Linear and Jira. Settings > Extensions controls visibility (`githubViewTabHidden`).
 - **Sentry, Figma, Vercel, Supabase, GitHub Actions, PostHog, and Custom Website**:
-  disabled by default. Enable the views you want in **Settings > Extensions > Store**, then
+  disabled by default. Enable the views you want in **Settings > Extensions**, then
   open one from the **+** menu and paste its home URL, just like Linear. Use any
   project page, design, dashboard, workflow, or filtered view; Custom Website can
   open any HTTP or HTTPS website. The saved home opens automatically for that
@@ -437,7 +437,7 @@ view from the strip.
   **Annotate with Agentation** selects elements inside the story preview, just as
   in Browser. Build failures offer Retry and Command output. For a workspace with
   several Storybooks, open the desired package as a project or provide a root build
-  script. Settings > Extensions > Store controls visibility (`storybookViewTabHidden`).
+  script. Settings > Extensions controls visibility (`storybookViewTabHidden`).
 - **Kanban**: the project board backed by the Beads `bd` CLI (see Project
   board).
 - **Automate**: scheduled and triggered agent runs (see Automations).
@@ -590,7 +590,7 @@ Related settings: `terminalViewWidthMode`, `webLinkOpenTarget`,
 `documentFileOpenTarget`, `otherFileOpenTarget`, `videoFileOpenTarget`,
 `audioFileOpenTarget`, `docsOpenFilesAsTabs`, the Auto Sleep rows
 (`autoSleep*IdleMinutes`, `keepViewsLoaded`), the Search in Files hotkey (`searchProjectFiles`), and
-Settings > Extensions > Store.
+Settings > Extensions.
 
 ## Sidebar
 
@@ -664,7 +664,7 @@ unanswered question (pink), stay in Sessions. Pinned, draft, parked and snoozed
 sessions keep their own sections (`groupWorkingSessions`).
 Workspaces keep different parts of your work apart, for example one per company
 you work for and a Personal one. Workspaces is a built-in extension, off by
-default: turn it on with its switch in Settings > Extensions > Store (Features). It also
+default: turn it on with its switch in Settings > Extensions (Features). It also
 brings the team backend (see Git and worktrees); Issues Workflow works without it.
 While it is off there is no workspace button, every window shows every project,
 the project menu has no Move to workspace, and the `ghostex workspace`, `team`
@@ -720,7 +720,7 @@ Delete moves its projects and Spaces to Personal. From the command line:
 its name or id; a project also by its folder).
 Spaces group projects or groups together; they are not saved filters, and a
 filter cannot be saved as a Space. Spaces is a built-in extension, off by
-default: turn it on with its switch in Settings > Extensions > Store (Features). While
+default: turn it on with its switch in Settings > Extensions (Features). While
 it is off the sidebar has no Space row or Space menus, the Space settings are
 hidden, and a view limited to some Spaces shows everywhere; your Spaces are
 kept and come back when you turn it on (`sidebarSpacesEnabled`). Spaces follow the
@@ -1216,7 +1216,7 @@ offers Transcribe previous.
 Read aloud speaks the agent's replies, so you can follow a session while you
 drive or walk. It is experimental and off by default: turn on Settings > General
 > Advanced > Experimental > Enable Experimental Features, then switch on Read
-aloud in Settings > Extensions > Store (Features). On the computer, hover an
+aloud in Settings > Extensions (Features). On the computer, hover an
 agent's final reply and press Read aloud (the speaker, last before the time); on
 the reply being read it becomes Stop reading. Turn on Auto-read in the chat's
 More actions (⋯) menu to hear each finished reply of the chat you are looking
@@ -2513,7 +2513,7 @@ the header’s Quick Actions button, which shows the name and icon of the Action
 you used last and runs it again on click (its caret opens the full list; it
 reads Start until an Action exists); Global Actions apply to every project.
 Actions is a built-in extension, off by default: turn it on with its switch in
-Settings > Extensions > Store (Features). While it is off the Start button, the Actions
+Settings > Extensions (Features). While it is off the Start button, the Actions
 page in Settings, Actions pinned to project rows, the Start Action hotkeys and
 Quick Access's Action rows are gone, and `ghostex run-action`, `run-command`,
 `save-command` and `click-button command` say Actions is turned off. Your saved
@@ -2877,7 +2877,7 @@ status, transcript, and an archive action; a run must end with an
 ## Bots (Hermes agents)
 
 Bots switches the sidebar to your Hermes agents, one row per Hermes profile.
-It is off by default: turn it on in Settings > Extensions > Store, under Planning and
+It is off by default: turn it on in Settings > Extensions, under Planning and
 automation. The Bots card only appears on a computer where the Hermes CLI
 (`hermes`) is installed, and with Bots off the sidebar looks and works as
 before.
@@ -2921,7 +2921,7 @@ before.
 
 Setting: `botsHidden` (on by default, which keeps Bots hidden).
 
-**Bot automations** is a second switch in Settings > Extensions > Store, off by default
+**Bot automations** is a second switch in Settings > Extensions, off by default
 and available only while Bots is on. It adds an Automations row at the top of
 the Bots sidebar that shows how many runs landed today; click it to open a feed
 of every Hermes cron run in the view panel, and click it again to close the
@@ -3106,8 +3106,8 @@ with the same voice at the same speed and in the same mode. It shows
 the same "Last conversation" card with Continue, Start fresh and Forget.
 
 The voice agent is a built-in extension, on by default, and its settings page,
-Voice agent, sits in the Extensions group of the Settings sidebar, right under
-Store. Turn it off with its switch on Settings > Extensions > Store (the Voice
+Voice agent, is the first page folded under Extensions at the bottom of the
+Settings sidebar. Turn it off with its switch on Settings > Extensions (the Voice
 agent card) and the headset and its arrow leave the top
 of the window, the voice agent hotkeys stop working and leave Settings >
 Hotkeys, a call that is running ends, and the phone app hides its headset,
@@ -3383,7 +3383,7 @@ needs its own one-time sign-in for boxes, so Claude on this computer stays
 signed in.
 
 Cloud Boxes is a built-in extension, off by default and only on macOS and
-Linux: turn it on with its switch in Settings > Extensions > Store (Features). While it
+Linux: turn it on with its switch in Settings > Extensions (Features). While it
 is off the Cloud Boxes page in Settings, the Run on choice in New Thread and in
 a new chat thread, Run in a Box in the Select Agent menu and the
 `ghostex agentbox` commands are gone (they say Cloud Boxes is turned off), and
@@ -3747,7 +3747,7 @@ ticket); it prints the session's link. `ghostex issues create-ticket --title "�
 starts on main with no worktree.
 
 A Work workspace can share a team backend (part of Workspaces, so turn that on
-in Settings > Extensions > Store first): your team's own Convex project (not
+in Settings > Extensions first): your team's own Convex project (not
 one Ghostex runs), which receives Slack and Linear events while your computer is
 off and hands requests to the right person's Ghostex as soon as it is online. One
 person sets it up with `ghostex team deploy --workspace <name>`, which uses their
@@ -3835,27 +3835,28 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
 
 ## Extensions, Open In, and integrations
 
-- Settings keeps its add-on pages in a collapsible **Extensions** group at the
-  bottom of the left rail, above About: Store first, then Workspaces, Cloud
+- The **Extensions** row at the bottom of the Settings sidebar, below About,
+  opens the Extensions page. Under it, a small chevron row (*N extension
+  pages*) folds and unfolds the add-on pages: Voice agent, Workspaces, Cloud
   Boxes, Connectors, Actions, Open In, OS Integration and Debugging, each only
   while it is shown. Connectors, OS Integration and Debugging are built-in
-  extensions, on by default, with switches in the Store's Features; their
+  extensions, on by default, with switches in the Extensions page's Features; their
   pages and cards still need Enable Experimental Features (Connectors, OS
   Integration) or Show Advanced (Debugging) as before (`connectorsHidden`,
   `osIntegrationHidden`, `debuggingHidden`). Workspaces, Cloud Boxes, Open In,
   OS Integration and Debugging appear in the rail only while **Show Advanced**
   is on (its switch is in the Settings sidebar); a Settings search still finds them, and a link to
   one still opens it. Their features keep working while the page is out of the
-  rail. The group starts collapsed and remembers whether you left
-  it open; a search opens it and lists only its pages that match, and opening
-  one of its pages from elsewhere (a link, a menu, a turned-off message) opens
-  it too. While it is collapsed over the page you are on, its header is
+  rail. The pages start folded and Settings remembers whether you left
+  them open; a search opens them and lists only the pages that match, and opening
+  one of them from elsewhere (a link, a menu, a turned-off message) opens
+  them too. While they are folded over the page you are on, the chevron row is
   highlighted.
-- Settings > Extensions > Store shows every extension as a card, three to a row: the
+- Settings > Extensions shows every extension as a card, three to a row: the
   built-in ones, grouped by category (Features, Project websites, Code and
   files, Planning and automation, Header buttons, Menus and panels, Shared
   runtime),
-  then the Extensions Store (installed extensions first, then the audited
+  then Get more (installed extensions first, then the audited
   third-party ones you can install), then Your views (custom URLs, Linear,
   GitHub Issues, dev server commands, HTML reports). One filter bar above them
   searches all of them at once and filters by source, type, and category; the
@@ -3944,7 +3945,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   Claude and Codex histories stay separate. Switching account buttons changes
   the live limits; the shared history remains the same. Totals come from saved
   conversation logs, so they may omit usage whose logs are missing.
-- An extension you install from the Store opens where it says on its card. A view
+- An extension you install from Settings > Extensions opens where it says on its card. A view
   extension (Canvas, Tower) gets a view tab in the view picker. A terminal-pane
   extension, such as Lazygit, opens its command in a terminal split beside the
   focused pane (or a new tab: Open location on its Settings page), in the active
@@ -3960,7 +3961,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   run only for local projects. CLI: `ghostex extensions list`, `ghostex extensions
   install <id>`, `ghostex extensions state <id> --set pinned=true`.
 - **Claude** is a built-in extension, off by default: turn it on with its switch
-  in Settings > Extensions > Store (Features) to use claude.ai inside Ghostex.
+  in Settings > Extensions (Features) to use claude.ai inside Ghostex.
   It adds a Claude button to the sidebar's bottom bar, just left of Commands.
   Clicking it opens claude.ai over the whole work area with only the sidebar
   beside it, from any project; click it again, or click a session in the
@@ -3977,7 +3978,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   sign-in. Setting: `claudeWebHidden`.
 - Settings > Open In chooses which apps appear on session and project Open In
   menus and adds custom open targets. Open In is a built-in extension, on by
-  default: switching it off in Settings > Extensions > Store (Features) removes the
+  default: switching it off in Settings > Extensions (Features) removes the
   header's Open button, the Open In page and the Open In rows in Quick Access
   and menus, and keeps your apps and custom targets for when you turn it back
   on (`openInTitlebarButtonHidden`).
@@ -4063,7 +4064,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   is experimental: turn on Settings > General > Advanced > Experimental >
   Enable Experimental Features (or run `ghostex settings set showBetaFeatures
   true`) to use it. It is also a built-in extension, on by default: switching
-  Connectors off in Settings > Extensions > Store (or `ghostex settings set
+  Connectors off in Settings > Extensions (or `ghostex settings set
   connectorsHidden true`) removes its page and its apps from agents, and
   `ghostex connectors` refuses until you turn it back on; your sign-ins and
   connected apps are kept. If `ghostex connectors` is still not in `ghostex
@@ -4148,7 +4149,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   with the question staged so the user can edit it and press Enter. Dev
   servers lists the development servers running on this computer and on your
   remote computers; the same list is what a new Browser tab shows. Extensions
-  lists your installed extensions. Customize opens Settings > Extensions > Store,
+  lists your installed extensions. Customize opens Settings > Extensions,
   where each of these entries can be switched on or off; an entry switched off
   there is not listed, and Customize itself is always in the menu.
 - Welcome to Ghostex is the onboarding that opens the first time Ghostex
@@ -4280,7 +4281,7 @@ and you scroll; it applies at once, and turning it off brings back the usual dra
 of a window ever stops updating (`fasterRendering`). The separate Debugging page sits
 in the Settings sidebar's Extensions group and appears only while Show Advanced is on
 (a Settings search still finds it) and its Debugging extension is on (it is by default;
-switch it off in Settings > Extensions > Store, or `debuggingHidden`, to drop the page). It starts with Show debug UI controls.
+switch it off in Settings > Extensions, or `debuggingHidden`, to drop the page). It starts with Show debug UI controls.
 Enable that switch to see Diagnostic logs. Diagnostic logs has one switch per area (terminals,
 sidebar, chat, modals, board, remote machines, agent activity, prompt editor,
 app lifecycle, server requests) and one Turn logs off after choice (15 min,

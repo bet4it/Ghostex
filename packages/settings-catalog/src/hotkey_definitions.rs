@@ -287,8 +287,8 @@ pub const HOTKEY_DEFINITIONS: &[HotkeyDefinition] = &[
     },
     HotkeyDefinition {
         id: "openExtensions",
-        title: "Open Extension Store",
-        description: "Open the Store page in Settings > Extensions to manage built-in features and installed extensions.",
+        title: "Open Extensions",
+        description: "Open Settings > Extensions to manage built-in features and installed extensions.",
         default_key: "",
         windows_linux_default_key: None,
         alternate_default_keys: &[],

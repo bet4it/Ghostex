@@ -26,8 +26,8 @@ pub(crate) enum SettingsTabId {
 }
 
 impl SettingsTabId {
-    /// The rail order (`createSettingsSidebarPages`): the everyday pages, then the Extensions
-    /// group's pages ([`Self::EXTENSIONS_GROUP`]), then About, pinned to the rail's bottom. Pages
+    /// The rail order: the everyday pages ending with About, then the Extensions page (the
+    /// catalog) at the rail's bottom with the pages that fold under it ([`Self::EXTENSIONS_GROUP`]). Pages
     /// the shell filters (OS Integration, Connectors, Debugging, the built-in extensions' pages)
     /// leave the rail while they are off.
     pub(crate) const RAIL_ORDER: [SettingsTabId; 18] = [
@@ -39,24 +39,7 @@ impl SettingsTabId {
         SettingsTabId::Remote,
         SettingsTabId::Projects,
         SettingsTabId::Hotkeys,
-        SettingsTabId::Extensions,
-        SettingsTabId::VoiceAgent,
-        SettingsTabId::Workspaces,
-        SettingsTabId::CloudBoxes,
-        SettingsTabId::Connectors,
-        SettingsTabId::Actions,
-        SettingsTabId::OpenTargets,
-        SettingsTabId::OsIntegration,
-        SettingsTabId::Debugging,
         SettingsTabId::About,
-    ];
-
-    /// CDXC:Settings 2026-10-19 DECISION:
-    /// User: "i want to put certain sidebar pages in the settings into a new collapsible area at the bottom called "Extensions"". Q306: the group holds Workspaces, Connectors, Cloud Boxes, Extensions (the store), Actions, Open In, OS Integration and Debugging. Q307: "Collapsed the first time, then remembers" (open or closed is saved in `settingsModalNavigation`). Q308: the store page is "Renamed "Store", first item in the group", so the group header only opens and closes it. A search opens the group and lists only its matching pages; a deep link to one of its pages opens it; while it is collapsed over the open page, its header shows the selected fill. Q313: Connectors, OS Integration and Debugging become built-in extensions with "Switch on top of the gate": each page needs its switch on and its old gate open (CDXC:Extensions 2026-10-19 in official_extensions.rs).
-    /// CDXC:VoiceMode 2026-10-25 DECISION:
-    /// User: "voice agent needs to be moved under extensions in the sidebar of the settings of the gpui app too". Voice agent is the group's second page, after the Store, now that the voice agent is a built-in extension (official_extensions.rs). Deep links (`initialTab: "voiceAgent"`, the voice panel's Open Settings, `ghostex settings open --tab voiceAgent`) open the group like any page in it.
-    /// CDXC:VoiceMode 2026-10-25 WHY: unlike the group's other feature pages it stays in the rail while its extension is off, because the trimmed page still holds the xAI key Dictate uses and the Dictation history (the voice agent entry has no `settingsPages`, so `built_in_extension_allows_page` keeps it).
-    pub(crate) const EXTENSIONS_GROUP: [SettingsTabId; 9] = [
         SettingsTabId::Extensions,
         SettingsTabId::VoiceAgent,
         SettingsTabId::Workspaces,
@@ -68,7 +51,23 @@ impl SettingsTabId {
         SettingsTabId::Debugging,
     ];
 
-    /// Whether the page sits in the rail's Extensions group.
+    /// CDXC:Settings 2026-10-27 DECISION:
+    /// User, about the old "Store" row inside the group: "I dont like how store looks like the other ones here and i dont like that it's hidden there and i dont like that it's called store". Q640-Q641: the catalog page is called "Extensions" and is its own rail row at the bottom, drawn like the other top-level rows; clicking it opens the page, and a chevron "below the extensinos button" folds and unfolds the switched-on extensions' pages listed here. About moves up "to be last one with the ones up top so it's not next to extensions". Q642: no update count. Q643: the phone is left alone. This supersedes the 2026-10-19 Q308 decision (the page renamed "Store", first item in the group, a header that only folds); the rest of 2026-10-19 still holds: Q306 the group holds Workspaces, Connectors, Cloud Boxes, Actions, Open In, OS Integration and Debugging; Q307 the fold is "Collapsed the first time, then remembers" (`settingsModalNavigation`); a search opens it and lists only its matching pages; a deep link to one of its pages opens it; folded over the open page, its chevron row shows the selected fill. Q313: Connectors, OS Integration and Debugging are built-in extensions with "Switch on top of the gate" (CDXC:Extensions 2026-10-19 in official_extensions.rs).
+    /// CDXC:VoiceMode 2026-10-25 DECISION:
+    /// User: "voice agent needs to be moved under extensions in the sidebar of the settings of the gpui app too". Voice agent is the group's first page now that the voice agent is a built-in extension (official_extensions.rs). Deep links (`initialTab: "voiceAgent"`, the voice panel's Open Settings, `ghostex settings open --tab voiceAgent`) open the group like any page in it.
+    /// CDXC:VoiceMode 2026-10-25 WHY: unlike the group's other feature pages it stays in the rail while its extension is off, because the trimmed page still holds the xAI key Dictate uses and the Dictation history (the voice agent entry has no `settingsPages`, so `built_in_extension_allows_page` keeps it).
+    pub(crate) const EXTENSIONS_GROUP: [SettingsTabId; 8] = [
+        SettingsTabId::VoiceAgent,
+        SettingsTabId::Workspaces,
+        SettingsTabId::CloudBoxes,
+        SettingsTabId::Connectors,
+        SettingsTabId::Actions,
+        SettingsTabId::OpenTargets,
+        SettingsTabId::OsIntegration,
+        SettingsTabId::Debugging,
+    ];
+
+    /// Whether the page folds under the rail's Extensions row (the Extensions page itself does not).
     pub(crate) fn in_extensions_group(self) -> bool {
         Self::EXTENSIONS_GROUP.contains(&self)
     }
@@ -123,7 +122,7 @@ impl SettingsTabId {
             SettingsTabId::Theme => "Theme",
             SettingsTabId::Integrations => "Integrations",
             SettingsTabId::CloudBoxes => "Cloud Boxes",
-            SettingsTabId::Extensions => "Store",
+            SettingsTabId::Extensions => "Extensions",
             SettingsTabId::OsIntegration => "OS Integration",
             SettingsTabId::Remote => "Remote",
             SettingsTabId::Projects => "Projects",
@@ -147,7 +146,7 @@ impl SettingsTabId {
             SettingsTabId::Theme => "modals/settings/palette.svg",
             SettingsTabId::Integrations => "modals/settings/tools.svg",
             SettingsTabId::CloudBoxes => "modals/settings/box.svg",
-            SettingsTabId::Extensions => "modals/settings/download.svg",
+            SettingsTabId::Extensions => "modals/settings/puzzle.svg",
             SettingsTabId::OsIntegration => "modals/settings/device-desktop.svg",
             SettingsTabId::Remote => "modals/settings/cloud.svg",
             SettingsTabId::Projects => "modals/settings/folder-open.svg",
@@ -340,3 +339,25 @@ pub(crate) type GxserverRpcReply = Box<dyn FnOnce(Result<Value, String>, &mut gp
 pub(crate) type HttpGetReply = Box<dyn FnOnce(Result<Vec<u8>, String>, &mut gpui::App)>;
 
 pub(crate) type SettingsModalHost = Rc<dyn Fn(SettingsModalCommand, &mut gpui::App)>;
+
+#[cfg(test)]
+mod tests {
+    use super::SettingsTabId;
+
+    /// CDXC:Settings 2026-10-27: About ends the everyday pages, then the Extensions page, then the
+    /// pages that fold under it; the page keeps its `extensions` id for deep links.
+    #[test]
+    fn extensions_page_sits_below_about_with_its_folding_pages_after_it() {
+        let order = SettingsTabId::RAIL_ORDER;
+        let position = |tab| order.iter().position(|t| *t == tab).unwrap();
+        assert_eq!(position(SettingsTabId::Extensions), position(SettingsTabId::About) + 1);
+        assert!(!SettingsTabId::Extensions.in_extensions_group());
+        assert!(!SettingsTabId::About.in_extensions_group());
+        for tab in SettingsTabId::EXTENSIONS_GROUP {
+            assert!(position(tab) > position(SettingsTabId::Extensions), "{tab:?}");
+        }
+        assert_eq!(SettingsTabId::EXTENSIONS_GROUP[0], SettingsTabId::VoiceAgent);
+        assert_eq!(SettingsTabId::from_id("extensions"), Some(SettingsTabId::Extensions));
+        assert_eq!(SettingsTabId::Extensions.title(), "Extensions");
+    }
+}

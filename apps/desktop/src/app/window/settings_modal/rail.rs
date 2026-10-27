@@ -1,6 +1,7 @@
 //! `SettingsSidebarNavigation`: the left rail with every Settings page, the expandable General
 //! and Hotkeys sections (titles navigate, only the chevrons expand: CDXC:Settings 2026-09-12
-//! DECISION), About pinned to the bottom, and Show Advanced in the footer.
+//! DECISION), About last of the everyday pages, the Extensions page and its folding pages at the
+//! bottom (CDXC:Settings 2026-10-27 in model.rs), and Show Advanced in the footer.
 use super::super::native_modal_kit::*;
 use super::catalog::{module, settings_catalog};
 use super::fields::{settings_icon, settings_switch};
@@ -557,12 +558,15 @@ fn render_page(
     group.into_any_element()
 }
 
-/// The Extensions group (`SettingsTabId::EXTENSIONS_GROUP`, CDXC:Settings 2026-10-19 in model.rs):
-/// under a hairline, a header that only opens and closes it, and its pages indented below. A
-/// search keeps it open. Collapsed over the open page, the header takes the selected fill.
+/// The Extensions block at the rail's bottom (CDXC:Settings 2026-10-27 in model.rs): under a
+/// hairline, the Extensions page's own row (`catalog`, drawn like every top-level row), then a quiet
+/// chevron row that only folds the switched-on extensions' pages (`SettingsTabId::EXTENSIONS_GROUP`)
+/// and the pages themselves, indented below it. A search keeps the fold open. Folded over the open
+/// page, the chevron row takes the selected fill.
 fn render_extensions_group(
     shell: &GpuiSettingsModalWindow,
     p: &SettingsPalette,
+    catalog: Option<AnyElement>,
     pages: Vec<AnyElement>,
     open: bool,
     searching: bool,
@@ -571,75 +575,67 @@ fn render_extensions_group(
 ) -> AnyElement {
     let (fraction, present) = shell.rail.fold(EXTENSIONS_FOLD, open);
     let accent = p.raised_hover;
-    let resting = p.foreground_alpha(0.82);
     let foreground = p.foreground;
     let selected = holds_active && !open;
-    let header = h_flex()
-        .id("rail-extensions-group")
-        .role(gpui::Role::Button)
-        .aria_label("Extensions")
-        .aria_expanded(open)
-        .aria_selected(selected)
-        .accessibility_id("rail-extensions-group")
-        .w_full()
-        .min_w_0()
-        .min_h(px(32.0))
-        .pl(px(10.0))
-        .gap(px(8.0))
-        .items_center()
-        .rounded(px(MODAL_RADIUS_CONTROL))
-        .cursor_pointer()
-        .text_size(px(13.0))
-        .line_height(px(18.0))
-        .text_color(hsla(if selected { p.foreground } else { resting }))
-        .when(selected, |this| {
-            this.bg(hsla(accent)).font_weight(FontWeight::MEDIUM)
-        })
-        .hover(move |this| this.bg(hsla(accent)).text_color(hsla(foreground)))
-        .on_press(cx, move |shell, _window, cx| {
-            if searching {
-                return;
-            }
-            let open = !shell.store.read(cx).extensions_group_open();
-            let duration = rail_fold_duration(shell, cx);
-            shell.rail.fold_toward(EXTENSIONS_FOLD, open, duration);
-            let store = shell.store.clone();
-            store.update(cx, |store, cx| store.toggle_extensions_group(cx));
-        })
-        .child(
-            settings_icon(
-                "modals/settings/puzzle.svg",
-                16.0,
-                if selected { p.foreground } else { resting },
+    let count = pages.len();
+    let label = if count == 1 {
+        "1 extension page".to_string()
+    } else {
+        format!("{count} extension pages")
+    };
+    let toggle = (count > 0).then(|| {
+        h_flex()
+            .id("rail-extensions-group")
+            .role(gpui::Role::Button)
+            .aria_label(if open {
+                "Hide extension pages"
+            } else {
+                "Show extension pages"
+            })
+            .aria_expanded(open)
+            .aria_selected(selected)
+            .accessibility_id("rail-extensions-group")
+            .w_full()
+            .min_w_0()
+            .h(px(24.0))
+            .pl(px(12.0))
+            .gap(px(10.0))
+            .items_center()
+            .rounded(px(MODAL_RADIUS_CONTROL))
+            .cursor_pointer()
+            .text_size(px(12.0))
+            .line_height(px(16.0))
+            .text_color(hsla(if selected { p.foreground } else { p.muted }))
+            .when(selected, |this| this.bg(hsla(accent)))
+            .hover(move |this| this.bg(hsla(accent)).text_color(hsla(foreground)))
+            .on_press(cx, move |shell, _window, cx| {
+                if searching {
+                    return;
+                }
+                let open = !shell.store.read(cx).extensions_group_open();
+                let duration = rail_fold_duration(shell, cx);
+                shell.rail.fold_toward(EXTENSIONS_FOLD, open, duration);
+                let store = shell.store.clone();
+                store.update(cx, |store, cx| store.toggle_extensions_group(cx));
+            })
+            .child(
+                chevron(fraction, if selected { p.foreground } else { p.muted }).flex_shrink_0(),
             )
-            .flex_shrink_0(),
-        )
-        .child(
-            div()
-                .flex_1()
-                .min_w_0()
-                .overflow_hidden()
-                .whitespace_nowrap()
-                .text_ellipsis()
-                .child("Extensions"),
-        )
-        .child(
-            div()
-                .flex_shrink_0()
-                .size(px(32.0))
-                .flex()
-                .items_center()
-                .justify_center()
-                .child(chevron(
-                    fraction,
-                    if selected { p.foreground } else { p.muted },
-                )),
-        );
-    let body = present.then(|| {
+            .child(
+                div()
+                    .flex_1()
+                    .min_w_0()
+                    .overflow_hidden()
+                    .whitespace_nowrap()
+                    .text_ellipsis()
+                    .child(label),
+            )
+    });
+    let body = (count > 0 && present).then(|| {
         rail_fold(
             shell,
             EXTENSIONS_FOLD.to_string(),
-            // The gap under the header sits inside the fold, so closing ends flush.
+            // The gap under the chevron row sits inside the fold, so closing ends flush.
             v_flex()
                 .w_full()
                 .min_w_0()
@@ -654,9 +650,11 @@ fn render_extensions_group(
         .w_full()
         .min_w_0()
         .pt(px(8.0))
+        .gap(px(2.0))
         .border_t_1()
         .border_color(hsla(p.hairline))
-        .child(header)
+        .children(catalog)
+        .children(toggle)
         .children(body)
         .into_any_element()
 }
@@ -680,12 +678,12 @@ pub(crate) fn render_rail(
     };
     let mut groups: Vec<AnyElement> = Vec::new();
     let mut extension_pages: Vec<AnyElement> = Vec::new();
-    let mut about: Option<AnyElement> = None;
+    let mut catalog: Option<AnyElement> = None;
     for page in pages {
         let tab = page.tab;
         let element = render_page(shell, p, page, active_tab, cx);
-        if tab == SettingsTabId::About {
-            about = Some(element);
+        if tab == SettingsTabId::Extensions {
+            catalog = Some(element);
         } else if tab.in_extensions_group() {
             extension_pages.push(element);
         } else {
@@ -698,10 +696,11 @@ pub(crate) fn render_rail(
         .w_full()
         .min_w_0()
         .gap(px(4.0));
-    if !extension_pages.is_empty() {
+    if catalog.is_some() || !extension_pages.is_empty() {
         bottom = bottom.child(render_extensions_group(
             shell,
             p,
+            catalog,
             extension_pages,
             group_open,
             searching,
@@ -709,7 +708,7 @@ pub(crate) fn render_rail(
             cx,
         ));
     }
-    groups.push(bottom.children(about).into_any_element());
+    groups.push(bottom.into_any_element());
     let footer = div()
         .w_full()
         .flex_shrink_0()

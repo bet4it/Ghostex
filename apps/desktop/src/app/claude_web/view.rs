@@ -2,7 +2,7 @@
 //! project, so the same page opens from every project.
 //!
 //! CDXC:Extensions 2026-10-25 DECISION:
-//! User: claude.ai in Ghostex "has to be built in extension", not an external Ghostex extension. The view is listed beside Storybook and the project websites as a built-in view (helpers/titlebar/mode_switcher.rs) and exists only while the Claude switch on Settings > Extensions > Store is on (`claudeWebHidden`, packages/settings-catalog/src/data/official_extensions.rs).
+//! User: claude.ai in Ghostex "has to be built in extension", not an external Ghostex extension. The view is listed beside Storybook and the project websites as a built-in view (helpers/titlebar/mode_switcher.rs) and exists only while the Claude switch on Settings > Extensions is on (`claudeWebHidden`, packages/settings-catalog/src/data/official_extensions.rs).
 
 use crate::*;
 use serde_json::json;

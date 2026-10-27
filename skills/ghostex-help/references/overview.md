@@ -61,10 +61,11 @@ hotkeys Every shortcut and its default binding
 - **Quick Access** (Cmd+Shift+P): search every command, pane action, settings
   shortcut, and recent session. Cmd+P opens it on Recent Sessions.
 - **Settings** (Cmd+,): pages for General, Theme, Agents, Accounts, Integrations, Remote,
-  Projects and Hotkeys, then a collapsible **Extensions** group (Store, the extension
-  store and built-in feature switches, plus Workspaces, Cloud Boxes, Connectors, Actions,
-  Open In, OS Integration and Debugging while each is shown), and About, with one
-  search box that finds rows on every page.
+  Projects, Hotkeys and About, then **Extensions** at the bottom (the built-in feature
+  switches and the extensions you can install), with a chevron under it that folds the
+  add-on pages (Voice agent, Workspaces, Cloud Boxes, Connectors, Actions, Open In, OS
+  Integration and Debugging while each is shown), and one search box that finds rows on
+  every page.
 - **Dialogs** such as Quick Access, Settings, Search by Prompt and Add Project open
   over the middle of the window and stay open when you click somewhere else. Close
   one with Escape or the round × in its top-right corner, which appears while the
@@ -88,7 +89,7 @@ hotkeys Every shortcut and its default binding
   and reports back when they finish or need you. Start one from a project's
   Select Agent menu with New Orchestrator.
 - **Extensions**: optional views and panels (Code, Browser, Kanban, Automate,
-  Files, and third-party ones) installed from Settings > Extensions > Store.
+  Files, and third-party ones) installed from Settings > Extensions.
 - **gxserver**: the local daemon that owns sessions, projects, settings sync,
   automations, and the HTTP API the `ghostex` CLI, the web app, and the mobile
   app talk to. A remote machine runs its own gxserver; the desktop app connects
