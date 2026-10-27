@@ -1135,6 +1135,37 @@ call serializes the entire scrollback (measured at 686 KB on a working session)
 and caps it, where this one wants the last thirty lines and the verdict that
 goes with them.
 */
+/// The capture the input-box verdict is judged on: the one the send gate waits on
+/// (`capture_session_terminal_text`, VT-styled for Codex), screen and scrollback tail together.
+/// A capture that lost its tail cannot answer, so it reads as unreadable (`None`), never as an
+/// empty screen.
+pub(crate) fn read_session_composer_verdict_capture(
+    zmx_name: &str,
+    agent_id: Option<&str>,
+) -> Option<crate::zmx::ZmxHistoryCapture> {
+    if normalize_agent_id(agent_id).as_deref() == Some("codex") {
+        crate::zmx::read_zmx_session_screen_capture_vt(zmx_name)
+    } else {
+        crate::zmx::read_zmx_session_screen_capture(zmx_name)
+    }
+    .ok()
+    .filter(|capture| !capture.truncated)
+}
+
+/// The input-box verdict with the notice detector's veto, as the Terminal View glyph, the
+/// not-ready card and Copy Report all state it.
+pub(crate) fn session_composer_verdict(
+    agent_id: Option<&str>,
+    screen_text: &str,
+) -> SessionChatComposerReadiness {
+    detect_session_chat_composer_readiness(
+        agent_id,
+        screen_text,
+        crate::session_chat_notice::classify_session_chat_terminal_notice(agent_id, screen_text)
+            .as_ref(),
+    )
+}
+
 pub fn read_session_terminal_tail(
     repository: &DomainRepository<'_>,
     project_id: &str,
@@ -1152,25 +1183,9 @@ pub fn read_session_terminal_tail(
     let agent = agent_id
         .map(str::to_string)
         .or_else(|| session_chat_composer_agent_id(&session));
-    // A capture that lost its tail cannot answer either question, so it reports
-    // as unreadable rather than as an empty screen.
-    let capture = if normalize_agent_id(agent.as_deref()).as_deref() == Some("codex") {
-        crate::zmx::read_zmx_session_screen_capture_vt(&zmx_name)
-    } else {
-        crate::zmx::read_zmx_session_screen_capture(&zmx_name)
-    }
-    .ok()
-    .filter(|capture| !capture.truncated);
+    let capture = read_session_composer_verdict_capture(&zmx_name, agent.as_deref());
     let readiness = match capture.as_ref() {
-        Some(capture) => detect_session_chat_composer_readiness(
-            agent.as_deref(),
-            &capture.text,
-            crate::session_chat_notice::classify_session_chat_terminal_notice(
-                agent.as_deref(),
-                &capture.text,
-            )
-            .as_ref(),
-        ),
+        Some(capture) => session_composer_verdict(agent.as_deref(), &capture.text),
         None => SessionChatComposerReadiness::default(),
     };
     let lines = capture

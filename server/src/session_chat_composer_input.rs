@@ -1245,3 +1245,42 @@ mod zcode_tests {
         }
     }
 }
+
+#[cfg(test)]
+mod claude_status_line_tests {
+    use super::*;
+
+    /// The bottom of session G14iv's screen on 2026-10-27 (200 columns, trimmed): a titled top
+    /// rule and a statusline three rows tall, the last with Claude's own "← for agents · 2
+    /// feedback drafts" notes.
+    fn screen(input_rows: &[&str]) -> String {
+        let rule = "─".repeat(120);
+        let mut lines = vec![
+            "✻ Churned for 6s · done 8:33 AM".to_string(),
+            format!("{:>100}", "◉ xhigh · /effort"),
+            format!("{} Mr Big Chungus ─", "─".repeat(100)),
+        ];
+        lines.extend(input_rows.iter().map(|row| row.to_string()));
+        lines.push(rule);
+        lines.push("  Opus 5.5 (1M) | xhigh | Ctx 57% | $757.85".to_string());
+        lines.push("  ff8d2575-b069-47b5-b375-69750cc8353f | …/Ghostex".to_string());
+        lines.push(
+            "  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents · 2 feedback drafts"
+                .to_string(),
+        );
+        lines.join("\n")
+    }
+
+    #[test]
+    fn statusline_rows_under_the_input_box_are_never_draft_text() {
+        assert_eq!(claude_composer_draft(&screen(&["❯ "])).as_deref(), Some(""));
+        assert_eq!(
+            crate::session_chat_composer::claude_composer_input_text(&screen(&["❯ "])),
+            None
+        );
+        assert_eq!(
+            claude_composer_draft(&screen(&["❯ first line", "  second line", "  ```"])).as_deref(),
+            Some("first line second line ```")
+        );
+    }
+}

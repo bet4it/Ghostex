@@ -12,7 +12,7 @@ const RECENT_SEND_PROBLEMS: usize = 8;
 const PROBLEM_MESSAGE_MAX_CHARS: usize = 240;
 
 /// CDXC:SessionChat 2026-10-25 DECISION:
-/// User: "i want a way to report such issues where it goes and captures the terminal for me into clipboard when the chat composer shows red so ppl can share it… should copy full screen of terminal with 200 width basically as seen by ghostex", with "useful info" about the current state. The report is built here, on the machine that runs the session, so every chat (desktop, web, phone, a remote session) copies the same text: the session, the input-box verdict and the notice Ghostex reads off the live grid, the terminal's size and clients, the queue, the session's recent refused or held sends, and the whole live grid as gxserver captures it. It names no folders, accounts or message text beyond what is on the screen.
+/// User: "i want a way to report such issues where it goes and captures the terminal for me into clipboard when the chat composer shows red so ppl can share it… should copy full screen of terminal with 200 width basically as seen by ghostex", with "useful info" about the current state. The report is built here, on the machine that runs the session, so every chat (desktop, web, phone, a remote session) copies the same text: the session, the input-box verdict and the notice the chat acts on, the terminal's size and clients, the queue, the session's recent refused or held sends, and the whole live grid as gxserver captures it. It names no folders, accounts or message text beyond what is on the screen.
 /// SEE-ALSO: packages/gx-chat-core/src/extras/report.rs (Copy Report: copy, toast, then Send Bug / Feedback), server/src/session_chat_composer.rs (`read_session_terminal_tail`, the same verdict for the not-ready card).
 pub(crate) fn read_session_chat_report(
     state: &AppState,
@@ -69,47 +69,26 @@ pub(crate) fn read_session_chat_report(
         grid_line(grid.as_ref())
     ));
 
-    // The live grid alone, the screen Ghostex reads and the user sees, without scrollback.
+    // The live grid alone, the screen the user sees, without scrollback.
     let capture = crate::zmx::read_zmx_session_grid_capture(&zmx_name);
+    /*
+    CDXC:SessionChat 2026-10-27 WHY:
+    The verdict was judged on the live grid while the Terminal View glyph, the not-ready card and the send gate judge the screen with its scrollback tail, so a user who saw the glyph red, clicked Copy Report and pasted it got "Input box: on screen and ready" under a red light (session G14iv, 2026-10-27). The report now states the verdict the chat acts on, from the same capture; the screen it prints stays the live grid.
+    */
+    let verdict = crate::session_chat_composer::read_session_composer_verdict_capture(
+        &zmx_name,
+        agent.as_deref(),
+    );
     report.push_str("\n### What Ghostex sees\n\n");
-    match capture.as_ref() {
-        Ok(capture) => {
-            let notice = crate::session_chat_notice::classify_session_chat_terminal_notice(
-                agent.as_deref(),
-                &capture.text,
-            );
-            let readiness = crate::session_chat_composer::detect_session_chat_composer_readiness(
-                agent.as_deref(),
-                &capture.text,
-                notice.as_ref(),
-            );
-            report.push_str(&format!(
-                "- Input box: {}\n",
-                match readiness.state {
-                    crate::session_chat_composer::SessionChatComposerState::Ready => {
-                        "on screen and ready".to_string()
-                    }
-                    crate::session_chat_composer::SessionChatComposerState::NotReady => format!(
-                        "not ready: {}",
-                        readiness.reason.as_deref().unwrap_or("no reason given")
-                    ),
-                    crate::session_chat_composer::SessionChatComposerState::Unknown => {
-                        "unknown (Ghostex has no input-box signature for this agent)".to_string()
-                    }
-                }
-            ));
-            if readiness.should_dismiss() {
-                report.push_str("- A send closes the panel over the input box first.\n");
-            }
-            report.push_str(&format!(
-                "- Terminal notice: {}\n",
-                notice
-                    .map(|notice| format!("{} ({})", notice.title, notice.kind))
-                    .unwrap_or_else(|| "none".to_string())
-            ));
+    match (verdict.as_ref(), capture.as_ref()) {
+        (Some(verdict), _) => {
+            report.push_str(&verdict_lines(agent.as_deref(), &verdict.text));
         }
-        Err(error) => {
+        (None, Err(error)) => {
             report.push_str(&format!("- Ghostex could not read the terminal: {error}\n"));
+        }
+        (None, Ok(_)) => {
+            report.push_str("- Input box: unreadable (the terminal capture lost its tail)\n");
         }
     }
     let queue = crate::session_chat_queue::read_session_chat_queue_snapshot(
@@ -141,6 +120,36 @@ pub(crate) fn read_session_chat_report(
         ));
     }
     Ok(json!({ "report": report, "projectId": project_id, "sessionId": session_id }))
+}
+
+/// The input-box and notice lines, as the Terminal View glyph and the send gate judge `screen`.
+fn verdict_lines(agent: Option<&str>, screen: &str) -> String {
+    use crate::session_chat_composer::SessionChatComposerState;
+    let readiness = crate::session_chat_composer::session_composer_verdict(agent, screen);
+    let notice = crate::session_chat_notice::classify_session_chat_terminal_notice(agent, screen);
+    let mut lines = format!(
+        "- Input box: {}\n",
+        match readiness.state {
+            SessionChatComposerState::Ready => "on screen and ready".to_string(),
+            SessionChatComposerState::NotReady => format!(
+                "not ready: {}",
+                readiness.reason.as_deref().unwrap_or("no reason given")
+            ),
+            SessionChatComposerState::Unknown => {
+                "unknown (Ghostex has no input-box signature for this agent)".to_string()
+            }
+        }
+    );
+    if readiness.should_dismiss() {
+        lines.push_str("- A send closes the panel over the input box first.\n");
+    }
+    lines.push_str(&format!(
+        "- Terminal notice: {}\n",
+        notice
+            .map(|notice| format!("{} ({})", notice.title, notice.kind))
+            .unwrap_or_else(|| "none".to_string())
+    ));
+    lines
 }
 
 /// `macOS (aarch64)`: the platform without spawning a process for its version.
@@ -294,4 +303,43 @@ fn code_fence(screen: &str) -> String {
         .max()
         .unwrap_or(0);
     "`".repeat(longest.max(2) + 1)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::verdict_lines;
+
+    /// Session G14iv's screen when its report was copied on 2026-10-27 (200 columns, trimmed).
+    fn idle_screen() -> String {
+        [
+            "✻ Churned for 6s · done 8:33 AM".to_string(),
+            format!("{:>100}", "◉ xhigh · /effort"),
+            format!("{} Mr Big Chungus ─", "─".repeat(100)),
+            "❯ ".to_string(),
+            "─".repeat(120),
+            "  Opus 5.5 (1M) | xhigh | Ctx 57% | $757.85".to_string(),
+            "  ff8d2575-b069-47b5-b375-69750cc8353f | …/Ghostex".to_string(),
+            "  ⏵⏵ bypass permissions on (shift+tab to cycle) · ← for agents · 2 feedback drafts"
+                .to_string(),
+        ]
+        .join("\n")
+    }
+
+    #[test]
+    fn the_report_states_the_verdict_the_chat_acts_on() {
+        let screen = idle_screen();
+        let readiness =
+            crate::session_chat_composer::session_composer_verdict(Some("claude"), &screen);
+        assert_eq!(readiness.state.as_str(), "ready");
+        assert_eq!(
+            verdict_lines(Some("claude"), &screen),
+            "- Input box: on screen and ready\n- Terminal notice: none\n"
+        );
+        // Mid-repaint the input box is gone and only the transcript is left.
+        let transcript = screen.lines().take(2).collect::<Vec<_>>().join("\n");
+        assert_eq!(
+            verdict_lines(Some("claude"), &transcript),
+            "- Input box: not ready: The claude input box is not on screen yet.\n- Terminal notice: none\n"
+        );
+    }
 }
