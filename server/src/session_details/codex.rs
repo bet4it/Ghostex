@@ -368,7 +368,7 @@ fn codex_program(
             return Some(vec![first.clone()]);
         }
     }
-    crate::accounts::helpers::executable(home, "codex")
+    crate::accounts::helpers::probe_executable(home, "codex")
         .map(|path| vec![path.to_string_lossy().into_owned()])
 }
 

@@ -272,10 +272,12 @@ fn build_command(target: &ProbeTarget) -> Result<Command, String> {
         .unwrap_or_default();
     let program = match program.first() {
         Some(executable) if Path::new(executable).is_absolute() => program,
-        _ => vec![crate::accounts::helpers::executable(&target.home, "claude")
-            .ok_or_else(|| "Claude Code isn't installed on this computer.".to_string())?
-            .to_string_lossy()
-            .into_owned()],
+        _ => vec![
+            crate::accounts::helpers::probe_executable(&target.home, "claude")
+                .ok_or_else(|| "Claude Code isn't installed on this computer.".to_string())?
+                .to_string_lossy()
+                .into_owned(),
+        ],
     };
     if !flags.iter().any(|flag| flag == "--model") {
         if let Some(model) = target.model.as_deref().filter(|model| !model.is_empty()) {

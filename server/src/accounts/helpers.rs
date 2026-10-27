@@ -20,6 +20,12 @@ pub(crate) fn executable(home: &Path, name: &str) -> Option<PathBuf> {
     crate::platform::live_path::find(name, &install_dirs(home))
 }
 
+/// `executable` for a probe Ghostex runs on its own: `None` while `name` is only an install-on-demand
+/// wrapper, which the probe would make install the CLI (`agent_hooks/on_demand.rs`).
+pub(crate) fn probe_executable(home: &Path, name: &str) -> Option<PathBuf> {
+    crate::agent_hooks::on_demand::probe_target_path(executable(home, name)?, name, home)
+}
+
 /// The helpers' own install directories, searched after the live PATH.
 fn install_dirs(home: &Path) -> Vec<PathBuf> {
     let mut dirs = vec![home.join(".local/bin"), home.join(".cargo/bin")];

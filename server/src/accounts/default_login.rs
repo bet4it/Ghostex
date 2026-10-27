@@ -129,7 +129,7 @@ fn claude_reports_signed_out(home: &Path) -> bool {
             return signed_out;
         }
     }
-    let Some(claude) = super::helpers::executable(home, "claude") else {
+    let Some(claude) = super::helpers::probe_executable(home, "claude") else {
         return false;
     };
     let mut command = crate::platform::process::background_command(claude);

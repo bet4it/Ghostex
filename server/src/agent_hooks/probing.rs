@@ -144,6 +144,14 @@ pub(crate) fn resolve_cli_command(command: &str, home_dir: &Path) -> Option<Stri
     refresh_resolved_command_path(command, home_dir)
 }
 
+/// The agent CLI a probe Ghostex runs on its own (model lineups, versions, sign-in state) may run:
+/// `None` while `command` is only an install-on-demand wrapper, so looking never installs it.
+/// Starting an agent the user picked keeps using the name on PATH, wrapper included.
+pub(crate) fn resolve_probe_command(command: &str, home_dir: &Path) -> Option<String> {
+    let path = resolve_cli_command(command, home_dir)?;
+    super::on_demand::probe_target(&path, command, home_dir)
+}
+
 /// The PATH entries the user's login shell sets up, which is what a new session's shell starts with.
 /// Waits longer for a slow shell than the quick probe agent launches use, because it backs decisions
 /// that change the user's setup.
