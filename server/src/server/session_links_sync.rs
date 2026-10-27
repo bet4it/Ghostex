@@ -24,7 +24,7 @@ use crate::session_links::{
     forget_session_link_mentions_except, needs_full_scan, parse_github_url,
     presentation_session_links, remember_session_link_mentions, scan_transcript,
     session_link_entries, session_links_read_snapshot, stored_session_links, write_session_links,
-    SessionLinkKind, SessionLinkRef, SessionLinkSource, StoredSessionLink,
+    SessionLinkKind, SessionLinkRef, SessionLinkSource, StoredSessionLink, MENTIONED_BY_USER,
 };
 use crate::storage::open_gxserver_database;
 use crate::work_mode::{
@@ -198,6 +198,9 @@ pub(crate) fn run_session_links_refresh_once(
                         changed |=
                             stored.add_found(found(link, SessionLinkSource::AgentOpened, None));
                     }
+                    // Tickets other agents' reports or the agent's replies linked before the
+                    // user's-own-words rule leave (`recheck_mentions`).
+                    changed |= stored.recheck_mentions(&links.linear_mentions);
                     let team_keys = crate::work_mode::project_linear_key(&project_id)
                         .and_then(cached_linear_team_keys)
                         .unwrap_or_default();
@@ -207,7 +210,7 @@ pub(crate) fn run_session_links_refresh_once(
                             changed |= stored.add_found(found(
                                 SessionLinkRef::Linear { identifier },
                                 SessionLinkSource::Mentioned,
-                                None,
+                                Some(MENTIONED_BY_USER.to_string()),
                             ));
                         }
                     }

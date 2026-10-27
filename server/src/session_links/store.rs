@@ -25,7 +25,8 @@ pub(crate) enum SessionLinkSource {
     AgentReported,
     /// A linked PR closes it.
     Closes,
-    /// The chat mentioned a Linear ticket of the workspace's Linear teams.
+    /// The user's own words in the chat named a Linear ticket of the workspace's Linear teams
+    /// (`via` is `MENTIONED_BY_USER`; one stored before 2026-10-27 has none, `recheck_mentions`).
     Mentioned,
     /// A person added it.
     User,
@@ -55,6 +56,9 @@ impl SessionLinkSource {
         })
     }
 }
+
+/// The `via` of a `Mentioned` link that joined from the user's own words.
+pub(crate) const MENTIONED_BY_USER: &str = "user";
 
 /// One stored link.
 #[derive(Clone, Debug, PartialEq)]
@@ -100,6 +104,37 @@ impl StoredSessionLinks {
         }
         self.items.push(link);
         true
+    }
+
+    /// Judges the Linear tickets that joined by a mention before the 2026-10-27 rule (no
+    /// `via`) again: one the user wrote (`user_mentions`) stays and is marked
+    /// `MENTIONED_BY_USER`, one anyone pinned stays, the rest leave without going onto `removed`,
+    /// so the user writing it later still links it. Returns whether the list changed.
+    ///
+    /// CDXC:SessionLinks 2026-10-27 WHY:
+    /// The SPX tickets on the orchestrator came from other agents' reports and the agent's own replies (CDXC:SessionLinks 2026-10-27 in transcript_scan.rs). A ticket linked under the new rule is marked and never judged again, so a transcript read only in part (the first read stops after 20,000 rows) cannot drop one the user named long ago; only the unmarked ones get this one second look.
+    pub(crate) fn recheck_mentions(&mut self, user_mentions: &[String]) -> bool {
+        let pinned = self.pinned.clone();
+        let mut changed = false;
+        self.items.retain_mut(|item| {
+            let SessionLinkRef::Linear { identifier } = &item.link else {
+                return true;
+            };
+            if item.source != SessionLinkSource::Mentioned || item.via.is_some() {
+                return true;
+            }
+            if user_mentions.contains(identifier) {
+                item.via = Some(MENTIONED_BY_USER.to_string());
+                changed = true;
+                return true;
+            }
+            if pinned.contains(&item.link.key()) {
+                return true;
+            }
+            changed = true;
+            false
+        });
+        changed
     }
 
     /// Adds a link a person (or `ghostex link add`) asked for, taking it off the removed list.
@@ -159,7 +194,11 @@ impl StoredSessionLinks {
             .partition(|item| item.link.key() == key);
         self.removed_items = kept;
         let mut changed = was_removed;
-        for item in back {
+        for mut item in back {
+            // A person brought it back, so `recheck_mentions` leaves it alone.
+            if item.source == SessionLinkSource::Mentioned && item.via.is_none() {
+                item.via = Some(MENTIONED_BY_USER.to_string());
+            }
             if !self.contains(key) {
                 self.items.push(item);
                 changed = true;
@@ -301,4 +340,72 @@ pub(crate) fn write_session_links(
 
 pub(crate) fn now_iso() -> String {
     chrono::Utc::now().to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn linear(identifier: &str, source: SessionLinkSource, via: Option<&str>) -> StoredSessionLink {
+        StoredSessionLink {
+            link: SessionLinkRef::Linear {
+                identifier: identifier.to_string(),
+            },
+            source,
+            via: via.map(str::to_string),
+            url: None,
+            added_at: None,
+        }
+    }
+
+    /// CDXC:SessionLinks 2026-10-27: the tickets linked from other agents' text leave; the user's,
+    /// pinned and hand-added ones stay.
+    #[test]
+    fn recheck_mentions_drops_tickets_the_user_never_wrote() {
+        let mut stored = StoredSessionLinks {
+            items: vec![
+                linear("SPX-13211", SessionLinkSource::Mentioned, None),
+                linear("SPX-123", SessionLinkSource::Mentioned, None),
+                linear("SPX-12599", SessionLinkSource::Mentioned, None),
+                linear("SPX-1", SessionLinkSource::User, None),
+                linear(
+                    "GHX-9",
+                    SessionLinkSource::Mentioned,
+                    Some(MENTIONED_BY_USER),
+                ),
+            ],
+            pinned: vec!["linear:SPX-12599".to_string()],
+            ..Default::default()
+        };
+        assert!(stored.recheck_mentions(&["SPX-123".to_string()]));
+        let kept: Vec<(String, Option<String>)> = stored
+            .items
+            .iter()
+            .map(|item| (item.link.key(), item.via.clone()))
+            .collect();
+        assert_eq!(
+            kept,
+            vec![
+                ("linear:SPX-123".to_string(), Some("user".to_string())),
+                ("linear:SPX-12599".to_string(), None),
+                ("linear:SPX-1".to_string(), None),
+                ("linear:GHX-9".to_string(), Some("user".to_string())),
+            ]
+        );
+        // Dropped, not removed: the user naming it later still links it.
+        assert!(stored.removed.is_empty());
+        assert!(!stored.recheck_mentions(&[]));
+    }
+
+    #[test]
+    fn a_restored_mention_is_not_rechecked() {
+        let mut stored = StoredSessionLinks {
+            items: vec![linear("SPX-5", SessionLinkSource::Mentioned, None)],
+            ..Default::default()
+        };
+        stored.remove("linear:SPX-5");
+        assert!(stored.restore("linear:SPX-5"));
+        assert!(!stored.recheck_mentions(&[]));
+        assert!(stored.contains("linear:SPX-5"));
+    }
 }

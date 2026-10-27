@@ -701,7 +701,7 @@ pub fn decode_claude_transcript_line(line: &str, fallback_id: &str) -> Option<Se
 // Codex decoder (upstream chat spec §2.3)
 // ---------------------------------------------------------------------------
 
-const KNOWN_HARNESS_TAG_NAMES: &[&str] = &[
+pub(crate) const KNOWN_HARNESS_TAG_NAMES: &[&str] = &[
     "agent-message",
     "bash-input",
     "bash-stderr",

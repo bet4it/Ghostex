@@ -2,7 +2,10 @@
 //! GitHub PR and issue URLs the chat only mentioned, and the Linear tickets it mentioned.
 //!
 //! CDXC:SessionLinks 2026-10-24 DECISION:
-//! User picked which links join a session by themselves: the branch's, earlier branches', "PRs and issues the agent opened", what the agent reports with `ghostex link add`, and the issues a linked PR closes. A PR or issue URL the chat only mentioned is offered under Suggested instead ("suggest"). Linear tickets join when mentioned: "and several linear tickets too (if the user added linear api key and the linear issue id or link is mentioned in the thread)"; the pass keeps only IDs of the Linear teams that key sees.
+//! User picked which links join a session by themselves: the branch's, earlier branches', "PRs and issues the agent opened", what the agent reports with `ghostex link add`, and the issues a linked PR closes. A PR or issue URL the chat only mentioned is offered under Suggested instead ("suggest").
+//!
+//! CDXC:SessionLinks 2026-10-27 DECISION:
+//! User: "pls check why are we linking those SPX linear tickets even tho they're fully unrelated? pls fix". Their 2026-10-24 rule stays ("if the user added linear api key and the linear issue id or link is mentioned in the thread"), and "mentioned in the thread" now means the user's own words: a Linear ID or URL joins only from a user row's text, never from another agent's message or a Ghostex thread report (both reach the agent as user rows), harness text (system reminders, hooks, command output, a compaction summary, injected instructions), tool calls and results, a fenced block or a `>` quoted line. The agent's own replies do not link either: an agent only learns an ID from the user (already counted) or from text it read (excluded), so its reply repeats one; the orchestrator "Mr Big Chungus" (G14iv) called a session "your SPX-123 session" in a dozen replies and repeated SPX-13211 while explaining this bug. A ticket the agent really works on is reported with `ghostex link add`. Supersedes linking every ID the user or the agent wrote. A paste still counts as the user's words, since Chat sends every multi-line message as a paste. GitHub URLs (only ever suggested) follow the same machine-text rule but still come from the agent's replies too, since a suggestion waits for a click. The pass keeps only IDs of the Linear teams the project's key sees; Ghostex knows no narrower team for a project.
 //!
 //! CDXC:SessionLinks 2026-10-24 WHY:
 //! A transcript is read once in full and then only from where the last read stopped (rows at or past the length it had), so a long session costs a full read once per gxserver run and a page or two per pass after that.
@@ -30,9 +33,9 @@ const MAX_MENTIONS: usize = 40;
 pub(crate) struct TranscriptLinks {
     /// PRs and issues a tool call created.
     pub(crate) opened: Vec<SessionLinkRef>,
-    /// GitHub PR and issue URLs the user or the agent wrote.
+    /// GitHub PR and issue URLs the user or the agent wrote (`own_words`).
     pub(crate) github_mentions: Vec<SessionLinkRef>,
-    /// Linear IDs (from URLs and bare `GHX-142` words) the user or the agent wrote.
+    /// Linear IDs (from URLs and bare `GHX-142` words) the user wrote (`own_words`).
     pub(crate) linear_mentions: Vec<String>,
 }
 
@@ -80,6 +83,12 @@ fn creates_github_item(name: &str, input: &Value) -> bool {
 impl Scanner {
     fn scan_message(&mut self, message: &Value) {
         let role = crate::ghostex_cli::session_chat_transcript::effective_role(message);
+        // A whole row another agent or Ghostex sent (its sender block may sit in its own block).
+        let machine_row = role == "user"
+            && is_machine_text(&crate::ghostex_cli::session_chat_transcript::message_text(
+                message,
+                usize::MAX,
+            ));
         let blocks = message
             .get("blocks")
             .and_then(Value::as_array)
@@ -117,18 +126,25 @@ impl Scanner {
                         }
                     }
                 }
-                Some("text") if matches!(role, "user" | "assistant") => {
+                Some("text") if (role == "user" && !machine_row) || role == "assistant" => {
                     let text = block.get("text").and_then(Value::as_str).unwrap_or("");
-                    self.scan_text(text);
+                    if role == "user" && is_machine_text(text) {
+                        continue;
+                    }
+                    self.scan_text(&own_words(text), role == "user");
                 }
                 _ => {}
             }
         }
     }
 
-    fn scan_text(&mut self, text: &str) {
+    /// Reads the URLs and IDs in `text`; Linear IDs only when the user wrote it.
+    fn scan_text(&mut self, text: &str, by_user: bool) {
         for link in urls_in(text, "https://github.com/").filter_map(|url| parse_github_url(&url)) {
             self.links.mention_github(link);
+        }
+        if !by_user {
+            return;
         }
         for link in urls_in(text, "https://linear.app/").filter_map(|url| parse_linear_url(&url)) {
             if let SessionLinkRef::Linear { identifier } = link {
@@ -139,6 +155,54 @@ impl Scanner {
             TranscriptLinks::push_unique(&mut self.links.linear_mentions, identifier);
         }
     }
+}
+
+/// Text on a user row that the user did not write: another agent's message (its sender block
+/// above or below the body, or a `<cross-session-message>` envelope), a Ghostex thread report,
+/// and what the agent CLI or Ghostex injects (system reminders, hook output, a compaction
+/// summary, AGENTS.md and environment context).
+fn is_machine_text(text: &str) -> bool {
+    let text = text.trim();
+    !text.is_empty()
+        && (ghostex_gx_chat_core::transcript::agent_message::parse_inter_agent_message(text)
+            .is_some()
+            || text.starts_with("Ghostex thread report:")
+            || crate::session_chat_decode_claude::is_known_harness_injected_user_turn_text(text)
+            || crate::agents::activity::is_first_prompt_claim_meta_prompt(text))
+}
+
+/// `text` without what it quotes: harness tag spans (`<system-reminder>…</system-reminder>`),
+/// fenced blocks (logs, code, command output) and `>` quoted lines.
+fn own_words(text: &str) -> String {
+    let mut text = text.to_string();
+    for tag in crate::session_chat_decode_claude::KNOWN_HARNESS_TAG_NAMES {
+        let open = format!("<{tag}");
+        let close = format!("</{tag}>");
+        while let Some(start) = text.find(&open) {
+            let end = text[start..]
+                .find(&close)
+                .map_or(text.len(), |at| start + at + close.len());
+            text.replace_range(start..end, " ");
+        }
+    }
+    let mut kept = String::with_capacity(text.len());
+    let mut fence: Option<&str> = None;
+    for line in text.lines() {
+        let trimmed = line.trim_start();
+        let marker = ["```", "~~~"]
+            .into_iter()
+            .find(|marker| trimmed.starts_with(marker));
+        match (fence, marker) {
+            (None, Some(marker)) => fence = Some(marker),
+            (Some(open), Some(marker)) if open == marker => fence = None,
+            (None, None) if !trimmed.starts_with('>') => {
+                kept.push_str(line);
+                kept.push('\n');
+            }
+            _ => {}
+        }
+    }
+    kept
 }
 
 /// Every address in `text` that starts with `prefix`, cut where the address ends.
@@ -295,7 +359,7 @@ mod tests {
     /// project's own repos.
     fn suggested(text: &str, own_repos: &[String]) -> Vec<String> {
         let mut scanner = Scanner::default();
-        scanner.scan_text(text);
+        scanner.scan_text(text, false);
         scanner
             .links
             .github_mentions
@@ -321,5 +385,108 @@ mod tests {
             identifier: "GHX-7".to_string()
         }
         .in_repos(&[]));
+    }
+
+    fn claude_row(kind: &str, content: Value, extra: Value) -> String {
+        let mut row = serde_json::json!({
+            "type": kind,
+            "uuid": format!("{kind}-{}", content.to_string().len()),
+            "timestamp": "2026-10-27T10:00:00.000Z",
+            "message": { "role": kind, "content": content },
+        });
+        if let (Some(row), Some(extra)) = (row.as_object_mut(), extra.as_object()) {
+            row.extend(extra.clone());
+        }
+        row.to_string()
+    }
+
+    /// What a Claude transcript links, read the way the links pass reads it.
+    fn linear_mentions_of(rows: &[String]) -> Vec<String> {
+        let dir = tempfile::tempdir().expect("tempdir");
+        let path = dir.path().join("transcript.jsonl");
+        std::fs::write(&path, rows.join("\n") + "\n").expect("write transcript");
+        let mut mentions = scan_transcript(
+            crate::session_chat::SessionChatTranscriptAgent::Claude,
+            &path,
+            "P1",
+            "S1",
+        )
+        .expect("scan")
+        .linear_mentions;
+        mentions.sort();
+        mentions
+    }
+
+    /// CDXC:SessionLinks 2026-10-27: only the user's own words link a Linear ticket.
+    #[test]
+    fn only_the_users_own_words_link_a_linear_ticket() {
+        let none = Value::Null;
+        let rows = vec![
+            // Another agent's report, pasted in by Ghostex with its sender block below it.
+            claude_row(
+                "user",
+                Value::String(
+                    "<pasted_content id=\"ab12\">\nGhostex thread report: finished its turn. Its final message:\n\n\
+                     - **Linear chips:** the user's sleeping ShortPoint sessions show them (SPX-13211, SPX-12965, SPX-12599).\n\n\
+                     Message from another agent\nAgent: claude\nSession: Linear chips\nSession ID: G6o7z\n\
+                     Agent ID: claude\nAgent Session ID: abc\nReply to: S90:P3lv0:G6o7z\n</pasted_content id=\"ab12\">"
+                        .to_string(),
+                ),
+                none.clone(),
+            ),
+            // A tool call and its result that name a ticket (a session list, a file).
+            claude_row(
+                "assistant",
+                serde_json::json!([{ "type": "tool_use", "id": "t1", "name": "Bash",
+                    "input": { "command": "ghostex list-sessions | grep SPX-901" } }]),
+                none.clone(),
+            ),
+            claude_row(
+                "user",
+                serde_json::json!([{ "type": "tool_result", "tool_use_id": "t1",
+                    "content": "S90:P3lv0:G6o7z\tClaude (cloud)\tidle\tGhostex\tSPX-902" }]),
+                none.clone(),
+            ),
+            // The agent's own reply repeating what it read.
+            claude_row(
+                "assistant",
+                serde_json::json!([{ "type": "text", "text": "Your SPX-903 session started fine." }]),
+                none.clone(),
+            ),
+            // The user's own words, with a reminder, a log and a quote around them.
+            claude_row(
+                "user",
+                serde_json::json!([
+                    { "type": "text", "text": "work on SPX-123 and https://linear.app/acme/issue/SPX-124/title\n\
+                        > the report said SPX-904\n```\nERROR in SPX-905 build\n```" },
+                    { "type": "text", "text": "<system-reminder>The task list mentions SPX-906.</system-reminder>" },
+                ]),
+                none.clone(),
+            ),
+            // Claude's summary of the conversation after a compaction.
+            claude_row(
+                "user",
+                Value::String(
+                    "This session is being continued from a previous conversation. Your SPX-907 session...".to_string(),
+                ),
+                serde_json::json!({ "isCompactSummary": true }),
+            ),
+        ];
+        assert_eq!(linear_mentions_of(&rows), vec!["SPX-123", "SPX-124"]);
+    }
+
+    #[test]
+    fn own_words_drops_quotes_fences_and_harness_spans() {
+        let text = "keep GHX-1\n> quoted GHX-2\n~~~\nGHX-3\n~~~\nkeep GHX-4 <system-reminder>GHX-5</system-reminder> after";
+        let words = own_words(text);
+        assert!(words.contains("GHX-1") && words.contains("GHX-4") && words.contains("after"));
+        for dropped in ["GHX-2", "GHX-3", "GHX-5"] {
+            assert!(!words.contains(dropped), "{dropped} in {words:?}");
+        }
+        // An agent's message with its sender block first (transcripts before 2026-10-05).
+        assert!(is_machine_text(
+            "Message from another agent\nAgent: codex\nReply to: S1:P1:S2\n\nSee SPX-1."
+        ));
+        assert!(!is_machine_text("Please look at SPX-1 for me"));
     }
 }
