@@ -8,6 +8,70 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
         <link>https://github.com/maddada/Ghostex/releases</link>
         <description>Sparkle appcast for Ghostex macOS releases.</description>
         <item>
+            <title>10.38.0</title>
+            <pubDate>Tue, 27 Oct 2026 18:21:20 +0000</pubDate>
+            <sparkle:fullReleaseNotesLink>https://github.com/maddada/Ghostex/releases/tag/v10.38.0</sparkle:fullReleaseNotesLink>
+            <sparkle:version>103800</sparkle:version>
+            <sparkle:shortVersionString>10.38.0</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
+            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
+            <description sparkle:format="markdown"><![CDATA[# Ghostex 10.38.0
+
+## 10.38.0 - 2026-10-27
+
+**Ghostex 10.38.0 is out.** Codex sessions get a Mode button, the chat's ? pill becomes Chat Resources with every page, form and chart, session links stop picking up unrelated tickets and take links you add by hand, approval cards show one hotkey per row, Claude cloud sessions open as a chat, and Linux gets signed, self-updating AppImages and a working mouse wheel in the Browser.
+
+### 💬 Chat
+
+- **Codex sessions get a Mode button like Claude's** that switches the running session between Ask for approval, Approve for me, Full Access and Read Only, on the computer and the phone.
+- **The ? pill opens Chat Resources:** every page, question form and chart in the chat, with a dropdown for All, Html, Q&A or Charts, and a row jumps to its card. A form or page can be put off For later, so it stops counting as unanswered.
+- **Summary mode keeps messages with pages, forms and charts open,** and folds other agents' messages and thread reports into Agent reply.
+- **Approval and dialog cards show each row's number as the only hotkey hint,** without the extra buttons under the rows, and Show terminal output opens the lines above the prompt on the card itself. On the phone, a dialog with no No row keeps Cancel.
+- **A tool call reads as done only once it ran:** one waiting for approval, declined or failed reads "Create", "Run" or "Edit".
+- **A code block's Wrap, Run and Copy buttons are icon-only, with tooltips.**
+- **Copy Report states the same input-box verdict as the Terminal View light above it.**
+
+### 🔗 Session links
+
+- **Only your own words link a Linear ticket:** IDs in thread reports, other agents' messages, tool output or the agent's replies no longer link unrelated tickets. Ones the session's agent mentions show under Suggested, and an orchestrator's own replies suggest nothing.
+- **A suggestion's × dismisses it for good, and + adds a PR, issue or Linear ticket by hand:** type `SPX-123`, `#123` or paste a link.
+- **Suggested shows the 5 newest, with Show all for the rest.**
+- **Remote sessions show their links in the sidebar card and the top bar.** The sidebar shows a badge by default, on the title's line and gray once every link is merged, and Settings > General > Chat > Show session links in the chat's top bar can hide them.
+
+### ☁️ Claude cloud
+
+- **A Claude cloud session opens as an empty chat:** pick its account, send the first message, and its claude.ai page appears in the chat pane. A Cloud button in the header switches to the terminal, opens or copies the claude.ai link, and starts a copy on another account.
+
+### 🧭 Views and pages
+
+- **Changes: one button on the right of the header picks Whole branch or Uncommitted only,** and picking a file unfolds it and centres it.
+- **Settings > Extensions opens the extension catalog from the sidebar,** its pages fold under it, and About moves up with the top rows.
+- **Terminal extensions like Lazygit are easy to open:** an Open row in Quick Access, pinned on install, and Install with Homebrew when the command is missing.
+- **Inline HTML pages get a centred design that works in dark and light,** with a Dark / Light switch, and their tooltips look like the app's, with your platform's shortcut keys.
+
+### 🐧 Linux
+
+- **The mouse wheel scrolls Browser pages under xfwm4 and other window managers that grab mouse buttons,** and touchpads stay pixel-precise (#338).
+- **A leftover libcef.so beside the app no longer crashes Ghostex at launch:** it's skipped for the downloaded CEF, and a mismatched CEF shows an error instead (#339).
+- **AppImages are signed and carry update information,** so AppImage managers such as AppManager show the update link and web page and can update Ghostex. ghostex.dev's Linux downloads add Install with AppManager.
+
+### 🌐 Remote computers
+
+- **Open Folder on a remote project opens it in Files,** and Open In opens VS Code-family editors and Zed over SSH.
+
+### 📱 On the phone
+
+- **The Sessions screen is drawn like the desktop sidebar,** with Voice, Search, Web and Machines in a bottom bar.
+
+### 🩹 Fixes and polish
+
+- **A tool whose version check never answers no longer stalls Settings > Integrations:** it's stopped after 5 seconds and the rest of the list shows (#336).
+- **Restoring a Space or workspace keeps sleeping sessions asleep,** thanks to @suatkocar.
+- **Anonymous usage stats (Settings' existing opt-out) now include which built-in and official extensions are on and which views are opened.**
+]]></description>
+            <enclosure url="https://github.com/maddada/Ghostex/releases/download/v10.38.0/ghostex-10.38.0-arm64.dmg" length="48953234" type="application/octet-stream" sparkle:edSignature="JHC5Gr5MLAxCqkfUold5KojSKkdw44QQjXPoEz5RRhrwvlUPnOKujGedEcF51iwuU/k4AJr50ov04ZGhnk7wCQ=="/>
+        </item>
+        <item>
             <title>10.37.0</title>
             <pubDate>Tue, 27 Oct 2026 02:46:17 +0000</pubDate>
             <sparkle:fullReleaseNotesLink>https://github.com/maddada/Ghostex/releases/tag/v10.37.0</sparkle:fullReleaseNotesLink>
@@ -405,98 +469,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
             <enclosure url="https://github.com/maddada/Ghostex/releases/download/v10.33.0/ghostex-10.33.0-arm64.dmg" length="47437579" type="application/octet-stream" sparkle:edSignature="RAhMVbfLAtHX04tjV1lnJNAOTcKR3716xX2FMYhXVPWyalI9soG5xw/9KqpJYBH6wXt19AXYzaYTbNYN6kXLBw=="/>
         </item>
         <item>
-            <title>10.32.0</title>
-            <pubDate>Sat, 24 Oct 2026 02:12:47 +0000</pubDate>
-            <sparkle:fullReleaseNotesLink>https://github.com/maddada/Ghostex/releases/tag/v10.32.0</sparkle:fullReleaseNotesLink>
-            <sparkle:version>103200</sparkle:version>
-            <sparkle:shortVersionString>10.32.0</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>13.0</sparkle:minimumSystemVersion>
-            <sparkle:hardwareRequirements>arm64</sparkle:hardwareRequirements>
-            <description sparkle:format="markdown"><![CDATA[# Ghostex 10.32.0
-
-## 10.32.0 - 2026-10-24
-
-**Ghostex 10.32.0 is out.** Claude cloud sessions get their own sidebar rows, floating pages open the moment you click them with a working picture viewer, the Browser handles sign-in popups and site permissions, and Ghostex uses far less memory and CPU.
-
-### ☁️ Claude cloud sessions
-
-- **Run a Claude Code session on Claude's own computers and keep it in the sidebar:** pick Claude (cloud) in New Thread, choose the Claude account it runs on, and type the task; it starts on claude.ai from the project's GitHub repository on a new `claude/…` branch.
-- **Each Claude account has its own claude.ai sign-in inside Ghostex,** with Google sign-in, a spinner while it loads, and Back to Settings.
-- **A cloud row keeps its cloud mark in every state, and Close puts it to sleep instead of removing it,** since the session goes on running on claude.ai; close it again to take it off the list.
-- **The phone lists cloud rows too,** and tapping one opens the session on claude.ai.
-
-### 💬 Chat
-
-- **A floating page window opens the moment you click its card,** with a spinner while the page fills in, and Ghostex warms up its web engine a few seconds after launch so even the first page fills in at once.
-- **Clicking a picture in a floating page opens a viewer inside the page with Zoom, Copy and arrows, and a floating page reopens where you left it scrolled;** both were announced in 10.31.0 but didn't work there.
-- **A running Subagents or Threads pill shows a pulsing yellow dot,** and Subagents counts the running ones while any run.
-- **While the agent thinks, its thinking is a closed card showing the newest finished line.**
-- **A tall question card keeps its choices and buttons on screen and only the question text scrolls,** and a Claude question taller than its terminal can still be answered from the chat.
-- **An answer sent while the background service restarts is retried until it's back** instead of failing after 5 seconds.
-- **The cards stacked above the chat box are evenly spaced,** with the same gap under the last card as under the working bar.
-- **The working bar above the chat box uses the chat box's own background, and file names in the @ popup use the normal weight.**
-- **The docked question card's arrow points down while it's open and up while it's folded.**
-- **A forked session counts only the questions it asked itself.**
-- **A long single-line message, or one that starts with a path, is sent as one paste,** thanks to @suatkocar (#274).
-- **A wide terminal keeps its width while it rests in Chat View,** thanks to @suatkocar (#276).
-
-### 🗂️ Sidebar
-
-- **A question plus working or done shows two overlapping dots,** like the Space button, and the question dot lines up with every other status dot.
-
-### 🖥️ Terminal
-
-- **Cmd+A selects the terminal screen and a plain shell no longer prints `7;9u`,** Select All on an empty screen selects nothing, and other Cmd keys behave as in Ghostty, thanks to @suatkocar (#278).
-
-### 🌐 Browser and Files
-
-- **Sign-in popups (Google included), site permission prompts and page notifications work in the Browser.**
-- **Annotate uses Agentation 3.1.2, picks inside same-origin frames, and starts in annotating mode.**
-- **In light mode the Files page stays neutral instead of taking the theme tint,** and it repaints when you change the theme colour.
-- **Uninstalling the Chromium runtime while it runs removes it at the next launch,** with Keep installed to undo; Reinstall on Windows works the same way.
-
-### 🎨 Theme
-
-- **The sidebar and the main area share one transparency by default,** and the Strength slider moves both together, keeping any difference you set by hand.
-- **A custom light colour is drawn as strongly as the light presets.**
-
-### 📸 Screenshots
-
-- **macOS: area selection lines up with the screen and covers the menu bar and the Dock,** so the frozen picture is no longer shifted down and a drag can start anywhere.
-
-### 🤖 Agents
-
-- **Antigravity: a turn stays working until agy is really done,** background commands included, and Combined status no longer ends it early.
-- **Settings > Agents: Update available is a filled button** like the buttons beside it.
-
-### 📱 On the phone
-
-- **Published pages open in a page sheet** with Refresh, the phone's own picture viewer, and a scroll position shared with the computer.
-- **On iPhone the chat box stays above the keyboard when the keyboard changes height while open.**
-
-### 🧹 Projects
-
-- **No more Chats: Quick Terminal, `ghostex create-chat` and the Chats group are gone,** and a project in the chats folder is an ordinary project.
-
-### ⚡ Faster and lighter
-
-- **The background service uses about half the CPU, and its startup memory peak drops from up to 650 MB to about 270 MB.**
-- **Background windows stop redrawing, hidden chats pause their clocks, and a working chat updates only its newest turn** instead of rebuilding the whole transcript.
-- **Typing and new messages in a long chat cost a fraction of what they did,** and saving a setting no longer freezes the window.
-- **Chat images, diagrams and pictures stop piling up in memory.**
-
-### 📦 Smaller downloads
-
-- **The Windows installer is about 56 MB instead of 94 MB,** and releases no longer carry the Windows portable zip.
-- **The macOS download is about 5 MB smaller.**
-
-### 🔒 Security
-
-- **Ghostex bundles Node 24.22.1 for the October 21 Node security release,** and its npm packages are past this week's advisories.
-]]></description>
-            <enclosure url="https://github.com/maddada/Ghostex/releases/download/v10.32.0/ghostex-10.32.0-arm64.dmg" length="46745319" type="application/octet-stream" sparkle:edSignature="6n10AQGCQIDPraAOL267v6SqiopaRsNgB9RNffSYifgjm2QJr4kSC/B+eMTU1LlkO8v6nelBHTgPGV3DsJIyAA=="/>
-        </item>
-        <item>
             <title>3.26.1</title>
             <pubDate>Mon, 01 Jun 2026 18:43:20 +0400</pubDate>
             <sparkle:fullReleaseNotesLink>https://github.com/maddada/Ghostex/releases/tag/v3.26.1</sparkle:fullReleaseNotesLink>
@@ -508,6 +480,6 @@ IMPORTANT: This file was signed by Sparkle. Any modifications to this file requi
     </channel>
 </rss>
 <!-- sparkle-signatures:
-edSignature: aR5NFX/t0uOod3Cn8BV9ygRrln0qPcQcp9G4+DpHrJrv7k8GHnYDhaSg3CY/V7caMpqxOHRWt8DN9Mcx/0GcCA==
-length: 41633
+edSignature: R0gqb9hvTo2azNm2Ksq+J8nLlfp8G6n9ILmK4PhYu7ITMAcf7JEyjHps9FjsTvnPropSQ0gRIv824bExXxcVCw==
+length: 40627
 -->
