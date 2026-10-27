@@ -60,23 +60,49 @@ fn fence_spans(markdown: &str) -> Vec<(usize, usize, String, String)> {
     found
 }
 
-/// The fences in one message's Markdown that draw a card summary mode keeps in view (`cards` in
-/// `turns.rs`): a question form that asks something and a published page (```visual with a
-/// `page`), each as written, fence lines included.
-pub fn card_fences(markdown: &str) -> Vec<String> {
-    let lines = split_lf(markdown);
+/// What a generated-content fence draws (`content_fences`).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ContentKind {
+    /// A ```questions block that asks something, drawn as a form.
+    Form,
+    /// A published page's card (```visual with a `page`, from `ghostex show`).
+    Page,
+    /// A drawing: a chart, stats or a table (```visual or ```vega-lite).
+    Chart,
+}
+
+/// One fence of a message that draws generated content, with its body.
+#[derive(Clone, Debug, PartialEq)]
+pub struct ContentFence {
+    pub kind: ContentKind,
+    pub body: String,
+}
+
+/// The fences in one message's Markdown that draw generated content: question forms that ask
+/// something, published pages and drawings. Summary mode keeps the messages that hold any in view
+/// (`turns::content_rows`), and the ? pill's list names them (`questions/content.rs`).
+pub fn content_fences(markdown: &str) -> Vec<ContentFence> {
+    if !markdown.contains("```") && !markdown.contains("~~~") {
+        return Vec::new();
+    }
     fence_spans(markdown)
         .into_iter()
-        .filter(|(_, _, language, body)| {
-            if is_questions_language(language) {
-                let form = parse_form(body);
-                form.error.is_empty() && !form.questions.is_empty()
+        .filter_map(|(_, _, language, body)| {
+            let kind = if is_questions_language(&language) {
+                let form = parse_form(&body);
+                (form.error.is_empty() && !form.questions.is_empty())
+                    .then_some(ContentKind::Form)?
+            } else if ghostex_gx_visual::is_visual_language(&language) {
+                if ghostex_gx_visual::page_reference(&body).is_some() {
+                    ContentKind::Page
+                } else {
+                    ContentKind::Chart
+                }
             } else {
-                ghostex_gx_visual::is_visual_language(language)
-                    && ghostex_gx_visual::page_reference(body).is_some()
-            }
+                return None;
+            };
+            Some(ContentFence { kind, body })
         })
-        .map(|(open, close, _, _)| lines[open..=close].join("\n"))
         .collect()
 }
 

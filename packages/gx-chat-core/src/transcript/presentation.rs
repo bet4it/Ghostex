@@ -1190,12 +1190,7 @@ pub(crate) fn drop_hidden_rows(items: &mut Vec<TranscriptItem>, hidden: &[String
                 work.retain(shown);
                 outcome.retain(shown);
                 earlier_replies.retain(shown);
-                cards.retain(|row| {
-                    !row.get("id")
-                        .and_then(Value::as_str)
-                        .and_then(|id| id.strip_suffix(crate::transcript::turns::CARDS_SUFFIX))
-                        .is_some_and(|id| hidden.iter().any(|hidden| hidden == id))
-                });
+                cards.retain(shown);
             }
             TranscriptItem::CompletedWork {
                 work, artifacts, ..

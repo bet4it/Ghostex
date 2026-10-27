@@ -56,9 +56,9 @@ pub enum TranscriptItem {
         /// The newest turn that has a reply: its "Agent reply" fold starts open.
         #[serde(default)]
         latest_reply: bool,
-        /// The page cards and question forms of the turn's rows, one row per message that holds
-        /// any, its id the message's plus `#cards` (`card_rows` in `transcript/turns.rs`). Drawn
-        /// under the prompt unless the message is drawn in an open fold.
+        /// The agent's messages in the turn that hold a page card, a question form or a chart,
+        /// drawn in full under the prompt; the folds leave them out (`content_rows` in
+        /// `transcript/turns.rs`).
         #[serde(default, skip_serializing_if = "Vec::is_empty")]
         cards: Vec<ProjectedMessage>,
     },

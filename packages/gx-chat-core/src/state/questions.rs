@@ -90,6 +90,8 @@ pub struct QuestionsState {
     pub open_questions: crate::questions::open_questions::OpenQuestionsState,
     /// The For later marks set here that gxserver has not confirmed yet (`crate::questions::later`).
     pub later: crate::questions::later::LaterState,
+    /// The pages that ask nothing and the charts the ? pill's list names (`crate::questions::content`).
+    pub content: crate::questions::content::ContentScan,
 }
 
 /// One question form's picks while it is open, and its send.

@@ -478,7 +478,7 @@ impl NativeChatView {
             Err(message) => self.visual_source(&key, &source, Some(message.clone()), p),
             _ => self.visual_source(&key, &source, None, p),
         };
-        div()
+        let card = div()
             .id(SharedString::from(format!("visual:{key}")))
             .flex()
             .flex_col()
@@ -491,7 +491,11 @@ impl NativeChatView {
             .rounded(px(12.0 * s))
             .child(header)
             .child(content)
-            .into_any_element()
+            .into_any_element();
+        // A jump from the ? pill's list flashes the chart it named (gx-chat-core
+        // questions/content.rs `chart_id`).
+        let chart = ghostex_gx_chat_core::questions::content::chart_id(&source);
+        self.open_question_frame(Some(&chart), card, p)
     }
 
     /// The block's JSON, with the reason it is shown instead of the drawing when there is one.

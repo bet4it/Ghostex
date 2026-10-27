@@ -95,6 +95,22 @@ pub fn page_reference(source: &str) -> Option<PageRef> {
     spec::page_of(&value)
 }
 
+/// A drawing block's title (its own, else its first part's), or `None` inside when it has none;
+/// the outer `None` when the block is a page or does not parse (cheap; no layout). The chat's
+/// list of generated content names a chart by it.
+pub fn drawing_title(source: &str) -> Option<Option<String>> {
+    if source.len() > MAX_SOURCE_BYTES {
+        return None;
+    }
+    let value = spec::parse_json(source).ok()?;
+    match spec::parse_doc(&value).ok()? {
+        spec::Doc::Page(_) => None,
+        spec::Doc::Drawing { title, rows } => {
+            Some(title.or_else(|| rows.iter().find_map(|leaf| leaf.title.clone())))
+        }
+    }
+}
+
 /// For the phone (through the chat core's query): `theme_json` is read with
 /// [`Theme::from_json`]. Returns JSON text:
 /// `{"kind":"drawing","width","height","title","svg","regions"}`, `{"kind":"page","title","url"}`

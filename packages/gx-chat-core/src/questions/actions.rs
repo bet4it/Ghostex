@@ -90,6 +90,13 @@ pub fn handle(state: &mut ChatState, action: &UserAction, context: &ChatContext)
                 state, context, id,
             ));
         }
+        ActionKind::QuestionListFilter => {
+            let filter = action
+                .param("filter")
+                .and_then(Value::as_str)
+                .unwrap_or_default();
+            crate::questions::open_questions::pick_filter(state, filter);
+        }
         ActionKind::QuestionForLater => {
             let id = action
                 .param("id")

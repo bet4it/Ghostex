@@ -13,6 +13,9 @@
 //!
 //! CDXC:SessionChat 2026-10-27 DECISION:
 //! User: "i want hovering over the ? mark "Previous questions" pill in the chat view to show me a list of all the questions. should look like this threads one in terms of having sections and i really care about the "already answered ones" so i can click to jump to those previously answered ones. make sure we sort by date". The pill carries a list of every question form and question page in the chat (`sections`), in the Links card's folding sections: Unanswered, For later, Answered and Withdrawn, each with its count, rows newest first, each row the page's title (or the form's first question), its tags and its time; a row jumps to its card and flashes it. The pill stays while the chat has any question, so the list is always reachable, but its count, attention dot and ping are only for unanswered ones (`count`). On the desktop hovering opens the list and a click still steps to the previous unanswered question (opening the list when none waits); on the phone a tap opens it.
+//!
+//! CDXC:SessionChat 2026-10-27 DECISION:
+//! User, of the list: "we're not indicating HTML pages from normal questions here", "also please show "All" "Html" "Q&A" "Charts" as 4 selections so i can jump to previous generated content", "also i wanna see even Htmls that don't have any questions in them so i can jump back to them". Every row says what it is (`kind`: an HTML page, a Q&A form or a chart), and four filters sit over the list (`filters`, the reader's pick `filter`): All, Html (pages, with or without questions), Q&A (```questions forms) and Charts (```visual drawings: charts, stats, tables). Forms and question pages keep the Unanswered, For later, Answered and Withdrawn sections; pages that ask nothing are listed under Pages and charts under Charts, newest first. The pill's count, dot and ping stay about unanswered questions only.
 
 use serde::{Deserialize, Serialize};
 
@@ -43,16 +46,31 @@ pub struct OpenQuestions {
     /// The list's header detail: "2 unanswered · 1 for later".
     #[serde(default)]
     pub summary: String,
-    /// The list's sections in order, each only when it has rows.
+    /// The list's sections in order for the picked filter, each only when it has rows.
     #[serde(default)]
     pub sections: Vec<QuestionListSection>,
+    /// The filters over the list, All, Html, Q&A and Charts, each with its count.
+    #[serde(default)]
+    pub filters: Vec<QuestionListFilter>,
+    /// The picked filter's id (`all`, `html`, `qa`, `charts`); `questionListFilter` picks one.
+    #[serde(default)]
+    pub filter: String,
+}
+
+/// One of the list's filters.
+#[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuestionListFilter {
+    pub id: String,
+    pub label: String,
+    pub count: u32,
 }
 
 /// One folding section of the pill's list.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionListSection {
-    /// `unanswered`, `later`, `answered` or `withdrawn`.
+    /// `unanswered`, `later`, `answered`, `withdrawn`, `pages` or `charts`.
     pub id: String,
     pub title: String,
     pub count: u32,
@@ -60,13 +78,13 @@ pub struct QuestionListSection {
     pub rows: Vec<QuestionListRow>,
 }
 
-/// One form or question page in the list; a click sends `jumpToQuestion {id}`.
+/// One form, page or chart in the list; a click sends `jumpToQuestion {id}`.
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct QuestionListRow {
-    /// The form's id or the page's id.
+    /// The form's id, the page's id, or the chart's (`questions/content.rs` `chart_id`).
     pub id: String,
-    /// `form` or `page`.
+    /// `form` (Q&A), `page` (HTML) or `chart`.
     pub kind: String,
     pub title: String,
     /// The Q-tags it asks.
@@ -100,6 +118,38 @@ pub struct OpenQuestionsState {
     /// The question the last jump went to, which the next click steps back from.
     pub last: Option<String>,
     pub jump: Option<OpenQuestionJump>,
+    /// The list's picked filter; empty is All.
+    pub filter: String,
+}
+
+const FILTERS: [(&str, &str); 4] = [
+    ("all", "All"),
+    ("html", "Html"),
+    ("qa", "Q&A"),
+    ("charts", "Charts"),
+];
+
+/// Whether the filter `filter` shows a row of kind `kind` (`form`, `page`, `chart`).
+fn filter_shows(filter: &str, kind: &str) -> bool {
+    match filter {
+        "html" => kind == "page",
+        "qa" => kind == "form",
+        "charts" => kind == "chart",
+        _ => true,
+    }
+}
+
+/// `questionListFilter {filter}`: the list shows what the filter picks.
+pub fn pick_filter(state: &mut ChatState, filter: &str) {
+    let filter = if FILTERS.iter().any(|(id, _)| *id == filter) && filter != "all" {
+        filter.to_string()
+    } else {
+        String::new()
+    };
+    if state.questions.open_questions.filter != filter {
+        state.questions.open_questions.filter = filter;
+        state.core.request_publish();
+    }
 }
 
 /// The forms and question pages still waiting on the reader, oldest first, less those put off For
@@ -172,14 +222,16 @@ fn section_of(
     }
 }
 
-const SECTIONS: [(&str, &str); 4] = [
+const SECTIONS: [(&str, &str); 6] = [
     ("unanswered", "Unanswered"),
     ("later", "For later"),
     ("answered", "Answered"),
     ("withdrawn", "Withdrawn"),
+    ("pages", "Pages"),
+    ("charts", "Charts"),
 ];
 
-/// The pill's list: every form and question page in its section, newest first.
+/// The pill's list: every form, page and chart in its section, newest first, all kinds.
 pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection> {
     let waiting = waiting(state);
     let later = crate::questions::later::later_ids(state);
@@ -187,7 +239,7 @@ pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection
         .into_iter()
         .map(|answers| answers.page_id)
         .collect();
-    let mut placed: Vec<(&'static str, usize, &Asker)> = state
+    let placed: Vec<(&'static str, usize, &Asker)> = state
         .transcript_view
         .askers
         .iter()
@@ -200,15 +252,29 @@ pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection
             ))
         })
         .collect();
-    // Newest first; a question the transcript gave no time sorts by its place.
-    placed.sort_by(|(_, a_index, a), (_, b_index, b)| b.at.cmp(&a.at).then(b_index.cmp(a_index)));
+    let mut placed: Vec<(&'static str, Option<i64>, usize, QuestionListRow)> = placed
+        .into_iter()
+        .map(|(section, index, asker)| (section, asker.at, index, list_row(asker, context)))
+        .collect();
+    let askers = state.transcript_view.askers.len();
+    for (index, item) in state.questions.content.items.iter().enumerate() {
+        let section = match item.kind {
+            crate::transcript::question_forms::ContentKind::Chart => "charts",
+            _ => "pages",
+        };
+        placed.push((section, item.at, askers + index, content_row(item, context)));
+    }
+    // Newest first; a row the transcript gave no time sorts by its place.
+    placed.sort_by(|(_, a_at, a_index, _), (_, b_at, b_index, _)| {
+        b_at.cmp(a_at).then(b_index.cmp(a_index))
+    });
     SECTIONS
         .iter()
         .filter_map(|(id, title)| {
             let rows: Vec<QuestionListRow> = placed
                 .iter()
-                .filter(|(section, _, _)| section == id)
-                .map(|(_, _, asker)| list_row(asker, context))
+                .filter(|(section, _, _, _)| section == id)
+                .map(|(_, _, _, row)| row.clone())
                 .collect();
             (!rows.is_empty()).then(|| QuestionListSection {
                 id: id.to_string(),
@@ -239,6 +305,30 @@ fn list_row(asker: &Asker, context: &ChatContext) -> QuestionListRow {
         .to_string(),
         title,
         tags: asker.tags.clone(),
+        time: time["label"].as_str().unwrap_or_default().to_string(),
+        time_title: time["title"].as_str().unwrap_or_default().to_string(),
+    }
+}
+
+fn content_row(
+    item: &crate::questions::content::ContentItem,
+    context: &ChatContext,
+) -> QuestionListRow {
+    use crate::transcript::question_forms::ContentKind;
+    let time = crate::transcript::message_time::message_time(item.at, context);
+    let (kind, fallback) = match item.kind {
+        ContentKind::Chart => ("chart", "Chart"),
+        _ => ("page", "Page"),
+    };
+    QuestionListRow {
+        id: item.id.clone(),
+        kind: kind.to_string(),
+        title: if item.title.is_empty() {
+            fallback.to_string()
+        } else {
+            item.title.clone()
+        },
+        tags: Vec::new(),
         time: time["label"].as_str().unwrap_or_default().to_string(),
         time_title: time["title"].as_str().unwrap_or_default().to_string(),
     }
@@ -286,8 +376,10 @@ pub fn answers_on_the_way(state: &ChatState) -> Vec<PageAnswers> {
 pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
     let open = unanswered(state);
     let count = open.len() as u32;
-    let sections = list(state, context);
-    let total = sections.iter().map(|section| section.count).sum();
+    let filter = state.questions.open_questions.filter.as_str();
+    let all = list(state, context);
+    let total = all.iter().map(|section| section.count).sum();
+    let sections = &all;
     let in_section = |id: &str| {
         sections
             .iter()
@@ -315,7 +407,39 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
         jump: state.questions.open_questions.jump.clone(),
         total,
         summary,
-        sections,
+        filters: FILTERS
+            .iter()
+            .map(|(id, label)| QuestionListFilter {
+                id: id.to_string(),
+                label: label.to_string(),
+                count: all
+                    .iter()
+                    .flat_map(|section| &section.rows)
+                    .filter(|row| filter_shows(id, &row.kind))
+                    .count() as u32,
+            })
+            .collect(),
+        filter: if filter.is_empty() {
+            "all".to_string()
+        } else {
+            filter.to_string()
+        },
+        sections: all
+            .iter()
+            .filter_map(|section| {
+                let rows: Vec<QuestionListRow> = section
+                    .rows
+                    .iter()
+                    .filter(|row| filter_shows(filter, &row.kind))
+                    .cloned()
+                    .collect();
+                (!rows.is_empty()).then(|| QuestionListSection {
+                    count: rows.len() as u32,
+                    rows,
+                    ..section.clone()
+                })
+            })
+            .collect(),
     }
 }
 
@@ -346,18 +470,29 @@ fn step(count: usize, at: Option<usize>) -> usize {
     }
 }
 
-/// `jumpToQuestion {id}`: a row of the pill's list, answered or not.
+/// `jumpToQuestion {id}`: a row of the pill's list (a form or page, answered or not, or a chart).
 pub fn jump_to_id(state: &mut ChatState, context: &ChatContext, id: &str) -> Vec<Effect> {
-    let Some(asker) = state
+    if let Some(asker) = state
         .transcript_view
         .askers
         .iter()
         .find(|asker| asker.id == id)
         .cloned()
+    {
+        return jump_to(state, context, &asker, None);
+    }
+    let Some(item) = state
+        .questions
+        .content
+        .items
+        .iter()
+        .rev()
+        .find(|item| item.id == id)
+        .cloned()
     else {
         return Vec::new();
     };
-    jump_to(state, context, &asker, None)
+    jump_to_row(state, context, &item.message_id, &item.id, None)
 }
 
 /// A Q-tag link's click (`#gx-question=Q80`, `transcript/open_questions.rs`): the latest form or
@@ -384,8 +519,19 @@ fn jump_to(
     asker: &Asker,
     question: Option<String>,
 ) -> Vec<Effect> {
+    jump_to_row(state, context, &asker.message_id, &asker.id, question)
+}
+
+/// Scrolls to the row holding `message_id` and flashes `target` there.
+fn jump_to_row(
+    state: &mut ChatState,
+    context: &ChatContext,
+    message_id: &str,
+    target: &str,
+    question: Option<String>,
+) -> Vec<Effect> {
     let rows = crate::transcript::rows(state, context);
-    let Some(item) = crate::composer::files_links::row_of(&rows, &asker.message_id, None) else {
+    let Some(item) = crate::composer::files_links::row_of(&rows, message_id, None) else {
         return Vec::new();
     };
     let revision = state
@@ -394,15 +540,14 @@ fn jump_to(
         .jump
         .as_ref()
         .map_or(1, |jump| jump.revision + 1);
-    state.questions.open_questions = OpenQuestionsState {
-        last: Some(asker.id.clone()),
-        jump: Some(OpenQuestionJump {
-            revision,
-            item,
-            target: asker.id.clone(),
-            question,
-        }),
-    };
+    let open_questions = &mut state.questions.open_questions;
+    open_questions.last = Some(target.to_string());
+    open_questions.jump = Some(OpenQuestionJump {
+        revision,
+        item,
+        target: target.to_string(),
+        question,
+    });
     state.core.request_publish();
     Vec::new()
 }
@@ -570,6 +715,81 @@ mod tests {
         assert_eq!(row.title, "About new-answer");
         assert_eq!(row.tags, vec!["Q-new-answer".to_string()]);
         assert_eq!(row.time, "12:00 AM");
+    }
+
+    #[test]
+    fn filters_pick_pages_forms_or_charts_and_count_them() {
+        use crate::questions::content::ContentItem;
+        use crate::transcript::question_forms::ContentKind;
+        let mut state = ChatState::default();
+        let mut answered_form = asker("form", AskerKind::Form, Some(2_000));
+        answered_form.answered = true;
+        state.transcript_view.askers.push(answered_form);
+        state
+            .transcript_view
+            .askers
+            .push(asker("question-page", AskerKind::Page, Some(3_000)));
+        for (id, kind, at) in [
+            ("plain-page", ContentKind::Page, 4_000),
+            ("chart-1", ContentKind::Chart, 1_000),
+        ] {
+            state.questions.content.items.push(ContentItem {
+                id: id.to_string(),
+                kind,
+                message_id: format!("m-{id}"),
+                title: String::new(),
+                at: Some(at),
+            });
+        }
+        let pill = project(&state, &ChatContext::default());
+        let counts: Vec<(&str, u32)> = pill
+            .filters
+            .iter()
+            .map(|f| (f.label.as_str(), f.count))
+            .collect();
+        assert_eq!(
+            counts,
+            vec![("All", 4), ("Html", 2), ("Q&A", 1), ("Charts", 1)]
+        );
+        assert_eq!(pill.filter, "all");
+        assert_eq!(
+            pill.count, 1,
+            "only the question page waits; pages and charts never count"
+        );
+        let order: Vec<&str> = pill.sections.iter().map(|s| s.id.as_str()).collect();
+        assert_eq!(order, vec!["unanswered", "answered", "pages", "charts"]);
+        assert_eq!(pill.sections[2].rows[0].kind, "page");
+        assert_eq!(
+            pill.sections[2].rows[0].title, "Page",
+            "a page without a title still reads as one"
+        );
+        assert_eq!(pill.sections[3].rows[0].kind, "chart");
+
+        pick_filter(&mut state, "html");
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!(pill.filter, "html");
+        let html: Vec<&str> = pill
+            .sections
+            .iter()
+            .flat_map(|s| s.rows.iter().map(|r| r.id.as_str()))
+            .collect();
+        assert_eq!(
+            html,
+            vec!["question-page", "plain-page"],
+            "pages with and without questions"
+        );
+        assert_eq!(pill.total, 4, "the pill stays while anything is listed");
+
+        pick_filter(&mut state, "qa");
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!(section(&pill, "answered"), vec!["form"]);
+        assert_eq!(pill.sections.len(), 1);
+
+        pick_filter(&mut state, "bogus");
+        assert_eq!(
+            state.questions.open_questions.filter, "",
+            "an unknown filter is All"
+        );
     }
 
     #[test]

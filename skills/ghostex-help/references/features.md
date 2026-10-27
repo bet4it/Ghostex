@@ -1921,9 +1921,12 @@ newest reply stays open, and older ones open with a click. The row holds every
 reply the agent gave to that prompt, including the ones it wrote after a
 background task finished. While the agent is still working, that turn's work
 shows open under Active work, with the running command visible; close it with a
-click, and it folds into the reply once the turn finishes. Page cards and question
-forms stay in view under each prompt even while their turn is folded, so you can
-scroll up through every page; opening the reply shows them in place instead.
+click, and it folds into the reply once the turn finishes. Any message that holds
+an HTML page, a question form or a chart is always shown in full under its prompt,
+never folded, so you can scroll up through every page. Messages to and from other
+agents (an orchestrator's thread reports, messages from other sessions) open no
+turn of their own: they fold into the "Agent reply" of your own prompt, so the
+summary reads as your conversation.
 Turn Summary mode on or off under More actions > View, where its row shows the
 Toggle Summary Mode shortcut (Option+Ctrl+S on macOS, Ctrl+Alt+Shift+S on Windows
 and Linux), which switches it from anywhere in that chat and can be changed in
@@ -3472,13 +3475,16 @@ with For later on its card: it stops counting as unanswered (no pink dot, no cou
 on the chat's ? pill, no notification) but stays answerable, and Back to
 unanswered on the card undoes it. Answering it ends For later by itself. The
 choice is kept by Ghostex, so the computer, the web page and the phone agree.
-The ? pill on the chat's working row lists every question form and question page
-in the chat, in folding sections (Unanswered, For later, Answered, Withdrawn),
-newest first, each with its title, tags and time; click a row to jump to its card.
+The ? pill on the chat's working row lists the chat's generated content: question
+forms, HTML pages (with or without questions) and charts, each row marked HTML,
+Q&A or Chart. All, Html, Q&A and Charts at the top pick what it shows. Questions
+sit in folding sections (Unanswered, For later, Answered, Withdrawn), pages that
+ask nothing under Pages and charts under Charts, newest first, each with its
+title, tags and time; click a row to jump to it.
 On the computer the list opens when you rest the pointer on the pill, and a click
 on the pill still steps to the previous unanswered question; on the phone a tap
-opens it. The pill stays while the chat has any question, with its dot only while
-one is unanswered.
+opens it. The pill stays while the chat has anything to list, with its dot and
+count only while a question is unanswered.
 Every copy shows a small "Copied!" bubble at the pointer for a moment, whether
 it came from a terminal, a chat message, a copy button, or a menu. Copy Sound is
 off by default. Enable it under Settings > Notifications > Sounds to also hear a

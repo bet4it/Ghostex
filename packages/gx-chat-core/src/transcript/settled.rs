@@ -257,10 +257,12 @@ fn order_is_ambiguous<'a>(sorted: impl Iterator<Item = &'a ChatMessage>) -> bool
 
 /// Whether a row can start a settled turn, or the stretch after the prefix: an accepted user
 /// prompt from the transcript, which ends the turn before it in every pass, that no marker before
-/// it merges into.
-fn opens_turn(message: &ChatMessage) -> bool {
+/// it merges into. In summary mode a message from another agent opens no turn there
+/// (`turns::is_agent_conversation`), so it starts no settled turn either.
+fn opens_turn(message: &ChatMessage, summary: bool) -> bool {
     use crate::transcript::noise::{is_hidden_message, suppressed_turn_label};
-    message.role == ChatRole::User
+    !(summary && crate::transcript::turns::is_agent_conversation(message))
+        && message.role == ChatRole::User
         && message.source == ChatSource::Transcript
         && order_key(message).0 == 0
         && !message.queued
@@ -310,8 +312,10 @@ fn asks_resend(rows: &[ChatMessage]) -> bool {
 /// it sorts strictly after the row before it (two prompts delivered in the same millisecond do
 /// not), it has a byte offset (a row without one folds into a deferred turn before it), and it
 /// splits no `/btw` question from its answer and no two rows sharing an id.
-fn seams(rows: &[ChatMessage]) -> Vec<usize> {
-    cuts(rows, |row| opens_turn(row) && row.byte_offset.is_some())
+fn seams(rows: &[ChatMessage], summary: bool) -> Vec<usize> {
+    cuts(rows, |row| {
+        opens_turn(row, summary) && row.byte_offset.is_some()
+    })
 }
 
 /// The rows of the running turn (sorted) an active chunk can end before, by the same rules
@@ -483,7 +487,8 @@ impl SettledPrefix {
         let opens = if self.has_active() {
             opens_active_stretch(first)
         } else {
-            opens_turn(first) && !(self.last_user_deferred && first.byte_offset.is_none())
+            opens_turn(first, self.key.summary)
+                && !(self.last_user_deferred && first.byte_offset.is_none())
         };
         if order_key(first) <= self.order_max || !opens {
             return false;
@@ -983,7 +988,7 @@ impl SettledPrefix {
         }
         // The stretch after the prefix starts at the newest seam; with none (no turn closed yet) the
         // prefix starts empty, and the running turn's rows can still join it.
-        let mut cuts = seams(&sorted);
+        let mut cuts = seams(&sorted, summary);
         let seam = cuts.pop().unwrap_or(0);
         let normalized = normalize_chat_transcript(&sorted[..seam]);
         let redone = redone_forms(&normalized);
@@ -1211,7 +1216,7 @@ fn build_after(
         }
     }
     // A turn closed after the running turn's chunks: they go, and the turn joins whole below.
-    if settled.has_active() && !seams(&stretch).is_empty() {
+    if settled.has_active() && !seams(&stretch, summary).is_empty() {
         settled.drop_active();
         stretch = rows_after(settled);
         if !settled.can_follow(&stretch) {
@@ -1255,7 +1260,7 @@ fn build_after(
     // Turns a newer accepted prompt has closed since the prefix was settled join it, one chunk
     // each, so the stretch built below is only the newest turn.
     let mut fresh: Vec<Unresolved> = Vec::new();
-    while let Some(&next) = seams(&stretch)
+    while let Some(&next) = seams(&stretch, summary)
         .first()
         .filter(|_| live_side_question.is_none())
     {

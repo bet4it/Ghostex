@@ -22,6 +22,7 @@ use crate::state::{ChatContext, ChatState};
 /// when the wire changes.
 pub fn sync(state: &mut ChatState) -> Vec<Effect> {
     let mut effects = Vec::new();
+    crate::questions::content::refresh(state);
     // This is the top of `publish`, and `publish` is only ever called as
     // `if (controller) publish(controller.current())`. Before the composer boot read answers there
     // is no controller, so neither the card's saved-answers read nor `asyncQuestions.load()` has

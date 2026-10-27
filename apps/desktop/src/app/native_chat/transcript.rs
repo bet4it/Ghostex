@@ -131,34 +131,30 @@ impl NativeChatView {
                 for output in outcome {
                     row = row.child(self.message_row(output, &p, window, cx));
                 }
-                // The turn's page cards and question forms, except those of a message the open
-                // fold below draws itself (gx-chat-core `card_rows`, where the user's decision
-                // lives).
-                let in_open_fold: Vec<&str> = if !expanded {
-                    Vec::new()
-                } else if let Some(reply) = reply {
-                    earlier_replies
-                        .iter()
-                        .map(|row| row["id"].as_str().unwrap_or_default())
-                        .chain(reply["id"].as_str())
-                        .collect()
-                } else if *active {
-                    work.iter()
-                        .map(|row| row["id"].as_str().unwrap_or_default())
-                        .collect()
-                } else {
-                    Vec::new()
-                };
+                // The turn's messages holding a page card, a question form or a chart, drawn in
+                // full and never folded; the folds below leave them out (gx-chat-core
+                // `content_rows`, where the user's decision lives).
+                let content: Vec<&str> = cards
+                    .iter()
+                    .filter_map(|card| card["id"].as_str())
+                    .collect();
                 for card in cards {
-                    let source = card["id"]
-                        .as_str()
-                        .unwrap_or_default()
-                        .trim_end_matches("#cards");
-                    if !in_open_fold.contains(&source) {
-                        row = row.child(self.message_row(card, &p, window, cx));
-                    }
+                    row = row.child(self.message_row(card, &p, window, cx));
                 }
-                if reply.is_some() || *active {
+                let folded = |message: &&std::sync::Arc<serde_json::Value>| {
+                    !message["id"]
+                        .as_str()
+                        .is_some_and(|id| content.contains(&id))
+                };
+                let fold_rows: Vec<&std::sync::Arc<serde_json::Value>> = match reply {
+                    Some(_) => earlier_replies
+                        .iter()
+                        .chain(final_message.iter())
+                        .filter(folded)
+                        .collect(),
+                    None => work.iter().filter(folded).collect(),
+                };
+                if (reply.is_some() || *active) && !fold_rows.is_empty() {
                     row = row.child(
                         self.disclosure(
                             key.clone(),
@@ -176,15 +172,8 @@ impl NativeChatView {
                     );
                     if expanded || motion.is_some() {
                         let mut body = div().flex().flex_col().w_full().gap(px(8.0 * s));
-                        if let Some(reply) = reply {
-                            for earlier in earlier_replies {
-                                body = body.child(self.message_row(earlier, &p, window, cx));
-                            }
-                            body = body.child(self.message_row(reply, &p, window, cx));
-                        } else {
-                            for message in work {
-                                body = body.child(self.message_row(message, &p, window, cx));
-                            }
+                        for message in fold_rows {
+                            body = body.child(self.message_row(message, &p, window, cx));
                         }
                         row = row.child(self.disclosure_body_motion(
                             &key,

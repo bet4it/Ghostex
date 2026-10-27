@@ -1,6 +1,6 @@
-//! The ? pill's list (chat_pills.rs draws the pill): every question form and question page in the
-//! chat in folding sections, Unanswered, For later, Answered and Withdrawn, each row jumping to
-//! its card. The sections, their rows and their order are the core's (`openQuestions.sections`,
+//! The ? pill's list (chat_pills.rs draws the pill): every question form, page and chart in the
+//! chat, under the All / Html / Q&A / Charts filters, in folding sections (Unanswered, For later,
+//! Answered and Withdrawn for questions, then Pages and Charts), each row jumping to its card. The sections, their rows and their order are the core's (`openQuestions.sections`,
 //! packages/gx-chat-core/src/questions/open_questions.rs, where the user's decision lives); this
 //! opens the list on hover, folds its sections and draws it in the pills' menu window
 //! (`option_menu/pill_menu.rs`), in the Links card's section look (native_sidebar/links_list.rs).
@@ -29,6 +29,9 @@ pub(super) const QUESTIONS_MENU_WIDTH: f32 = 440.0;
 const SECTION_HEIGHT: f32 = 22.0;
 const ROW_HEIGHT: f32 = 26.0;
 const LIST_MAX: f32 = 380.0;
+/// The space the filters take below the header besides the control itself, which is the modal
+/// kit's and does not zoom with the chat.
+const FILTERS_GAP: f32 = 2.0;
 
 /// How long the pointer rests on the pill before the list opens, and how long it may be off both
 /// the pill and the list before a list it opened closes.
@@ -59,12 +62,26 @@ impl QuestionList {
     }
 }
 
-/// The list's content height (unscaled) for `open` (the document's `openQuestions`), or `None`
-/// when the chat has no questions.
-pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option<f32> {
-    let sections = open["sections"]
-        .as_array()
-        .filter(|sections| !sections.is_empty())?;
+/// The list's content height (unscaled, at the chat's `scale`) for `open` (the document's
+/// `openQuestions`), or `None` when the chat has nothing to list.
+pub(super) fn questions_menu_height(open: &Value, list: &QuestionList, scale: f32) -> Option<f32> {
+    if open["total"].as_u64().unwrap_or(0) == 0 {
+        return None;
+    }
+    let sections = open["sections"].as_array().cloned().unwrap_or_default();
+    let filters = crate::app::window::native_modal_kit::palette::MODAL_CONTROL_HEIGHT
+        / scale.max(0.1)
+        + FILTERS_GAP
+        + super::chat_pills::MENU_SECTION_GAP;
+    if sections.is_empty() {
+        // The picked filter has nothing: one line says so.
+        return Some(
+            super::chat_pills::MENU_HEADER_HEIGHT
+                + super::chat_pills::MENU_SECTION_GAP
+                + filters
+                + ROW_HEIGHT,
+        );
+    }
     let rows: f32 = sections
         .iter()
         .map(|section| {
@@ -79,8 +96,18 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
     Some(
         super::chat_pills::MENU_HEADER_HEIGHT
             + super::chat_pills::MENU_SECTION_GAP
+            + filters
             + rows.min(LIST_MAX),
     )
+}
+
+/// What a row is, for its icon and its label: an HTML page, a Q&A form or a chart.
+fn kind_look(kind: &str) -> (&'static str, &'static str) {
+    match kind {
+        "page" => ("titlebar/file-type-html.svg", "HTML"),
+        "chart" => ("titlebar/chart-bar.svg", "Chart"),
+        _ => ("titlebar/list-check.svg", "Q&A"),
+    }
 }
 
 impl NativeChatView {
@@ -188,25 +215,75 @@ impl NativeChatView {
     }
 
     pub(super) fn questions_menu_height(&self) -> Option<f32> {
-        questions_menu_height(&self.snapshot["openQuestions"], &self.question_list)
+        let scale = ChatAppearance::current(&self.snapshot).scale;
+        questions_menu_height(&self.snapshot["openQuestions"], &self.question_list, scale)
+    }
+
+    /// All, Html, Q&A and Charts over the list, each with its count (the core picks the rows).
+    fn question_list_filters(&self, open: &Value, cx: &mut Context<Self>) -> AnyElement {
+        use crate::app::window::native_modal_kit::segmented_and_rail::{
+            ModalRailItem, modal_bordered_segmented_control,
+        };
+        let filters = open["filters"].as_array().cloned().unwrap_or_default();
+        let picked = text(open, "filter");
+        let items: Vec<ModalRailItem> = filters
+            .iter()
+            .map(|filter| ModalRailItem {
+                label: text(filter, "label").into(),
+                trailing: Some(filter["count"].as_u64().unwrap_or(0).to_string().into()),
+                dot: None,
+            })
+            .collect();
+        let selected = filters
+            .iter()
+            .position(|filter| text(filter, "id") == picked)
+            .unwrap_or(0);
+        let ids: Vec<String> = filters.iter().map(|filter| text(filter, "id")).collect();
+        let ink = gpui::Rgba::from(ChatAppearance::current(&self.snapshot).foreground);
+        div()
+            .w_full()
+            .flex_shrink_0()
+            .pb(px(FILTERS_GAP))
+            .child(
+                modal_bordered_segmented_control(
+                    ink,
+                    gpui::Rgba { a: 0.14, ..ink },
+                    gpui::Rgba { a: 0.55, ..ink },
+                    "chat-questions-filters",
+                    &items,
+                    selected,
+                    move |this: &mut Self, index, _window, cx| {
+                        if let Some(id) = ids.get(index) {
+                            this.invoke(json!({"type": "questionListFilter", "filter": id}), cx);
+                        }
+                    },
+                    cx,
+                )
+                .w_full(),
+            )
+            .into_any_element()
     }
 
     /// The list, drawn in the menu's window with this view's listeners.
     pub(super) fn questions_menu_body(
         &self,
         p: &ChatAppearance,
-        cx: &Context<Self>,
+        cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let open = &self.snapshot["openQuestions"];
-        let sections = open["sections"].as_array()?;
+        let open = self.snapshot["openQuestions"].clone();
+        if open["total"].as_u64().unwrap_or(0) == 0 {
+            return None;
+        }
+        let sections = open["sections"].as_array().cloned().unwrap_or_default();
         let s = p.scale;
         let header = super::chat_pills::pill_menu_header(
             "titlebar/question-mark.svg",
-            "Questions",
-            text(open, "summary"),
+            "Content",
+            text(&open, "summary"),
             None,
             p,
         );
+        let filters = self.question_list_filters(&open, cx);
         let mut list = div()
             .id("chat-questions-list")
             .flex()
@@ -214,7 +291,19 @@ impl NativeChatView {
             .flex_shrink_0()
             .max_h(px(LIST_MAX * s))
             .overflow_y_scroll();
-        for section in sections {
+        if sections.is_empty() {
+            list = list.child(
+                div()
+                    .h(px(ROW_HEIGHT * s))
+                    .flex()
+                    .items_center()
+                    .px(px(4.0 * s))
+                    .text_size(px(12.0 * s))
+                    .text_color(p.card_muted)
+                    .child("Nothing of this kind in this chat yet."),
+            );
+        }
+        for section in &sections {
             let id = text(section, "id");
             let folded = self.question_list.folded(&id);
             list = list.child(self.question_section_header(section, folded, p, cx));
@@ -233,9 +322,17 @@ impl NativeChatView {
                 }))
                 .child(super::chat_pills::pill_menu_column(
                     "chat-questions",
-                    "Questions",
+                    "Generated content",
                     header,
-                    Some(list.into_any_element()),
+                    Some(
+                        div()
+                            .flex()
+                            .flex_col()
+                            .gap(px(super::chat_pills::MENU_SECTION_GAP * s))
+                            .child(filters)
+                            .child(list)
+                            .into_any_element(),
+                    ),
                     None,
                     p,
                 ))
@@ -312,11 +409,7 @@ impl NativeChatView {
             .filter_map(Value::as_str)
             .collect::<Vec<_>>()
             .join(" ");
-        let icon = if text(row, "kind") == "page" {
-            "titlebar/file-type-html.svg"
-        } else {
-            "titlebar/list-check.svg"
-        };
+        let (icon, kind_label) = kind_look(&text(row, "kind"));
         let (icon_color, title_color) = match section {
             "answered" => (p.success(), p.foreground),
             "withdrawn" => (p.muted, p.card_muted),
@@ -350,11 +443,7 @@ impl NativeChatView {
             })
             .child(
                 svg()
-                    .path(if section == "answered" {
-                        "titlebar/check.svg"
-                    } else {
-                        icon
-                    })
+                    .path(icon)
                     .size(px(13.0 * s))
                     .flex_shrink_0()
                     .text_color(icon_color),
@@ -367,6 +456,18 @@ impl NativeChatView {
                     .text_color(title_color)
                     .when(section == "withdrawn", |title| title.line_through())
                     .child(title),
+            )
+            // What the row is, beside its title, so pages, forms and charts read apart in any
+            // section (an answered row's state is its green icon and its section).
+            .child(
+                div()
+                    .flex_shrink_0()
+                    .px(px(5.0 * s))
+                    .rounded(px(4.0 * s))
+                    .bg(p.foreground.opacity(0.07))
+                    .text_size(px(10.5 * s))
+                    .text_color(p.card_muted)
+                    .child(kind_label),
             )
             .when(!tags.is_empty(), |this| {
                 this.child(
