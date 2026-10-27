@@ -235,6 +235,19 @@ impl GhostexGpuiApp {
             .is_some_and(|view| view.read(cx).has_projects())
     }
 
+    /// CDXC:Onboarding 2026-10-28 WHY:
+    /// The onboarding read the system appearance once when it opened, which on Linux is before the
+    /// desktop portal has answered (GPUI starts as Light), so "System · Light" showed on a dark
+    /// desktop while the main app turned dark a moment later. The appearance poll now pushes every
+    /// change to the open onboarding as well.
+    pub(crate) fn sync_gpui_onboarding_system_appearance(
+        &mut self,
+        system_light: bool,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        self.update_gpui_onboarding(cx, move |view, cx| view.set_system_light(system_light, cx));
+    }
+
     pub(crate) fn show_gpui_onboarding_app_toast(
         &mut self,
         level: &str,

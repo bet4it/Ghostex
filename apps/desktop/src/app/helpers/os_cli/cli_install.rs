@@ -204,6 +204,14 @@ pub(crate) fn gpui_auto_install_ghostex_cli_wrappers() {
             if !gpui_path_exists_or_is_symlink(&candidate) {
                 continue;
             }
+            // A wrapper an earlier Ghostex left in a shim or tool folder does not count: that
+            // tool rewrites the folder, so the repair below writes a lasting one elsewhere.
+            if candidate
+                .parent()
+                .is_some_and(|dir| gpui_is_tool_managed_bin_dir(dir, &gpui_home_dir()))
+            {
+                continue;
+            }
             command_exists = true;
             match gpui_package_managed_cli(command, &candidate, &cli_binary_path) {
                 GpuiPackageManagedCli::Keep => continue,
@@ -444,6 +452,79 @@ pub(crate) fn gpui_cli_install_dirs(
     common_dirs: &[PathBuf],
     cli_dir: &Path,
 ) -> Vec<PathBuf> {
+    gpui_cli_install_dirs_for(
+        path_entries,
+        common_dirs,
+        cli_dir,
+        &gpui_home_dir(),
+        cfg!(target_os = "linux"),
+    )
+}
+
+/// Folders another tool owns and rewrites: version-manager shims (mise, asdf, pyenv, rbenv,
+/// nodenv, …), Nix profiles, Linux Homebrew, Snap, and the bin folders of `~/.cargo`, `~/.bun`,
+/// Volta, fnm, nvm and Deno, plus Ghostex's own per-session folder.
+///
+/// CDXC:Cli 2026-10-28 WHY:
+/// The launchers went into the first writable folder on PATH, which on a Linux desktop with mise
+/// was `~/.local/share/mise/shims`. mise rewrites that folder on its next reshim, so `ghostex` and
+/// `gx` vanished while the startup refresh kept writing them back. The launchers never go into
+/// such a folder, and one left there by an earlier Ghostex no longer counts as installed.
+pub(crate) fn gpui_is_tool_managed_bin_dir(dir: &Path, home: &Path) -> bool {
+    if dir
+        .components()
+        .any(|component| component.as_os_str() == "shims")
+    {
+        return true;
+    }
+    const HOME_TOOL_ROOTS: [&str; 20] = [
+        ".local/share/mise",
+        ".local/state/mise",
+        ".asdf",
+        ".pyenv",
+        ".rbenv",
+        ".nodenv",
+        ".goenv",
+        ".jenv",
+        ".cargo",
+        ".rustup",
+        ".bun",
+        ".volta",
+        ".nvm",
+        ".fnm",
+        ".local/share/fnm",
+        ".deno",
+        ".nix-profile",
+        ".local/state/nix",
+        ".linuxbrew",
+        ".local/state/ghostex/session-bin",
+    ];
+    if HOME_TOOL_ROOTS
+        .iter()
+        .any(|root| dir.starts_with(home.join(root)))
+    {
+        return true;
+    }
+    const SYSTEM_TOOL_ROOTS: [&str; 5] = [
+        "/nix",
+        "/run/current-system",
+        "/etc/profiles/per-user",
+        "/home/linuxbrew",
+        "/snap",
+    ];
+    SYSTEM_TOOL_ROOTS.iter().any(|root| dir.starts_with(root))
+}
+
+/// Where `ghostex` and `gx` may be written, best first: folders that already hold Ghostex's own
+/// command (a package's `/usr/bin` script, an earlier wrapper), then on Linux `~/.local/bin`
+/// (created when missing), then the rest of PATH and the common folders, never a tool-managed one.
+pub(crate) fn gpui_cli_install_dirs_for(
+    path_entries: &[PathBuf],
+    common_dirs: &[PathBuf],
+    cli_dir: &Path,
+    home: &Path,
+    prefer_user_bin: bool,
+) -> Vec<PathBuf> {
     let mut owned_dirs = Vec::new();
     for command in ["ghostex", "gx"] {
         for candidate in gpui_cli_command_path_candidates(command, path_entries, common_dirs) {
@@ -462,12 +543,17 @@ pub(crate) fn gpui_cli_install_dirs(
             .filter(|directory| path_entries.contains(directory))
             .cloned(),
     );
+    let user_bin = prefer_user_bin.then(|| home.join(".local/bin"));
     gpui_unique_paths(
         owned_dirs
             .into_iter()
+            .chain(user_bin)
             .chain(path_entries.iter().cloned())
             .chain(common_dirs.iter().cloned()),
     )
+    .into_iter()
+    .filter(|directory| !gpui_is_tool_managed_bin_dir(directory, home))
+    .collect()
 }
 
 pub(crate) fn gpui_cli_command_path_candidates(
@@ -990,6 +1076,73 @@ mod linux_package_cli_tests {
     fn write_executable(path: &Path, content: &str) {
         fs::write(path, content).unwrap();
         fs::set_permissions(path, fs::Permissions::from_mode(0o755)).unwrap();
+    }
+
+    #[test]
+    fn tool_managed_folders_are_never_install_targets() {
+        let home = PathBuf::from("/home/me");
+        for managed in [
+            "/home/me/.local/share/mise/shims",
+            "/home/me/.asdf/shims",
+            "/home/me/.pyenv/shims",
+            "/home/me/.rbenv/shims",
+            "/home/me/.nodenv/shims",
+            "/home/me/.cargo/bin",
+            "/home/me/.bun/bin",
+            "/home/me/.volta/bin",
+            "/home/me/.nix-profile/bin",
+            "/nix/var/nix/profiles/default/bin",
+            "/run/current-system/sw/bin",
+            "/home/linuxbrew/.linuxbrew/bin",
+            "/home/me/.linuxbrew/bin",
+            "/snap/bin",
+            "/home/me/.local/state/ghostex/session-bin",
+        ] {
+            assert!(
+                gpui_is_tool_managed_bin_dir(Path::new(managed), &home),
+                "{managed}"
+            );
+        }
+        for plain in [
+            "/home/me/.local/bin",
+            "/usr/local/bin",
+            "/usr/bin",
+            "/opt/homebrew/bin",
+            "/home/me/bin",
+        ] {
+            assert!(
+                !gpui_is_tool_managed_bin_dir(Path::new(plain), &home),
+                "{plain}"
+            );
+        }
+    }
+
+    #[test]
+    fn linux_prefers_local_bin_and_skips_tool_folders() {
+        let root = scratch_dir("install-order");
+        let home = root.join("home");
+        let mise = home.join(".local/share/mise/shims");
+        let cargo = home.join(".cargo/bin");
+        let usr_local = root.join("usr/local/bin");
+        let user_bin = home.join(".local/bin");
+        let cli_dir = root.join("opt/ghostex/gxserver/bin");
+        let path_entries = vec![mise.clone(), cargo.clone(), usr_local.clone()];
+        let position = |dirs: &[PathBuf], dir: &Path| dirs.iter().position(|entry| entry == dir);
+
+        let linux = gpui_cli_install_dirs_for(&path_entries, &[], &cli_dir, &home, true);
+        assert_eq!(position(&linux, &mise), None);
+        assert_eq!(position(&linux, &cargo), None);
+        assert!(
+            position(&linux, &user_bin).unwrap() < position(&linux, &usr_local).unwrap(),
+            "{linux:?}"
+        );
+
+        // macOS keeps PATH order (Homebrew's bin first) and only drops tool folders.
+        let mac =
+            gpui_cli_install_dirs_for(&path_entries, &[user_bin.clone()], &cli_dir, &home, false);
+        assert_eq!(position(&mac, &mise), None);
+        assert!(position(&mac, &usr_local).unwrap() < position(&mac, &user_bin).unwrap());
+        let _ = fs::remove_dir_all(&root);
     }
 
     #[test]

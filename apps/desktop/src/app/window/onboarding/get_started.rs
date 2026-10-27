@@ -48,6 +48,8 @@ pub(crate) struct GetStartedState {
     settings_after_open: bool,
     /// Which appearance's colours the look card shows.
     dark_scheme: bool,
+    /// The Dark | Light colour tab was picked by hand, so a system appearance change leaves it.
+    scheme_picked: bool,
     picked_dark: bool,
     picked_light: bool,
     pub(crate) swatches: HashMap<String, Arc<RenderImage>>,
@@ -56,6 +58,18 @@ pub(crate) struct GetStartedState {
 }
 
 impl GetStartedState {
+    /// The computer's appearance changed while the window is open: with Appearance on System the
+    /// colour tab follows it, unless the user picked a tab by hand.
+    pub(crate) fn system_appearance_changed(
+        &mut self,
+        settings: &OnboardingSettings,
+        system_light: bool,
+    ) {
+        if settings.sidebar_theme == "system" && !self.scheme_picked {
+            self.dark_scheme = !system_light;
+        }
+    }
+
     pub(crate) fn reset(&mut self, settings: &OnboardingSettings, system_light: bool) {
         self.opening = false;
         self.open_error = None;
@@ -63,6 +77,7 @@ impl GetStartedState {
         self.request_deadline = None;
         self.request_path = None;
         self.settings_after_open = false;
+        self.scheme_picked = false;
         self.dark_scheme = match settings.sidebar_theme.as_str() {
             "system" => !system_light,
             theme => theme.starts_with("dark"),
@@ -966,6 +981,7 @@ impl GpuiOnboardingWindow {
                     cx,
                     move |this, _, cx| {
                         this.get_started.dark_scheme = dark;
+                        this.get_started.scheme_picked = true;
                         cx.notify();
                     },
                 )
@@ -1417,6 +1433,26 @@ fn pcard(s: S) -> Div {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn the_colour_tab_follows_a_system_change_unless_picked() {
+        let mut settings = OnboardingSettings::from_object(&serde_json::Map::new());
+        settings.sidebar_theme = "system".to_string();
+        let mut state = GetStartedState::default();
+        // Opened before the Linux desktop portal answered: read as light.
+        state.reset(&settings, true);
+        assert!(!state.dark_scheme);
+        state.system_appearance_changed(&settings, false);
+        assert!(state.dark_scheme, "the portal said dark");
+        state.scheme_picked = true;
+        state.system_appearance_changed(&settings, true);
+        assert!(state.dark_scheme, "a hand-picked tab stays");
+        settings.sidebar_theme = "plain-light".to_string();
+        let mut fixed = GetStartedState::default();
+        fixed.reset(&settings, false);
+        fixed.system_appearance_changed(&settings, false);
+        assert!(!fixed.dark_scheme, "Light does not follow the system");
+    }
 
     #[test]
     fn system_appearance_names_what_it_resolves_to() {

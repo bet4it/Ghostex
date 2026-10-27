@@ -29,6 +29,7 @@ impl GhostexGpuiApp {
         if self.system_color_scheme_is_light != system_is_light {
             self.system_color_scheme_is_light = system_is_light;
             self.notify_native_chat_views(cx);
+            self.sync_gpui_onboarding_system_appearance(system_is_light, cx);
             if settings
                 .object()
                 .get("sidebarTheme")

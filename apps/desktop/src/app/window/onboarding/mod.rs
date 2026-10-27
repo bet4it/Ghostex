@@ -509,6 +509,18 @@ impl GpuiOnboardingWindow {
         self.send(OnboardingCommand::Leave, cx);
     }
 
+    /// The computer's appearance, pushed whenever it changes. On Linux the desktop portal answers
+    /// after the window may already be open, so the value read at open can be the light default.
+    pub(crate) fn set_system_light(&mut self, system_light: bool, cx: &mut Context<Self>) {
+        if self.system_light == system_light {
+            return;
+        }
+        self.system_light = system_light;
+        self.get_started
+            .system_appearance_changed(&self.settings, system_light);
+        cx.notify();
+    }
+
     pub(crate) fn has_projects(&self) -> bool {
         self.has_projects
     }
