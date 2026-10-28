@@ -44,7 +44,7 @@ pub use header::{
     agent_launcher_items, agent_launcher_items_with_accounts, project_header_actions,
 };
 pub use host::{HeaderCommand, LauncherAgent, MenuHost, MenuOpenTarget};
-pub use hover::{hover_strip, HoverAction, HoverStrip};
+pub use hover::{hover_slots, hover_strip, HoverAction, HoverSlot, HoverStrip};
 pub use item::{menu_to_json, MenuItem, MenuSecondary, MenuSplit};
 pub use menus::SidebarMenus;
 pub(crate) use run_in_box::{run_in_box_agents_page, run_in_box_locations_page};

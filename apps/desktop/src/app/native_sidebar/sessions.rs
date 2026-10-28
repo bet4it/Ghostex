@@ -75,6 +75,10 @@ impl GhostexGpuiApp {
         // The row's left padding before its icon: the card inset plus its depth in a coordinator's tree.
         let indent = 5.0 + super::threads::thread_depth(session) * super::threads::THREAD_INDENT;
         let hovered = self.native_sidebar.hovered_session.as_deref() == Some(&session_id);
+        // CDXC:Sessions 2026-10-28 DECISION: User: "if i disable all buttons for the session card in the sidebar please let the sidebar sessions not change when i hover over one of them". `hovered` alone still draws the row's hover fill; everything hover swaps (time, badges, status dots, icon, dimming, the button strip) follows `buttons_shown`, which is false when the strip has no button.
+        let buttons_shown = hovered
+            && !super::hover_actions::session_hover_items(session, group.hover_actions_expanded)
+                .is_empty();
         // CDXC:Sidebar 2026-09-19 WHY: sidebar clicks and tab selections must show in the same frame (user decision in gx_store/local_focus.rs). The focused and visible fills of a local session row read the Rust store, which a selection changes in the same frame; the snapshot's flags arrive a sidebar projection later. This supersedes the click-only `optimistic_focus` mark and its 1.5 second timeout of earlier the same day.
         let (focused, visible) = self.gx_store_sidebar_row_focus(
             &session_id,
@@ -88,8 +92,8 @@ impl GhostexGpuiApp {
         let sleeping = session.lifecycle_state.as_deref() == Some("sleeping");
         // CDXC:SessionSleep 2026-09-29 DECISION: User (issue 177): by default a sleeping row dims only its last-active time; Advanced > Dim sleeping sessions fades the whole row, and hovering it brings the row back to full strength so its hover buttons stay readable.
         let dim_sleeping =
-            sleeping && !hovered && hud["settings"]["dimSleepingSessions"].as_bool() == Some(true);
-        let icon = super::icons::session_icon(session, hud, appearance, hovered);
+            sleeping && !buttons_shown && hud["settings"]["dimSleepingSessions"].as_bool() == Some(true);
+        let icon = super::icons::session_icon(session, hud, appearance, buttons_shown, hovered);
         let double_click_rename = hud["settings"]["renameSessionOnDoubleClick"].as_bool()
             == Some(true)
             && !session.is_browser();
@@ -200,15 +204,15 @@ impl GhostexGpuiApp {
                 .child(h_flex().h(px(SESSION_HEIGHT * scale)).flex_shrink_0().w_full().min_w_0().pl(px(indent * scale)).pr(px(6.0 * scale)).gap(px(6.0 * scale))
                 .child(self.render_native_session_identity(session, icon, hovered, appearance, cx))
                 .child(div().id(format!("native-session-title-{session_id}")).flex_1().min_w_0().h_full().flex().items_center().child(title_with_rename_shake(div().min_w_0().truncate().child(session.title().to_owned()), &session_id, session.rename_failed_at.as_deref(), scale)).when(self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag(), |row| row.managed_discrete_tooltip_with_placement(tooltip_span.placement(), appearance.tooltip_delay, move |window, cx| super::tooltips::sidebar_tooltip(tooltip.clone(), tooltip_span, scale, window, cx))))
-                .when(!hovered, |row| row.children(super::threads::coordinator_badge(session, appearance)))
-                .when(!hovered, |row| row.children(self.render_voice_call_badge(&session.session_id, appearance)))
-                .when(!hovered, |row| row.children(super::agentbox::agentbox_badge(session, appearance, tooltip_span, self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag())))
-                .when(!hovered, |row| row.children(super::claude_cloud::claude_cloud_badge(session, appearance, tooltip_span, self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag())))
-                .when(!hovered, |row| row.children(self.render_native_session_links_badge(session, appearance)))
-                .when(!hovered && folded_dots.is_none() && !question && !approval, |row| row.children(super::status::activity_indicator(&session.activity, session.has_background_work, session.model_selection_failed || session.program_status_failed, scale)))
+                .when(!buttons_shown, |row| row.children(super::threads::coordinator_badge(session, appearance)))
+                .when(!buttons_shown, |row| row.children(self.render_voice_call_badge(&session.session_id, appearance)))
+                .when(!buttons_shown, |row| row.children(super::agentbox::agentbox_badge(session, appearance, tooltip_span, self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag())))
+                .when(!buttons_shown, |row| row.children(super::claude_cloud::claude_cloud_badge(session, appearance, tooltip_span, self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag())))
+                .when(!buttons_shown, |row| row.children(self.render_native_session_links_badge(session, appearance)))
+                .when(!buttons_shown && folded_dots.is_none() && !question && !approval, |row| row.children(super::status::activity_indicator(&session.activity, session.has_background_work, session.model_selection_failed || session.program_status_failed, scale)))
                 // CDXC:SessionStatus 2026-09-13 DECISION: User: hide Last Active while the question dot is shown so they do not overlap, including when the session is not working.
-                .when(!hovered && folded_dots.is_none() && !question && !approval && !session.model_selection_failed && !session.program_status_failed && (timer.is_some() || (show_time && session.activity != "working" && session.activity != "attention" && !session.has_background_work)), |row| row.child(div().text_size(px(13.55 * scale)).text_color(if sleeping { chrome_color(0x686868, 0x959595) } else { chrome_color(0xa6a6a6, 0x424242) }).child(time)))
-                .when(hovered, |row| row.child(self.render_native_session_hover_actions(group, session, appearance, cx)))
+                .when(!buttons_shown && folded_dots.is_none() && !question && !approval && !session.model_selection_failed && !session.program_status_failed && (timer.is_some() || (show_time && session.activity != "working" && session.activity != "attention" && !session.has_background_work)), |row| row.child(div().text_size(px(13.55 * scale)).text_color(if sleeping { chrome_color(0x686868, 0x959595) } else { chrome_color(0xa6a6a6, 0x424242) }).child(time)))
+                .when(buttons_shown, |row| row.child(self.render_native_session_hover_actions(group, session, appearance, cx)))
                 .when(approval, |row| row.child(super::status::approval_indicator(scale)))
                 .when(question, |row| row.child(super::status::question_indicator(&session.activity, scale, super::status::session_row_ring(appearance, highlighted, visible, question_fill, hovered))))
                 .children(folded_dots))

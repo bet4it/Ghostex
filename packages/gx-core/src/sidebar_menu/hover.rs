@@ -207,3 +207,86 @@ fn enabled_actions(items: &[HoverButton]) -> Vec<HoverAction> {
         .filter_map(|item| item.action)
         .collect()
 }
+
+/// One button of the strip a row draws, in order.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HoverSlot {
+    /// The nth action left of the chevron.
+    Before(usize),
+    /// The chevron that folds the `before` actions in and out.
+    Chevron,
+    /// The nth action right of the chevron (or of nothing, when there is no chevron).
+    After(usize),
+}
+
+/// The buttons a row draws while hovered, from the lengths of its resolved `before` and `after`
+/// lists (an action the row cannot offer was already dropped from them). The chevron shows only
+/// when it has something to fold.
+///
+/// CDXC:Sessions 2026-10-28 DECISION:
+/// User: "if i disable all buttons for the session card in the sidebar please let the sidebar sessions not change when i hover over one of them". A row whose strip is empty draws nothing for hover: the renderer keeps the time, badges and status dots exactly as at rest, and only the usual hover background stays.
+pub fn hover_slots(before: usize, chevron: bool, after: usize, expanded: bool) -> Vec<HoverSlot> {
+    let mut slots = Vec::new();
+    if expanded || !chevron {
+        slots.extend((0..before).map(HoverSlot::Before));
+    }
+    if chevron && before > 0 {
+        slots.push(HoverSlot::Chevron);
+    }
+    slots.extend((0..after).map(HoverSlot::After));
+    slots
+}
+
+#[cfg(test)]
+mod slot_tests {
+    use super::{hover_slots, HoverSlot};
+
+    #[test]
+    fn no_buttons_leaves_the_strip_empty() {
+        assert!(hover_slots(0, false, 0, false).is_empty());
+        assert!(hover_slots(0, false, 0, true).is_empty());
+    }
+
+    #[test]
+    fn a_chevron_with_nothing_to_fold_draws_nothing() {
+        assert!(hover_slots(0, true, 0, false).is_empty());
+        assert!(hover_slots(0, true, 0, true).is_empty());
+    }
+
+    #[test]
+    fn a_folded_chevron_hides_the_actions_before_it() {
+        assert_eq!(
+            hover_slots(2, true, 1, false),
+            vec![HoverSlot::Chevron, HoverSlot::After(0)]
+        );
+    }
+
+    #[test]
+    fn an_expanded_chevron_shows_every_action_in_order() {
+        assert_eq!(
+            hover_slots(2, true, 1, true),
+            vec![
+                HoverSlot::Before(0),
+                HoverSlot::Before(1),
+                HoverSlot::Chevron,
+                HoverSlot::After(0)
+            ]
+        );
+    }
+
+    #[test]
+    fn without_a_chevron_the_before_actions_always_show() {
+        assert_eq!(
+            hover_slots(1, false, 1, false),
+            vec![HoverSlot::Before(0), HoverSlot::After(0)]
+        );
+    }
+
+    #[test]
+    fn a_chevron_with_only_after_actions_draws_just_those() {
+        assert_eq!(
+            hover_slots(0, true, 2, false),
+            vec![HoverSlot::After(0), HoverSlot::After(1)]
+        );
+    }
+}

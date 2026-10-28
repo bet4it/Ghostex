@@ -14,6 +14,28 @@ use gpui_component::{
 };
 use serde_json::{Value, json};
 
+/// The buttons a hovered row draws, in order; empty when the user turned every hover button off, which is also when hovering must leave the row as it is (`ghostex_gx_core::hover_slots`).
+pub(crate) fn session_hover_items(session: &NativeSidebarSession, expanded: bool) -> Vec<Value> {
+    let chevron = session.details.get("hoverChevron").and_then(Value::as_bool) == Some(true);
+    let list = |key: &str| {
+        session
+            .details
+            .get(key)
+            .and_then(Value::as_array)
+            .map(Vec::as_slice)
+            .unwrap_or_default()
+    };
+    let (before, after) = (list("hoverBefore"), list("hoverAfter"));
+    ghostex_gx_core::hover_slots(before.len(), chevron, after.len(), expanded)
+        .into_iter()
+        .map(|slot| match slot {
+            ghostex_gx_core::HoverSlot::Before(index) => before[index].clone(),
+            ghostex_gx_core::HoverSlot::After(index) => after[index].clone(),
+            ghostex_gx_core::HoverSlot::Chevron => json!({ "label": if expanded { "Collapse actions" } else { "Expand actions" }, "icon": if expanded { "chevron-right" } else { "chevron-left" }, "expand": true }),
+        })
+        .collect()
+}
+
 impl GhostexGpuiApp {
     pub(crate) fn render_native_session_hover_actions(
         &self,
@@ -24,18 +46,7 @@ impl GhostexGpuiApp {
     ) -> AnyElement {
         let id = session.session_id.clone();
         let scale = appearance.scale;
-        let expanded = group.hover_actions_expanded;
-        let chevron = session.details.get("hoverChevron").and_then(Value::as_bool) == Some(true);
-        let before = session.details.get("hoverBefore").and_then(Value::as_array);
-        let after = session.details.get("hoverAfter").and_then(Value::as_array);
-        let mut actions = Vec::new();
-        if expanded || !chevron {
-            actions.extend(before.into_iter().flatten().cloned());
-        }
-        if chevron && before.is_some_and(|actions| !actions.is_empty()) {
-            actions.push(json!({ "label": if expanded { "Collapse actions" } else { "Expand actions" }, "icon": if expanded { "chevron-right" } else { "chevron-left" }, "expand": true }));
-        }
-        actions.extend(after.into_iter().flatten().cloned());
+        let actions = session_hover_items(session, group.hover_actions_expanded);
         h_flex()
             .id(format!("native-sidebar-hover-actions-{id}"))
             .flex_shrink_0()
