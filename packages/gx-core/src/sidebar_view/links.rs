@@ -16,6 +16,12 @@ use ghostex_gx_protocol::presentation::PresentationSessionLinks;
 /// User (Q669): "5, then a Show all row". The Suggested group shows its five newest; when there are more, a "Show all N" row under them shows the rest in place and turns into "Show fewer", which folds them again. gxserver sends up to 40. Every list draws it the same way: the desktop's links list (the header's dropdown and the sidebar's card), the web build's (the same view) and the phone's sheet (apps/mobile/app/src/chat/native/sessionLinks.ts keeps the same number).
 pub const SUGGESTED_SHOWN_FIRST: usize = 5;
 
+/// Linked links up to which a links list opens with its Suggested group unfolded.
+///
+/// CDXC:SessionLinks 2026-10-28 DECISION:
+/// User: "if there are 2 or fewer links, then expand Suggested in any case, so I can manage them without having to click on it manually. This is on desktop and on mobile. If there are 3 or more links already attached, no need to auto-expand Suggested." A list that opens with 2 or fewer linked links shows Suggested unfolded whatever the saved fold says; with 3 or more the saved fold (`sessionLinksFoldedGroups`) holds as before. A fold or unfold the person makes while the list is open wins until it closes, and the open-time decision holds while it stays open (linking a third suggestion does not fold the group under their finger). Removed keeps its own fold. The phone's sheet keeps the same number (apps/mobile/app/src/chat/native/sessionLinks.ts `SUGGESTED_OPEN_UP_TO_LINKED`).
+pub const SUGGESTED_OPEN_UP_TO_LINKED: usize = 2;
+
 /// A session's links, in the client's own vocabulary.
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct SessionLinks {
@@ -160,6 +166,23 @@ impl SessionLinks {
 
     pub fn is_empty(&self) -> bool {
         self.items.is_empty() && self.suggested.is_empty() && self.removed.is_empty()
+    }
+
+    /// Whether a list opening on these links shows Suggested unfolded whatever the saved fold says
+    /// (`SUGGESTED_OPEN_UP_TO_LINKED`).
+    pub fn suggested_opens_unfolded(&self) -> bool {
+        self.items.len() <= SUGGESTED_OPEN_UP_TO_LINKED
+    }
+
+    /// The groups a list opening on these links shows folded: the saved folds, without Suggested
+    /// when `suggested_opens_unfolded`.
+    pub fn folded_groups_on_open(&self, saved: &[String]) -> Vec<String> {
+        let unfold_suggested = self.suggested_opens_unfolded();
+        saved
+            .iter()
+            .filter(|group| !(unfold_suggested && group.as_str() == "suggested"))
+            .cloned()
+            .collect()
     }
 
     /// The list as it stands once `keys` are removed, before gxserver publishes it: each leaves
@@ -672,6 +695,33 @@ mod tests {
             Badge
         );
         assert_eq!(SessionLinksDisplay::default(), Badge);
+    }
+
+    #[test]
+    fn suggested_opens_unfolded_with_two_or_fewer_linked_links() {
+        let saved = vec![
+            "finished".to_string(),
+            "suggested".to_string(),
+            "removed".to_string(),
+        ];
+        for linked in 0..=2 {
+            let mut list = links();
+            list.items.truncate(linked);
+            assert!(list.suggested_opens_unfolded(), "{linked} linked");
+            assert_eq!(
+                list.folded_groups_on_open(&saved),
+                vec!["finished".to_string(), "removed".to_string()],
+                "{linked} linked"
+            );
+        }
+        // Three or more: the saved fold holds, folded or not.
+        let list = links();
+        assert!(!list.suggested_opens_unfolded());
+        assert_eq!(list.folded_groups_on_open(&saved), saved);
+        assert_eq!(
+            list.folded_groups_on_open(&["removed".to_string()]),
+            vec!["removed".to_string()]
+        );
     }
 
     #[test]

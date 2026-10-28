@@ -232,6 +232,10 @@ pub(crate) struct SessionLinksList {
     /// The groups folded shut, by id (`open`, `finished`, `suggested`, `removed`), as
     /// `sessionLinksFoldedGroups` says.
     folded: Vec<String>,
+    /// Whether Suggested shows unfolded for this open of the list, over the saved fold: set when
+    /// the list opens on 2 or fewer linked links (gx-core `SUGGESTED_OPEN_UP_TO_LINKED`) and by
+    /// the person's own fold or unfold, until the list closes.
+    suggested_open: Option<bool>,
     /// "Show all" was clicked under Suggested: every suggestion shows until "Show fewer".
     all_suggested: bool,
     /// The tallest the list's own window may grow; past it the list scrolls.
@@ -271,6 +275,9 @@ impl SessionLinksList {
                             || links.suggested.iter().any(|link| &link.key == key)
                     });
                 }
+                if list.suggested_open.is_none() && list.links.is_none() {
+                    list.suggested_open = suggested_open_on_open(links.as_ref());
+                }
                 if links != list.links || folded != list.folded || delay != list.tooltip_delay {
                     list.links = links;
                     list.folded = folded;
@@ -287,6 +294,7 @@ impl SessionLinksList {
             hovered: None,
             removing: Vec::new(),
             folded: folded_session_link_groups(),
+            suggested_open: suggested_open_on_open(links.as_ref()),
             all_suggested: false,
             max_height,
             fitted_height: None,
@@ -672,7 +680,7 @@ impl SessionLinksList {
     pub(crate) fn fitted_height(&self) -> f32 {
         session_links_list_height_showing(
             self.shown_links().as_ref(),
-            &self.folded,
+            &self.shown_folded(),
             self.all_suggested,
         )
         .min(self.max_height)
@@ -690,11 +698,29 @@ impl SessionLinksList {
     }
 
     fn is_folded(&self, section: &str) -> bool {
-        self.folded.iter().any(|folded| folded == section)
+        match (section, self.suggested_open) {
+            ("suggested", Some(open)) => !open,
+            _ => self.folded.iter().any(|folded| folded == section),
+        }
+    }
+
+    /// The groups drawn folded: the saved folds, with this open's Suggested over them.
+    fn shown_folded(&self) -> Vec<String> {
+        let mut folded = self.folded.clone();
+        if let Some(open) = self.suggested_open {
+            folded.retain(|group| group != "suggested");
+            if !open {
+                folded.push("suggested".to_string());
+            }
+        }
+        folded
     }
 
     fn toggle_section(&mut self, section: &'static str, cx: &mut Context<Self>) {
         let fold = !self.is_folded(section);
+        if section == "suggested" {
+            self.suggested_open = Some(!fold);
+        }
         if fold {
             self.folded.push(section.to_string());
         } else {
@@ -993,6 +1019,14 @@ impl Render for SessionLinksList {
                     ),
             )
     }
+}
+
+/// Suggested's fold for a list opening on `links`: unfolded with 2 or fewer linked links (gx-core
+/// `SessionLinks::suggested_opens_unfolded`), else the saved fold (`None`).
+fn suggested_open_on_open(links: Option<&SessionLinks>) -> Option<bool> {
+    links
+        .filter(|links| links.suggested_opens_unfolded())
+        .map(|_| true)
 }
 
 /// The groups folded shut, from `sessionLinksFoldedGroups`; Merged / Closed and Removed start

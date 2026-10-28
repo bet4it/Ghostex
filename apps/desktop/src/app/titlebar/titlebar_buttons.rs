@@ -104,13 +104,17 @@ impl GhostexGpuiApp {
             GpuiTitlebarPopupKind::OpenTargets => self.titlebar_open_targets_popup_content_height(),
             GpuiTitlebarPopupKind::Notifications => TITLEBAR_POPUP_NOTIFICATIONS_MAX_HEIGHT,
             GpuiTitlebarPopupKind::SessionLinks => {
+                let links = self
+                    .native_sidebar
+                    .links_list_session
+                    .as_ref()
+                    .and_then(|key| self.session_links_of(key));
+                let saved = crate::app::native_sidebar::links_list::folded_session_link_groups();
                 crate::app::native_sidebar::links_list::session_links_list_height(
-                    self.native_sidebar
-                        .links_list_session
+                    links.as_ref(),
+                    &links
                         .as_ref()
-                        .and_then(|key| self.session_links_of(key))
-                        .as_ref(),
-                    &crate::app::native_sidebar::links_list::folded_session_link_groups(),
+                        .map_or(saved.clone(), |links| links.folded_groups_on_open(&saved)),
                 )
             }
             GpuiTitlebarPopupKind::Resources

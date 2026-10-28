@@ -70,9 +70,12 @@ impl GhostexGpuiApp {
         let width = SESSION_LINKS_CARD_WIDTH;
         // Past half the window's height the list scrolls inside the card.
         let half_window = session_links_max_height(main.size.height.as_f32());
-        let height = session_links_list_height(Some(&links), &folded_session_link_groups())
-            .min(half_window)
-            .max(80.0);
+        let height = session_links_list_height(
+            Some(&links),
+            &links.folded_groups_on_open(&folded_session_link_groups()),
+        )
+        .min(half_window)
+        .max(80.0);
         // Beside the sidebar, on the work area's side.
         let sidebar_on_right = sidebar.left().as_f32() > main.size.width.as_f32() / 2.0;
         let left = if sidebar_on_right {
