@@ -81,6 +81,7 @@ mod system_cards;
 mod terminal_ready;
 mod thinking;
 mod thinking_card;
+mod tool_card;
 mod tool_run;
 
 mod code_block;

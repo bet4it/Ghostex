@@ -149,6 +149,9 @@ fn route(state: &mut ChatState, event: &Event, context: &ChatContext) -> Vec<Eff
                 state.core.marked_heading_strength =
                     crate::transcript::marked_sections::heading_strength(strength);
             }
+            if let Some(enabled) = settings.tool_cards {
+                crate::transcript::tool_card::set_enabled(&mut state.transcript_view, enabled);
+            }
             state.core.request_publish();
             Vec::new()
         }
@@ -245,6 +248,9 @@ pub fn boot_read(
         if let Some(strength) = settings.marked_heading_strength {
             state.core.marked_heading_strength =
                 crate::transcript::marked_sections::heading_strength(strength);
+        }
+        if let Some(enabled) = settings.tool_cards {
+            crate::transcript::tool_card::set_enabled(&mut state.transcript_view, enabled);
         }
     }
     let config = state.session.boot_config.clone().unwrap_or_default();

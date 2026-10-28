@@ -532,6 +532,8 @@ pub const DEFAULT_GHOSTEX_SETTINGS: &[(&str, J)] = &[
     ("sessionChatFileEditPreviews", J::Bool(false)),
     // CDXC:SessionChat 2026-10-16 DECISION: User, on a tester's request to draw the agent's thinking grey and its output white as terminals do: "Sure please do it as a toggle (disabled by default) so we can check how it looks." Off keeps the unified look; on, thinking takes the theme's muted text colour and replies its full foreground, in the desktop, web and phone chats.
     ("sessionChatMutedThinking", J::Bool(false)),
+    // CDXC:SessionChat 2026-10-28 DECISION: User: "Let's please do this under feature flag if possible (toggle in settings) so i can test it. Keep current look as it is." Off by default; on, the chat draws tool calls as cards (packages/gx-chat-core/src/transcript/tool_card.rs).
+    ("chatToolCallCards", J::Bool(false)),
     ("sessionChatKeepComposerExpanded", J::Bool(false)),
     ("sessionChatConfirmEscapeInterrupt", J::Bool(true)),
     // CDXC:CatchMeUp 2026-10-11 DECISION: User: "disable this feature by default. add a toggle to enable it under chat". The composer's Catch me up button shows only while this is on.

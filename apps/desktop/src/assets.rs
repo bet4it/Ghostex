@@ -77,6 +77,14 @@ impl AssetSource for GhostexAssets {
                 .map(|asset| Some(asset.data))
                 .ok_or_else(|| anyhow!("could not find embedded Ghostex asset at path {path:?}"));
         }
+        // The MCP app logos a tool-call card draws (gx-chat-core `transcript/tool_apps.rs`).
+        if let Some(key) = path.strip_prefix("chat-tool-apps/") {
+            return key
+                .strip_suffix(".svg")
+                .and_then(ghostex_gx_chat_core::transcript::tool_apps::tool_app_svg)
+                .map(|svg| Some(Cow::Borrowed(svg.as_bytes())))
+                .ok_or_else(|| anyhow!("unknown tool app logo {key:?}"));
+        }
         // CDXC:Icons 2026-10-22 WHY: `agent-icons/<key>.svg` is served from gx-core's agent logo table, which already embeds every `packages/core-ui/assets/*.svg` for the sidebar's coloured logos; a second RustEmbed of the same folder put the artwork in the binary twice. A new agent logo goes into that table (`packages/gx-core/src/sidebar_menu/agent_logos.rs`).
         if let Some(agent_icon_path) = path.strip_prefix("agent-icons/") {
             return agent_icon_path

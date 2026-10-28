@@ -1087,6 +1087,20 @@
       "agentWritable": true
     },
     {
+      "key": "chatToolCallCards",
+      "title": "Tool call cards (preview)",
+      "subtitle": "Show each run of tool calls as one card: it counts the calls, says what each one is doing and then did, with its result and time, explains a failure, and folds to one line once the agent writes again. Off keeps the current look.",
+      "tab": "settings",
+      "tabTitle": "General",
+      "group": "chat",
+      "groupTitle": "Chat",
+      "section": "chat",
+      "sectionTitle": "Chat",
+      "type": "boolean",
+      "default": false,
+      "agentWritable": true
+    },
+    {
       "key": "sessionChatKeepComposerExpanded",
       "title": "Keep chat box expanded while scrolling",
       "subtitle": "Keep the desktop chat box at full size while you scroll the transcript instead of shrinking it as you scroll up and growing it back at the end.",

@@ -56,7 +56,7 @@ use crate::transcript::transcript::{
 };
 use crate::transcript::transcript_rows::{file_rows, open_tool_detail, tool_fold, tool_rows};
 use crate::transcript::turns::{partition_completed_work, worked_duration_label, RenderItem};
-use crate::transcript::work_summary::{tool_durations, work_stats};
+use crate::transcript::work_summary::{tool_spans, work_stats};
 
 /// A message's file changes and tool calls, in the order their rows are numbered.
 pub fn message_tool_rows(message: &ChatMessage) -> (Vec<FileChange<'_>>, Vec<ToolPair<'_>>) {
@@ -119,9 +119,17 @@ pub fn project_message(
     working_directory: Option<&str>,
     line_breaks: AgentLineBreaks,
     context: &ChatContext,
-    durations: &std::collections::HashMap<String, i64>,
+    spans: &std::collections::HashMap<String, (i64, i64)>,
     question_tags: &[QuestionTag],
+    tool_cards: bool,
+    working: bool,
 ) -> Value {
+    let durations: std::collections::HashMap<String, i64> = spans
+        .iter()
+        .filter(|(_, (start, end))| end > start)
+        .map(|(id, (start, end))| (id.clone(), end - start))
+        .collect();
+    let durations = &durations;
     let (prose, tools) = split_blocks(&message.blocks);
     let images = image_blocks(&prose);
     let body = js_trim(&prose_markdown(&message.blocks)).to_string();
@@ -352,6 +360,21 @@ pub fn project_message(
         },
     );
     let files = file_rows(&changes, &message.id, working_directory);
+    // Settings > Chat > Tool call cards: the message's calls and edits as one card
+    // (`tool_card.rs`); off, the rows draw as before.
+    if tool_cards {
+        let (_, tool_blocks) = split_blocks(&message.blocks);
+        if let Some(card) = crate::transcript::tool_card::tool_card(
+            &tool_blocks,
+            &rows,
+            &files,
+            spans,
+            working_directory,
+            working,
+        ) {
+            projected.insert("toolCard".to_string(), card);
+        }
+    }
     projected.insert(
         "fileCard".to_string(),
         crate::transcript::file_change_rows::file_change_card(&files),
@@ -534,6 +557,9 @@ pub struct ProjectionScope<'a> {
     /// `question_forms(messages)`, read once per pass the first time an answers card needs it
     /// (or handed in already read, `transcript/settled.rs`).
     pub question_forms: std::cell::OnceCell<Vec<QuestionForm>>,
+    /// Settings > Chat > Tool call cards (`chatToolCallCards`): each message's calls project as one
+    /// card (`tool_card.rs`).
+    pub tool_cards: bool,
 }
 
 /// The session's line-break rule, which the subagent viewer shares: a child runs the same agent.
@@ -579,6 +605,7 @@ pub fn scope<'a>(state: &'a ChatState, view: &'a TranscriptViewState) -> Project
         agent_message_deliveries: state.session.agent_message_deliveries.as_ref(),
         backfilled: &view.backfilled,
         question_forms: std::cell::OnceCell::new(),
+        tool_cards: view.tool_cards,
     }
 }
 
@@ -663,7 +690,7 @@ fn project_entry(
     // A background task's end is projected (and its details read) as the tool calls it reports.
     let message = &*background_task_source(message);
     // How long each call ran comes from the rows as they arrived, before the fold merged them.
-    let durations = tool_durations(
+    let spans = tool_spans(
         message,
         std::iter::once(scope.messages).chain(scope.deferred.values().map(Vec::as_slice)),
     );
@@ -675,8 +702,10 @@ fn project_entry(
         scope.working_directory,
         scope.line_breaks,
         context,
-        &durations,
+        &spans,
         &scope.question_tags,
+        scope.tool_cards,
+        scope.working,
     );
     let words = if message.role == ChatRole::Assistant {
         tag_words(&prose_markdown(&message.blocks))
@@ -699,6 +728,7 @@ fn fresh(entry: &ProjectedMessage, message: &ChatMessage, scope: &ProjectionScop
     entry.source == *background_task_source(message)
         && entry.line_breaks == scope.line_breaks
         && linked_words(&entry.tag_words, &scope.question_tags) == entry.linked_tags
+        && crate::transcript::tool_card::card_fresh(&entry.model, scope.working)
 }
 
 /// `pruneModels`: once the cache is well past the transcript's size, drop every entry whose id is
@@ -981,6 +1011,10 @@ pub(crate) fn build_items(
     latest_reply: Option<usize>,
 ) -> Vec<TranscriptItem> {
     let scope = builder.scope;
+    let live_card = scope
+        .tool_cards
+        .then(|| crate::transcript::tool_card::live_card_id(scope.messages, scope.working))
+        .flatten();
     if scope.summary {
         projection
             .summary_turns
@@ -1048,6 +1082,11 @@ pub(crate) fn build_items(
                     RenderItem::Message(message) => {
                         let mut row = builder.message_or_placeholder(message, eager, Draw::Row);
                         running_thinking.mark(message, &mut row);
+                        crate::transcript::tool_card::mark_live_card(
+                            live_card.as_deref(),
+                            message,
+                            &mut row,
+                        );
                         return TranscriptItem::Message { message: row };
                     }
                     RenderItem::CompletedWork(turn) => turn,

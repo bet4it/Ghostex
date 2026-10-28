@@ -53,6 +53,23 @@ pub fn tool_durations<'a>(
     message: &ChatMessage,
     timelines: impl IntoIterator<Item = &'a [ChatMessage]>,
 ) -> HashMap<String, i64> {
+    tool_spans(message, timelines)
+        .into_iter()
+        .filter_map(|(id, (called, answered))| {
+            let ms = answered - called;
+            // Two rows stamped with the same instant say nothing about how long the call ran.
+            (ms > 0).then_some((id, ms))
+        })
+        .collect()
+}
+
+/// When each of `message`'s answered calls started and ended, by call id, in epoch milliseconds:
+/// [`tool_durations`]' reading, kept as the two ends so a tool-call card can time its whole burst
+/// (`tool_card.rs`).
+pub fn tool_spans<'a>(
+    message: &ChatMessage,
+    timelines: impl IntoIterator<Item = &'a [ChatMessage]>,
+) -> HashMap<String, (i64, i64)> {
     let mut wanted: HashMap<&str, (Option<i64>, Option<i64>)> = HashMap::new();
     for block in &message.blocks {
         if let ChatBlock::ToolCall {
@@ -102,11 +119,25 @@ pub fn tool_durations<'a>(
     wanted
         .into_iter()
         .filter_map(|(id, (called, answered))| {
-            let ms = answered? - called.or(message.timestamp)?;
-            // Two rows stamped with the same instant say nothing about how long the call ran.
-            (ms > 0).then(|| (id.to_string(), ms))
+            let called = called.or(message.timestamp)?;
+            Some((id.to_string(), (called, answered?)))
         })
         .collect()
+}
+
+/// "30ms", "1.2s", "41s", "1m 4s": a call's time on a tool-call card (`tool_card.rs`), shorter than
+/// [`tool_duration_label`] because it sits beside the call's result.
+pub fn tool_time_label(ms: i64) -> String {
+    if ms < 1000 {
+        return format!("{}ms", ms.max(1));
+    }
+    if ms < 10_000 {
+        return format!("{:.1}s", ms as f64 / 1000.0);
+    }
+    if ms < 60_000 {
+        return format!("{}s", (ms as f64 / 1000.0).round() as i64);
+    }
+    tool_duration_label(ms)
 }
 
 /// What a failed call's row says after its preview: the first line of what the tool reported,

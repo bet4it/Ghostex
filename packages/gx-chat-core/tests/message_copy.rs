@@ -36,6 +36,8 @@ fn projected(message: &ChatMessage) -> Value {
         &ChatContext::default(),
         &HashMap::new(),
         &[],
+        false,
+        false,
     )
 }
 

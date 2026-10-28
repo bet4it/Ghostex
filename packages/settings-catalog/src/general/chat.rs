@@ -15,6 +15,7 @@ pub(crate) fn chat() -> Section {
             row("sessionChatTranscriptWidthPercent", "Transcript width", "Set the centered transcript width without changing the prompt composer."),
             row("sessionChatFileEditPreviews", "Show file edit previews", "Show the first seven code lines in each file edit. Turn off to show only the path and change counts."),
             row("sessionChatMutedThinking", "Grey thinking", "Show the agent's thinking in grey and its replies in the full text colour, so the two are easy to tell apart."),
+            row("chatToolCallCards", "Tool call cards (preview)", "Show each run of tool calls as one card: it counts the calls, says what each one is doing and then did, with its result and time, explains a failure, and folds to one line once the agent writes again. Off keeps the current look."),
             row("sessionChatKeepComposerExpanded", "Keep chat box expanded while scrolling", "Keep the desktop chat box at full size while you scroll the transcript instead of shrinking it as you scroll up and growing it back at the end."),
             row("sessionChatConfirmEscapeInterrupt", "Press Escape twice to interrupt", "While the agent is working, the first Escape asks you to press Escape again within 2 seconds before it interrupts. Turn off to interrupt on the first Escape."),
             row("sessionChatSimpleMode", "Simple mode", "Simplify all chats: hide tool command previews and group file edits behind an expandable file count."),

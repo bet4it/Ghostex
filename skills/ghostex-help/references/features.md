@@ -1861,6 +1861,8 @@ While the agent is working, its thinking shows as a closed "Thinking…" card wi
 
 Grey thinking (Settings > Chat, off by default) shows the agent's thinking in grey and its replies in the full text colour, so the two are easy to tell apart (`sessionChatMutedThinking`); the phone has the same switch in its Settings > Chat.
 
+Tool call cards (Settings > Chat, a preview, off by default) show each run of tool calls between two pieces of the agent's text as one card: its header stacks the tools' icons and says "Using 3 tools" while they run and "Used 6 tools" with any failures and the time once done, and each call reads like a sentence that changes tense when it ends ("Reading main.rs", then "Read main.rs · 92 lines · 30ms"), with its result and time on the right. A failed call says what failed with the reason underneath, and calls to apps such as Linear, GitHub or Notion show the app's logo. The card folds to one line as soon as the agent writes again; click it to open it again, and click a call to see its command and output (`chatToolCallCards`).
+
 Marked handovers: coordinators and their threads begin each part of
 the message they hand back with a marker: ❓ Needs you, ✅ Done, ⚠️ Read this,
 🛫 Kicked off (work started this turn), 🔄 In progress, 🧪 Untested, 🚀 Shipped or 🛑 Blocked, so a quick skim shows
@@ -2336,7 +2338,7 @@ between them is temporarily hidden in this dialog.
 Related settings: `hideAccountEmails`, `preferredAgentInterface`, `sessionChatTheme`,
 `sessionChatFontFamily`, `sessionChatCustomTranscriptWidthEnabled`,
 `sessionChatTranscriptWidthPercent`, `sessionChatVerboseMode`,
-`sessionChatFileEditPreviews`, `sessionChatMutedThinking`,
+`sessionChatFileEditPreviews`, `sessionChatMutedThinking`, `chatToolCallCards`,
 `sessionChatKeepComposerExpanded`, `sessionChatConfirmEscapeInterrupt`,
 `terminalViewWidthMode` (`match-chat` makes the terminal body the same width
 as the chat transcript), `terminalWidthApplyToCommandPaneTerminals`.

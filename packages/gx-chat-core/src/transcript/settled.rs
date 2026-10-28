@@ -71,6 +71,7 @@ struct SettledKey {
     agent_path: String,
     working_directory: Option<String>,
     session_directory_revision: u64,
+    tool_cards: bool,
 }
 
 /// What one row tells the question scans (`scope`'s askers, `questionForms`, `pageAnswers`).
@@ -440,6 +441,7 @@ impl SettledPrefix {
             agent_path: view.agent_path.clone(),
             working_directory: view.working_directory.clone(),
             session_directory_revision: view.session_directory_revision,
+            tool_cards: view.tool_cards,
         }
     }
 
@@ -1255,6 +1257,7 @@ fn build_after(
         agent_message_deliveries: state.session.agent_message_deliveries.as_ref(),
         backfilled: &view.backfilled,
         question_forms: std::cell::OnceCell::from(forms),
+        tool_cards: view.tool_cards,
     };
 
     // Turns a newer accepted prompt has closed since the prefix was settled join it, one chunk
@@ -1642,5 +1645,6 @@ pub fn scope<'a>(state: &'a ChatState, view: &'a TranscriptViewState) -> Project
         agent_message_deliveries: state.session.agent_message_deliveries.as_ref(),
         backfilled: &view.backfilled,
         question_forms: std::cell::OnceCell::from(scans.marked_forms()),
+        tool_cards: view.tool_cards,
     }
 }

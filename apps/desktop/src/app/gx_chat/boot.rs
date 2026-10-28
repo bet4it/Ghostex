@@ -126,6 +126,7 @@ pub(super) fn chat_settings() -> ChatSettings {
         marked_heading_strength: object
             .get("markedHandoversHeadingStrength")
             .and_then(Value::as_f64),
+        tool_cards: object.get("chatToolCallCards").and_then(Value::as_bool),
     }
 }
 

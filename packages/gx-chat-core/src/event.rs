@@ -281,6 +281,9 @@ pub struct ChatSettings {
     /// the same way.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub marked_heading_strength: Option<f64>,
+    /// The Tool call cards setting (`chatToolCallCards`), the same way.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tool_cards: Option<bool>,
 }
 
 /// A size or position only the renderer can know, folded back into the document.

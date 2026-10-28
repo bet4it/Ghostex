@@ -149,6 +149,9 @@ pub struct TranscriptViewState {
     pub session_directory: Vec<crate::event::KnownSession>,
     /// Bumped whenever [`Self::session_directory`] changes, so the projection rebuilds.
     pub session_directory_revision: u64,
+    /// Settings > Chat > Tool call cards (`chatToolCallCards`): each message's tool calls project
+    /// as one card (`transcript/tool_card.rs`). A change throws the cached projections away.
+    pub tool_cards: bool,
 }
 
 /// One message's full projection, with the source it was built from.
@@ -252,6 +255,7 @@ impl Default for TranscriptViewState {
             settled: None,
             session_directory: Vec::new(),
             session_directory_revision: 0,
+            tool_cards: false,
         }
     }
 }

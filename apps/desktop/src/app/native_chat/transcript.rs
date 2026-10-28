@@ -495,11 +495,15 @@ impl NativeChatView {
         // A reasoning headline owns the tools that followed it, so it renders them itself and the
         // run below must not render them a second time.
         let mut tools_rendered = false;
+        // Settings > Chat > Tool call cards: the calls and edits are one card after the text, which
+        // owns none of them (`tool_card.rs`).
+        let tool_card = message["toolCard"].is_object();
         if !body.is_empty() {
             let reasoning = message["role"] == "reasoning";
             // Inside a turn fold the text owns none of its calls: they follow it at the same
             // level (gx-chat-core `list_tools_in_work_fold`).
             let tools = message["toolsFlat"] != true
+                && !tool_card
                 && message["tools"]
                     .as_array()
                     .is_some_and(|tools| !tools.is_empty());
@@ -635,8 +639,10 @@ impl NativeChatView {
                 }
             }
         }
-        for card in self.file_change_cards(message, p, cx) {
-            row = row.child(card);
+        if !tool_card {
+            for card in self.file_change_cards(message, p, cx) {
+                row = row.child(card);
+            }
         }
         if !tools_rendered {
             for tool in self.tool_rows(message, p, cx) {
