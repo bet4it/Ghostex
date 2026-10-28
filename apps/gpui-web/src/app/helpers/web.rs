@@ -69,6 +69,12 @@ pub(crate) fn gpui_copy_to_clipboard(item: gpui::ClipboardItem, cx: &mut gpui::A
 }
 
 /// Window glass blurs the desktop behind a native window; a canvas has nothing behind it to blur, so glass is never on here.
+/// A link the app opens outside itself (`gpui_open_external_url` in the desktop's os_cli/open_target.rs):
+/// the browser opens it in a new tab, so there is no Wayland display to restore.
+pub(crate) fn gpui_open_external_url(url: &str, cx: &gpui::App) {
+    cx.open_url(url);
+}
+
 pub(crate) fn window_glass_active() -> bool {
     false
 }

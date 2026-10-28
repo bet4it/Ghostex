@@ -148,6 +148,8 @@ impl GhostexGpuiApp {
             }
             // Raised only by the app's terminal extensions, which a page does not open.
             GpuiAppToastAction::RunInNewTerminal { .. } => {}
+            // Raised only by the Linux AppImage updater, which a page does not run.
+            GpuiAppToastAction::OpenUpdateDownloadPage => {}
         }
     }
 

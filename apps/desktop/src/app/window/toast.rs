@@ -164,6 +164,9 @@ pub(crate) enum GpuiAppToastAction {
     OpenAccounts { provider: Option<String> },
     /// Settings > Extensions, where views are turned on.
     OpenViewSettings,
+    /// The release page of the update a failed AppImage update was installing (Linux).
+    #[cfg_attr(not(target_os = "linux"), allow(dead_code))]
+    OpenUpdateDownloadPage,
     /// A fixed native project-path bridge payload a planned toast carries
     /// (`ghostex_gx_core::ToastButton`), such as Copy Path on a remote project.
     NativeProjectPathAction {
@@ -185,6 +188,7 @@ impl GpuiAppToastAction {
         match self {
             Self::OpenAccounts { .. } => "Open Accounts",
             Self::OpenViewSettings => "Open Settings",
+            Self::OpenUpdateDownloadPage => "Open download page",
             Self::NativeProjectPathAction { label, .. } | Self::RunInNewTerminal { label, .. } => {
                 label
             }

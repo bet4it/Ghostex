@@ -230,6 +230,10 @@ impl GhostexGpuiApp {
                 update_download_progress: None,
                 #[cfg(target_os = "linux")]
                 linux_update: None,
+                #[cfg(target_os = "linux")]
+                linux_appimage_install: None,
+                #[cfg(target_os = "linux")]
+                linux_ready_appimage: None,
                 #[cfg(target_os = "windows")]
                 windows_updater: None,
                 #[cfg(target_os = "windows")]

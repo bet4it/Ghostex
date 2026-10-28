@@ -19,7 +19,11 @@ mod fold_motion;
 mod ghostty_kit;
 mod ghostty_vt;
 mod hotkey_label;
+#[cfg(any(target_os = "linux", test))]
+mod appimage_signature;
 #[cfg(target_os = "linux")]
+mod linux_hyprland;
+#[cfg(any(target_os = "linux", test))]
 mod linux_updater;
 #[cfg(target_os = "linux")]
 mod linux_x11_scale;
@@ -241,6 +245,9 @@ fn main() {
     // initialization or background work can read the environment.
     #[cfg(target_os = "linux")]
     force_gpui_x11_backend_for_windowed_cef();
+    // Omarchy's Super+C / Super+V reach Ghostex as Ctrl+Insert / Shift+Insert (linux_hyprland.rs).
+    #[cfg(target_os = "linux")]
+    linux_hyprland::start_terminal_tag();
     /*
     CDXC:PlatformSupport 2026-07-25:
     Windowed CEF children are normal child HWNDs. GPUI's DirectComposition
@@ -286,6 +293,16 @@ fn main() {
         cef::register_windows_shutdown(cx);
         gpui_component::init(cx);
         crate::app::native_docs::grammars::register();
+        // CDXC:Clipboard 2026-10-28 WHY: the CUA clipboard keys work in every text field on
+        // Windows and Linux as they do in the terminal (Ctrl+Insert / Shift+Insert there).
+        // Omarchy's Super+C / Super+V send exactly these to windows it tags as terminals, the
+        // only way its universal copy reaches Ghostex without sending Ctrl+C to a running command.
+        #[cfg(not(target_os = "macos"))]
+        cx.bind_keys([KeyBinding::new(
+            "ctrl-insert",
+            gpui_component::input::Copy,
+            Some("Input"),
+        )]);
         cx.bind_keys([KeyBinding::new(
             "shift-insert",
             gpui_component::input::Paste,

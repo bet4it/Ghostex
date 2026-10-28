@@ -2496,6 +2496,7 @@ dependencies = [
  "raw-window-handle",
  "regex",
  "resvg 0.46.0",
+ "ring",
  "rodio",
  "rusqlite",
  "rust-embed",

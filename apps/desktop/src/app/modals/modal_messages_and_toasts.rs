@@ -217,6 +217,10 @@ impl GhostexGpuiApp {
             GpuiAppToastAction::OpenViewSettings => {
                 self.open_gpui_settings_extensions_page(None, cx);
             }
+            GpuiAppToastAction::OpenUpdateDownloadPage => {
+                #[cfg(target_os = "linux")]
+                self.open_linux_update_download_page(cx);
+            }
             GpuiAppToastAction::NativeProjectPathAction { payload, .. } => {
                 self.receive_sidebar_native_project_path_action_payload(&payload.to_string(), cx);
             }

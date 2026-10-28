@@ -224,6 +224,12 @@ pub struct GhostexGpuiApp {
     pub(crate) update_download_progress: Option<f64>,
     #[cfg(target_os = "linux")]
     pub(crate) linux_update: Option<linux_updater::LinuxUpdate>,
+    /// The AppImage install copy this build runs from; only it updates itself (linux_updater.rs).
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_appimage_install: Option<linux_updater::AppImageInstall>,
+    /// The downloaded and verified AppImage of `linux_update`, waiting for Restart and update.
+    #[cfg(target_os = "linux")]
+    pub(crate) linux_ready_appimage: Option<(String, std::path::PathBuf)>,
     #[cfg(target_os = "windows")]
     pub(crate) windows_updater: Option<windows_updater::WindowsUpdater>,
     #[cfg(target_os = "windows")]

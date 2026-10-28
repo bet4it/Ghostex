@@ -136,6 +136,9 @@ pub fn bind_keys(cx: &mut App) {
         KeyBinding::new("ctrl-v", Paste, ctx),
         KeyBinding::new("cmd-x", Cut, ctx),
         KeyBinding::new("ctrl-x", Cut, ctx),
+        // The CUA copy and paste keys Windows and Linux text fields also accept (Omarchy's Super+C/V send them).
+        KeyBinding::new("ctrl-insert", Copy, ctx),
+        KeyBinding::new("shift-insert", Paste, ctx),
         KeyBinding::new("ctrl-cmd-space", ShowCharacterPalette, ctx),
         KeyBinding::new("cmd-z", Undo, ctx),
         KeyBinding::new("ctrl-z", Undo, ctx),
