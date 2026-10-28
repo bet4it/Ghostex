@@ -42,6 +42,24 @@ fn folded_by_default(section: &str) -> bool {
     section == "withdrawn"
 }
 
+/// A row's hover tooltip: title, tags and the full time. The row itself shows only the title and
+/// the short time; the tags (Q633 Q634 …) were dropped from it (user decision 2026-10-28: "seeing
+/// the question numbers here on the right is useless") but stay readable here.
+fn row_tooltip(row: &Value) -> String {
+    let tags = row["tags"]
+        .as_array()
+        .into_iter()
+        .flatten()
+        .filter_map(Value::as_str)
+        .collect::<Vec<_>>()
+        .join(" ");
+    [text(row, "title"), tags, text(row, "timeTitle")]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The list's hover and folding, per chat.
 #[derive(Default)]
 pub(super) struct QuestionList {
@@ -429,8 +447,8 @@ impl NativeChatView {
             .into_any_element()
     }
 
-    /// One form or page: what it is, its title, its tags and when it was asked. A click scrolls
-    /// the transcript to its card and flashes it.
+    /// One form or page: what it is, its title and when it was asked (its tags are only in the
+    /// hover tooltip). A click scrolls the transcript to its card and flashes it.
     fn question_list_row(
         &self,
         section: &str,
@@ -442,25 +460,13 @@ impl NativeChatView {
         let id = text(row, "id");
         let title = text(row, "title");
         let time = text(row, "time");
-        let time_title = text(row, "timeTitle");
-        let tags = row["tags"]
-            .as_array()
-            .into_iter()
-            .flatten()
-            .filter_map(Value::as_str)
-            .collect::<Vec<_>>()
-            .join(" ");
         let icon = kind_icon(&text(row, "kind"));
         let (icon_color, title_color) = match section {
             "answered" => (p.success(), p.foreground),
             "withdrawn" => (p.muted, p.card_muted),
             _ => (p.card_muted, p.foreground),
         };
-        let tooltip = [title.as_str(), tags.as_str(), time_title.as_str()]
-            .into_iter()
-            .filter(|part| !part.is_empty())
-            .collect::<Vec<_>>()
-            .join("\n");
+        let tooltip = row_tooltip(row);
         let jump = id.clone();
         div()
             .id(SharedString::from(format!("chat-questions-row:{id}")))
@@ -498,17 +504,6 @@ impl NativeChatView {
                     .when(section == "withdrawn", |title| title.line_through())
                     .child(title),
             )
-            .when(!tags.is_empty(), |this| {
-                this.child(
-                    div()
-                        .flex_shrink_0()
-                        .max_w(px(120.0 * s))
-                        .truncate()
-                        .text_size(px(11.0 * s))
-                        .text_color(p.card_muted)
-                        .child(tags),
-                )
-            })
             .when(!time.is_empty(), |this| {
                 this.child(
                     div()
@@ -525,5 +520,30 @@ impl NativeChatView {
                 this.close_pill_menu(cx);
             }))
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn tooltip_keeps_title_tags_and_time() {
+        let row = json!({
+            "title": "Run 4, part 3 of 3",
+            "tags": ["Q633", "Q634"],
+            "time": "1:57 AM",
+            "timeTitle": "Today at 1:57 AM",
+        });
+        assert_eq!(
+            row_tooltip(&row),
+            "Run 4, part 3 of 3\nQ633 Q634\nToday at 1:57 AM"
+        );
+    }
+
+    #[test]
+    fn tooltip_skips_empty_parts() {
+        let row = json!({"title": "Page", "tags": [], "time": "", "timeTitle": ""});
+        assert_eq!(row_tooltip(&row), "Page");
     }
 }
