@@ -473,7 +473,8 @@ mod pill_logo_tests {
         for listed in card["recipients"].as_array().unwrap() {
             assert_eq!(listed["agentIcon"], "codex");
             assert_eq!(listed["pill"]["logo"], false);
-            assert!(listed["pill"]["label"].as_str().unwrap().starts_with('+'));
+            // The title alone, no `+` (CDXC:SessionChat 2026-10-28 on `pill_label`).
+            assert!(!listed["pill"]["label"].as_str().unwrap().starts_with('+'));
         }
 
         let mut single = json!({ "recipients": [recipient("G1", "Fix login")] });

@@ -1254,7 +1254,7 @@ mod session_pill_tests {
 
         let pill = &rows[0]["sentMessages"][0]["card"]["pill"];
         assert_eq!(pill["prefix"], "Message to");
-        assert_eq!(pill["label"], "+Fix login");
+        assert_eq!(pill["label"], "Fix login");
         assert_eq!(pill["agentIcon"], "codex");
         // The card's tile already shows the logo, so the pill beside it draws none (user: "let's
         // not show the icon of the agent here twice").
@@ -1266,19 +1266,19 @@ mod session_pill_tests {
         assert!(mention.get("logo").is_none());
         assert_eq!(
             (mention["kind"].as_str(), mention["label"].as_str()),
-            (Some("session"), Some("+Other thread"))
+            (Some("session"), Some("Other thread"))
         );
 
         let pill = &rows[1]["interAgentMessage"]["card"]["pill"];
         assert_eq!(
             (pill["prefix"].as_str(), pill["label"].as_str()),
-            (Some("Message from"), Some("+Fix login"))
+            (Some("Message from"), Some("Fix login"))
         );
         assert_eq!(pill["logo"], false);
         let gone = &rows[1]["markdownReferences"][0];
         assert_eq!(
             (gone["label"].as_str(), gone["missing"].as_bool()),
-            (Some("+Gone thread"), Some(true))
+            (Some("Gone thread"), Some(true))
         );
 
         // The sender's session closed: its pill keeps its title, muted, and opens nothing.

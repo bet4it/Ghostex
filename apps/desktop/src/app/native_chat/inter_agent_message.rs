@@ -415,21 +415,20 @@ impl NativeChatView {
         });
         let hint = SharedString::from(text(pill, "title"));
         let hover = p.foreground.opacity(0.06);
+        // CDXC:SessionChat 2026-10-28 DECISION: User, of the "Message from" card's pill: "make this pill look like [the chat box's session pill] after removing the +". The card's pill is drawn as a session reference is in the chat box: no frame, the session's title in the reference colour (`composer_color("session")`), a faint fill only under the pointer. The title's `+` went in gx-chat-core `pill_label`.
+        let color = super::markdown_links::composer_color("session", p).unwrap_or(p.foreground);
         div()
             .id(SharedString::from(key.to_string()))
             .flex()
             .items_center()
             .min_w_0()
             .gap(px(4.0 * s))
-            .px(px(if shows_logo { 6.0 } else { 8.0 } * s))
+            .px(px(4.0 * s))
             .h(px(20.0 * s))
-            .rounded_full()
-            .border(px(1.0))
-            .border_color(p.foreground.opacity(0.14))
-            .bg(p.foreground.opacity(0.03))
-            .text_size(px(12.5 * s))
+            .rounded(px(5.0 * s))
+            .text_size(px(13.0 * s))
             .font_weight(gpui::FontWeight::MEDIUM)
-            .text_color(if missing { p.card_muted } else { p.foreground })
+            .text_color(if missing { p.card_muted } else { color })
             .whitespace_nowrap()
             .role(gpui::Role::Button)
             .aria_label(SharedString::from(format!(

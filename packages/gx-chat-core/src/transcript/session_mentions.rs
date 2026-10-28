@@ -20,9 +20,11 @@ pub const SESSION_REFERENCE_KIND: &str = "session";
 /// The tooltip of a pill whose session the host's list no longer has.
 pub const SESSION_GONE: &str = "This session is gone";
 
-/// What a pill reads: `+<title>`.
+/// What a pill reads: the session's title.
+///
+/// CDXC:SessionChat 2026-10-28 DECISION: User, on a `+Incoming Issues…` pill in the chat box: "please remove the + in this case", and of the "Message from +Mr Big Chungus" card's pill: "make this pill look like [the chat box's] after removing the +". A session pill reads the title alone, in the chat box, in a message and on a card; `+` stays only the key that opens the picker. Supersedes the `+<title>` of the decision above.
 pub fn pill_label(title: &str) -> String {
-    format!("+{}", js_trim(title))
+    js_trim(title).to_string()
 }
 
 /// A Markdown link to a Global Ref as a `session` reference, named by its link text until the
@@ -227,7 +229,7 @@ mod tests {
     fn a_link_to_a_global_ref_is_a_session_reference() {
         let reference = session_reference("S90:P3lv0:G7hgi", "Model inventory").expect("a ref");
         assert_eq!(reference["kind"], "session");
-        assert_eq!(reference["label"], "+Model inventory");
+        assert_eq!(reference["label"], "Model inventory");
         assert_eq!(reference["projectId"], "P3lv0");
         assert_eq!(reference["sessionId"], "G7hgi");
         assert!(session_reference("https://example.com", "x").is_none());
@@ -239,7 +241,7 @@ mod tests {
         let mut reference = session_reference("S90:P3lv0:G7hgi", "Old title").unwrap();
         let session = known("G7hgi", "Renamed title", "");
         dress_session_reference(&mut reference, Some(&session), true);
-        assert_eq!(reference["label"], "+Renamed title");
+        assert_eq!(reference["label"], "Renamed title");
         assert_eq!(reference["agentIcon"], "claude");
         assert_eq!(reference["missing"], false);
 
@@ -247,7 +249,7 @@ mod tests {
         dress_session_reference(&mut gone, None, true);
         assert_eq!(
             (gone["label"].as_str(), gone["missing"].as_bool()),
-            (Some("+Closed one"), Some(true))
+            (Some("Closed one"), Some(true))
         );
 
         // A list still loading does not call every pill gone.

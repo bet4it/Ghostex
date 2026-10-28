@@ -2645,13 +2645,13 @@ a queued message, the row stays in the recipient's queue marked Not delivered
 with Retry and Delete, and the sending agent gets a note saying so. `agents close
 <session-ref>` ends that session, including any unfinished work. `ghostex read-session-chat` and `ghostex read-text` read replies.
 In the chat, a message between agents is one line with that agent's logo and
-the other session's pill: Message from +<session title> for one another agent
-sent (thread reports included), Message to +<session title> for one this
+the other session's title: Message from <session title> for one another agent
+sent (thread reports included), Message to <session title> for one this
 session's agent sent with `agents send`, `agents create --task` or
-`coordinator start-thread`. Click the pill to switch to that session; click the
+`coordinator start-thread`. Click the title to switch to that session; click the
 rest of the line to read the whole message. A mention of a session in a message
-(from Copy ID or the `+` list) shows as the same pill with the session's current
-title. A pill whose session is gone is greyed out and opens nothing. One command that sends the same
+(from Copy ID or the `+` list) shows as a pill with the agent's logo and the
+session's current title. A pill whose session is gone is greyed out and opens nothing. One command that sends the same
 message to several sessions is a single "Message to 2 sessions" line that lists
 each recipient when opened. A session Ghostex cannot find any more reads
 "Message from another agent".

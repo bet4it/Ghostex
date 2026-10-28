@@ -316,11 +316,10 @@ pub fn reference_display_label(label: &str, path: &str, kind: ReferenceKind) -> 
         if characters.len() <= REFERENCE_PILL_MAX_LABEL_CHARACTERS {
             return shown;
         }
-        let mut out: String = characters[..REFERENCE_PILL_MAX_LABEL_CHARACTERS - 1]
+        let out: String = characters[..REFERENCE_PILL_MAX_LABEL_CHARACTERS - 1]
             .iter()
             .collect();
-        out.push('\u{2026}');
-        return out;
+        return format!("{}\u{2026}", out.trim_end());
     }
     let path_label = reference_path_label(label, path, kind);
     let shown = path_label.as_deref().unwrap_or(label);
@@ -739,7 +738,7 @@ mod session_chip_tests {
         assert_eq!(references[1].kind, ReferenceKind::Url);
         assert_eq!(
             reference_display_label("Fix login", "S90:P3lv0:G1", ReferenceKind::Session),
-            "+Fix login"
+            "Fix login"
         );
         assert_eq!(
             reference_display_label(
@@ -747,7 +746,7 @@ mod session_chip_tests {
                 "S90:P3lv0:G1",
                 ReferenceKind::Session
             ),
-            "+Model and effort\u{2026}"
+            "Model and effort\u{2026}"
         );
     }
 }
