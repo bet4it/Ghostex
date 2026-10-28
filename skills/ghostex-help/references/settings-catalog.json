@@ -1204,7 +1204,7 @@
     {
       "key": "markedHandovers",
       "title": "Marked handovers in every session",
-      "subtitle": "Orchestrators and their threads start each part of the message they hand back with a marker such as ❓ Needs you, ✅ Done, ⚠️ Read this, 🧪 Untested or 🛑 Blocked, so a quick skim shows what needs you. Turn this on to have every other agent session do the same. Applies to sessions started or resumed after you change it.",
+      "subtitle": "Coordinators and their threads start each part of the message they hand back with a marker such as ❓ Needs you, ✅ Done, ⚠️ Read this, 🧪 Untested or 🛑 Blocked, so a quick skim shows what needs you. Turn this on to have every other agent session do the same. Applies to sessions started or resumed after you change it.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "chat",
@@ -1279,8 +1279,8 @@
     },
     {
       "key": "orchestratorPlainReplies",
-      "title": "Orchestrators answer without markers",
-      "subtitle": "Not recommended. Orchestrators answer normally, without marking the sections of their handovers. Their threads still mark the reports they send to the orchestrator. Applies to orchestrators started or resumed after you change it.",
+      "title": "Coordinators answer without markers",
+      "subtitle": "Not recommended. Coordinators answer normally, without marking the sections of their handovers. Their threads still mark the reports they send to the coordinator. Applies to coordinators started or resumed after you change it.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "chat",
@@ -1295,7 +1295,7 @@
     {
       "key": "orchestratorAllEfforts",
       "title": "Show all effort levels",
-      "subtitle": "Lists every effort level in the orchestrator effort pickers. Anything below High isn't recommended for orchestrators.",
+      "subtitle": "Lists every effort level in the coordinator effort pickers. Anything below High isn't recommended for coordinators.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "chat",
@@ -1309,8 +1309,8 @@
     },
     {
       "key": "orchestratorPlaybook",
-      "title": "Orchestrator playbook",
-      "subtitle": "How every orchestrator works: the playbook it follows. Edit it for all projects here, or for one project and its worktrees in Settings > Projects. Orchestrators, existing ones too, follow the edited playbook from their next guide read, and a switch turns an edited playbook off without losing it.",
+      "title": "Coordinator playbook",
+      "subtitle": "How every coordinator works: the playbook it follows. Edit it for all projects here, or for one project and its worktrees in Settings > Projects. Coordinators, existing ones too, follow the edited playbook from their next guide read, and a switch turns an edited playbook off without losing it.",
       "tab": "settings",
       "tabTitle": "General",
       "group": "chat",

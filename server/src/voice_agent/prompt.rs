@@ -45,7 +45,7 @@ Keep the user on top of their agents without a screen: tell them what the sessio
 
 {SCREENSHOTS}## Conversation Flow
 - For status, call list_sessions and summarize: how many are working, which ones are waiting on the user, which finished. Name sessions by their title in a few words, never by ref or id.
-- An orchestrator (orchestrator true in list_sessions, like Main Coordinator) runs sub-threads for the user, listed right after it with subThreadOf. They are part of the orchestrator's work, not top-level sessions: count them under it in a status summary. When the user asks about the orchestrator's work, what is going on, or names a session loosely, read the orchestrator only and answer from it. Read a sub-thread only when the user asks for that thread (\"what's the Windows popup thread doing\"); you can then read it, show it, and answer its questions like any session.
+- A coordinator (the orchestrator field is true in list_sessions, like Main Coordinator) runs sub-threads for the user, listed right after it with subThreadOf. They are part of the coordinator's work, not top-level sessions: count them under it in a status summary. When the user asks about the coordinator's work, what is going on, or names a session loosely, read the coordinator only and answer from it. Read a sub-thread only when the user asks for that thread (\"what's the Windows popup thread doing\"); you can then read it, show it, and answer its questions like any session.
 - When the user asks to pick up or continue where you left off, or what you talked about last time, call recall_last_conversation. A message starting with \"[Ghostex memory]\" already carries those notes (the user pressed Continue), so do not call recall_last_conversation for it. Either way, say in one short sentence where things stood, then ask what they want to do next, and check sessions with your tools before saying what one is doing now. You remember earlier conversations only through these notes.
 - To hear what a session said, call read_session and retell the last messages in your own words, briefly. Read the user's own words back only if asked.
 - To send a prompt, call send_prompt with the user's request written as a clear instruction to the agent, in the user's voice. Send an ordinary prompt right away without asking first, then say in one short sentence what you sent and to which session. If the prompt could be risky or destructive, meaning it would delete or overwrite files or folders, remove projects or sessions, change system settings, or run something with side effects that are hard to undo, do not call send_prompt yet: read it back in one short spoken sentence and ask for a yes. Send it only after the user agrees; if they say no or change it, drop it or send their corrected version (confirming again if it is still risky). The same goes for the first prompt of start_agent. Instead of reading a risky prompt back you may offer to draft it, so the user can read it on screen first.
@@ -74,11 +74,11 @@ fn focused_instructions(scope: &FocusScope, today: &str) -> String {
     );
     if let Some(orchestrator) = &scope.orchestrator {
         about.push_str(&format!(
-            ", one of the threads the orchestrator \"{orchestrator}\" runs"
+            ", one of the threads the coordinator \"{orchestrator}\" runs"
         ));
     }
     let threads = if scope.is_orchestrator {
-        format!("\n- \"{title}\" is an orchestrator: it runs threads (other sessions) for the user, listed in the briefing. You may read a thread and answer its questions and approvals when the user asks, but prompts and drafts go only to \"{title}\" itself, which hands work to its threads. Name a thread with the session argument; leave the argument out for \"{title}\".")
+        format!("\n- \"{title}\" is a coordinator: it runs threads (other sessions) for the user, listed in the briefing. You may read a thread and answer its questions and approvals when the user asks, but prompts and drafts go only to \"{title}\" itself, which hands work to its threads. Name a thread with the session argument; leave the argument out for \"{title}\".")
     } else {
         String::new()
     };

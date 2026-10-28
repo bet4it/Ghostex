@@ -102,8 +102,8 @@ const HELP_GATE_EXCLUDED: &[&str] = &[
     "agents",
     "app-update",
     "claude-cloud",
-    "orchestrator",
     "coordinator",
+    "orchestrator",
     "automations",
     "bd",
     "beads",
@@ -208,8 +208,8 @@ fn is_known_command(name: &str) -> bool {
         "agentbox",
         "agents",
         "claude-cloud",
-        "orchestrator",
         "coordinator",
+        "orchestrator",
         "sessions",
         "s",
         "list-sessions",
@@ -426,8 +426,8 @@ fn run_command(name: &str, args: &[String]) -> CliResult<()> {
         }
         "agents" => agents::run(args),
         "claude-cloud" => claude_cloud_cli::run(args),
-        // CDXC:Coordinators 2026-10-10 DECISION: user renamed Coordinator to Orchestrator; `coordinator` stays a hidden alias (see ghostex_cli/coordinator/command.rs).
-        "orchestrator" | "coordinator" => coordinator::run(args),
+        // CDXC:Coordinators 2026-10-28 DECISION: user renamed Orchestrator back to Coordinator and made `coordinator` the real command group; `orchestrator` stays as an alias (see ghostex_cli/coordinator/command.rs).
+        "coordinator" | "orchestrator" => coordinator::run(args),
         "sessions" | "s" | "list-sessions" | "ls" => sessions::sessions_command(args),
         "find" | "f" => launchers::zehn_search_command(args),
         "history" | "h" => launchers::history_command(args),
@@ -1020,5 +1020,17 @@ mod tests {
         assert!(is_known_command("sessions"));
         assert!(!is_known_command("tui"));
         assert!(!is_known_command("2"));
+    }
+
+    /// CDXC:Coordinators 2026-10-28 DECISION: `coordinator` is the real command group and
+    /// `orchestrator` an alias that runs the same code; the help names `coordinator`.
+    #[test]
+    fn coordinator_is_the_command_and_orchestrator_its_alias() {
+        assert!(is_known_command("coordinator"));
+        assert!(is_known_command("orchestrator"));
+        let help = include_str!("coordinator/help.txt");
+        assert!(help.contains("ghostex coordinator start-thread"));
+        assert!(!help.contains("ghostex orchestrator start-thread"));
+        assert!(help.contains("`ghostex orchestrator …` is an alias"));
     }
 }

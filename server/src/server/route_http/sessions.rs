@@ -541,7 +541,7 @@ pub(super) async fn route_sessions_http(
                     request_id,
                     DomainStateError {
                         code: "internalError",
-                        message: format!("Orchestrator threads task failed: {error}"),
+                        message: format!("Coordinator threads task failed: {error}"),
                     },
                 ),
             }

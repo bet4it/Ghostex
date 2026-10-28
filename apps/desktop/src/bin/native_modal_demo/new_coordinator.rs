@@ -185,7 +185,7 @@ fn demo_playbook_view(state: &str) -> serde_json::Value {
             "projectId": "P1",
             "name": "Ghostex",
             "edited": off || state == "project-playbook",
-            "text": "# Ghostex orchestrator for this project\n\nKeep threads small.",
+            "text": "# Ghostex coordinator for this project\n\nKeep threads small.",
             "enabled": !off,
             "defaultText": shipped,
             "defaultChanged": state == "project-playbook",

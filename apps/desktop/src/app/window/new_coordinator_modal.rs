@@ -27,16 +27,16 @@ use std::rc::Rc;
 pub(crate) const NEW_COORDINATOR_MODAL_WIDTH: f32 = 540.0;
 pub(crate) const NEW_COORDINATOR_MODAL_INITIAL_HEIGHT: f32 = 700.0;
 
-const TITLE: &str = "New Orchestrator";
+const TITLE: &str = "New Coordinator";
 const FIELD_NAME: &str = "Name";
 const NAME_PLACEHOLDER: &str = "e.g. Checkout redesign";
 const NAME_HINT: &str =
-    "Shown in the sidebar so you can find this orchestrator later. It keeps this name.";
+    "Shown in the sidebar so you can find this coordinator later. It keeps this name.";
 const FIELD_AGENT: &str = "Agent";
 const FIELD_MODEL: &str = "Model";
 const FIELD_EFFORT: &str = "Effort";
 const FIELD_FIRST_MESSAGE: &str = "First message";
-const FIRST_MESSAGE_HINT: &str = "Every orchestrator starts with this line, which loads its playbook. Write your first request in its chat.";
+const FIRST_MESSAGE_HINT: &str = "Every coordinator starts with this line, which loads its playbook. Write your first request in its chat.";
 const LOCK_ICON: &str = "titlebar/lock.svg";
 /// CDXC:Coordinators 2026-10-01 DECISION:
 /// User: a coordinator on a Claude launcher starts on Opus 5.5 ("my preferences should be the preferences for this feature for customers using the same setup, since that's what I tested"). `opus[1m]` is Opus 5.5's row in the Claude lineup; a Codex lineup has no such row and keeps its own default model. Its effort is XHigh since 2026-10-17 (`orchestrator_efforts` in gx-chat-core).
@@ -474,7 +474,7 @@ impl GpuiNewCoordinatorModalWindow {
             return body
                 .child(modal_error(
                     &p,
-                    "An orchestrator runs on Claude, Codex, ZCode, Cursor, Grok, Copilot, Antigravity, Pi or OMP. Add one of them in Settings > Agents first.",
+                    "A coordinator runs on Claude, Codex, ZCode, Cursor, Grok, Copilot, Antigravity, Pi or OMP. Add one of them in Settings > Agents first.",
                 ))
                 .into_any_element();
         };
@@ -835,7 +835,7 @@ impl Render for GpuiMakeCoordinatorModalWindow {
     fn render(&mut self, window: &mut Window, cx: &mut Context<Self>) -> impl IntoElement {
         let p = self.palette;
         let description = format!(
-            "\"{}\" keeps its conversation and keeps running: nothing restarts or interrupts it. It gets the crown now, and its orchestrator playbook arrives once its current turn is over.",
+            "\"{}\" keeps its conversation and keeps running: nothing restarts or interrupts it. It gets the crown now, and its coordinator playbook arrives once its current turn is over.",
             self.session_title
         );
         let body = v_flex()
@@ -845,7 +845,7 @@ impl Render for GpuiMakeCoordinatorModalWindow {
             .child(modal_text_input(&p, &self.goal_input, false, window, cx))
             .child(modal_hint(
                 &p,
-                "Sessions it started before are not its threads yet; ask it to adopt them (ghostex orchestrator link).",
+                "Sessions it started before are not its threads yet; ask it to adopt them (ghostex coordinator link).",
             ))
             .into_any_element();
         let cancel = modal_action_button(
@@ -861,7 +861,7 @@ impl Render for GpuiMakeCoordinatorModalWindow {
         let make = modal_action_button(
             &p,
             "make-coordinator-confirm",
-            "Make Orchestrator",
+            "Make Coordinator",
             None,
             ModalButtonTone::Primary,
             false,
@@ -875,7 +875,7 @@ impl Render for GpuiMakeCoordinatorModalWindow {
             &self.fit,
             Self::on_key_down,
             vec![
-                modal_header(&p, "Make Orchestrator", Some(description)),
+                modal_header(&p, "Make Coordinator", Some(description)),
                 body,
             ],
             modal_footer(vec![cancel, make]),

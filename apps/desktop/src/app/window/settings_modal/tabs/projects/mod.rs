@@ -887,9 +887,9 @@ impl ProjectsTab {
         plain_row(
             p,
             &SharedString::from("project-orchestrator-playbook-row"),
-            "Orchestrator playbook",
+            "Coordinator playbook",
             Some(
-                "The playbook orchestrators in this project and all of its worktrees follow, instead of the one for all projects (Settings > Chat). The switch turns an edited playbook off without losing it.",
+                "The playbook coordinators in this project and all of its worktrees follow, instead of the one for all projects (Settings > Chat). The switch turns an edited playbook off without losing it.",
             ),
             inherited.then(|| inherited_badge(p, &id)),
             false,

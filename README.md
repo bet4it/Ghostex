@@ -90,9 +90,9 @@ Ghostex is built for developers who keep many agents alive at once. A chat view 
 
 <h3 align="center">🤖 Agents that&nbsp;run&nbsp;agents</h3>
 
-<p align="center">Agents can open sessions, send prompts, and read replies from other agents through the <code>ghostex</code> command. Ask Claude Code to spin up Codex sub-agents and steer them, or hand the work to an orchestrator that keeps track of them&nbsp;for&nbsp;you.</p>
+<p align="center">Agents can open sessions, send prompts, and read replies from other agents through the <code>ghostex</code> command. Ask Claude Code to spin up Codex sub-agents and steer them, or hand the work to a coordinator that keeps track of them&nbsp;for&nbsp;you.</p>
 
-<p align="center"><img src="media/readme/gx-threads.png" alt="An orchestrator with its threads in the sidebar and the Threads panel" width="70%" /></p>
+<p align="center"><img src="media/readme/gx-threads.png" alt="A coordinator with its threads in the sidebar and the Workers panel" width="70%" /></p>
 
 <br/>
 

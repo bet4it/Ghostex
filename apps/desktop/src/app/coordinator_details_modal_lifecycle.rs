@@ -28,7 +28,7 @@ impl GhostexGpuiApp {
         let config = CoordinatorDetailsModalConfig {
             mode,
             title: if title.trim().is_empty() {
-                "this orchestrator".to_string()
+                "this coordinator".to_string()
             } else {
                 title
             },
@@ -91,7 +91,7 @@ impl GhostexGpuiApp {
                         // Cancelled while the save ran: nothing is left to show the refusal in.
                         app.dispatch_gpui_app_modal_toast(
                             "warning",
-                            "Orchestrator not updated",
+                            "Coordinator not updated",
                             &message,
                             cx,
                         );

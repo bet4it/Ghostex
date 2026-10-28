@@ -126,7 +126,7 @@ pub fn sent_agent_messages(pair: &ToolPair<'_>, written: &[(&str, &str)]) -> Vec
                         .to_string()
                 };
                 message.status = match said("status").as_str() {
-                    // `orchestrator start-thread`: the thread's transcript shows its brief.
+                    // `coordinator start-thread`: the thread's transcript shows its brief.
                     "started" => "delivered".to_string(),
                     status => status.to_string(),
                 };
@@ -143,7 +143,7 @@ pub fn sent_agent_messages(pair: &ToolPair<'_>, written: &[(&str, &str)]) -> Vec
                     message.body = echoed.to_string();
                 }
             }
-            // `orchestrator start-thread` without `--json` prints one line that names the thread.
+            // `coordinator start-thread` without `--json` prints one line that names the thread.
             None if message.target.is_empty() && started_thread_line(output).is_some() => {
                 if let Some((title, reference, started)) = started_thread_line(output) {
                     message.global_ref = reference.to_string();
@@ -172,7 +172,7 @@ pub fn sent_agent_messages(pair: &ToolPair<'_>, written: &[(&str, &str)]) -> Vec
 }
 
 /// `Started thread "<title>" (<ref>)…` or `Created thread "<title>" (<ref>)…, pending`, the line
-/// `ghostex orchestrator start-thread` prints without `--json`: the title, the ref, and whether
+/// `ghostex coordinator start-thread` prints without `--json`: the title, the ref, and whether
 /// the brief started.
 fn started_thread_line(output: &str) -> Option<(&str, &str, bool)> {
     output.lines().find_map(|line| {
@@ -302,14 +302,15 @@ fn claude_send_message(input: &Value, pair: &ToolPair<'_>) -> Option<SentAgentMe
     })
 }
 
-/// One `ghostex agents send`, `ghostex agents create --task` or `ghostex orchestrator
-/// start-thread` in a script. A started thread is addressed by nobody yet: its result (or the line
+/// One `ghostex agents send`, `ghostex agents create --task` or `ghostex coordinator
+/// start-thread` (or its alias `orchestrator`) in a script. A started thread is addressed by nobody yet: its result (or the line
 /// it prints) names it.
 fn cli_send(shell: &ShellCommand, at: usize, script: &Script<'_>) -> Option<SentAgentMessage> {
     let start = shell.words.windows(3).position(|words| {
         matches!(last_path_segment(&words[0]), "ghostex" | "gx")
             && ((words[1] == "agents" && matches!(words[2].as_str(), "send" | "create"))
-                || (words[1] == "orchestrator" && words[2] == "start-thread"))
+                || (matches!(words[1].as_str(), "coordinator" | "orchestrator")
+                    && words[2] == "start-thread"))
     })?;
     // Only a command that runs the CLI: `echo ghostex agents send …` sends nothing. Environment
     // assignments, a `bash -lc` wrapper (how Codex records a shell call) and a `timeout 60` may
@@ -361,7 +362,7 @@ fn cli_send(shell: &ShellCommand, at: usize, script: &Script<'_>) -> Option<Sent
             "--server" | "--project-id" | "--request-id" => {
                 words.next();
             }
-            "--agent" | "--model" | "--effort" | "--base-branch" | "--orchestrator"
+            "--agent" | "--model" | "--effort" | "--base-branch" | "--coordinator" | "--orchestrator"
                 if start_thread =>
             {
                 words.next();
@@ -1170,7 +1171,7 @@ mod session_pill_tests {
     #[test]
     fn start_thread_is_a_message_to_the_new_thread() {
         let json_result = sent(
-            "ghostex orchestrator start-thread --title \"Fix login\" --agent codex --task \"Fix the login bug.\" --json",
+            "ghostex coordinator start-thread --title \"Fix login\" --agent codex --task \"Fix the login bug.\" --json",
             r#"{"ok":true,"status":"started","thread":{"globalRef":"S90:P3lv0:G2ab","projectId":"P3lv0","sessionId":"G2ab","title":"Fix login"}}"#,
         );
         assert_eq!(json_result.len(), 1);
@@ -1202,7 +1203,7 @@ mod session_pill_tests {
             ("S90:P3lv0:G2ab", "pending")
         );
         assert!(sent(
-            "echo ghostex orchestrator start-thread --title x --task y",
+            "echo ghostex coordinator start-thread --title x --task y",
             ""
         )
         .is_empty());

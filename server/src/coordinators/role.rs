@@ -73,7 +73,7 @@ pub fn coordinator_guide_for(playbook: &str, paths: &GxserverPaths) -> String {
     let playbook = playbook.trim();
     if crate::agents::orchestrator_plain_replies(paths) {
         return format!(
-            "{playbook}\n\nReply format: the user chose plain answers for orchestrators. Write your handovers as ordinary text with your own headings, without section marker emoji.\n"
+            "{playbook}\n\nReply format: the user chose plain answers for coordinators. Write your handovers as ordinary text with your own headings, without section marker emoji.\n"
         );
     }
     format!("{playbook}\n\n{}\n", crate::agents::MARKED_HANDOVERS_NOTE)
@@ -191,7 +191,7 @@ pub fn ensure_coordinator_role_file(paths: &GxserverPaths) -> std::io::Result<Pa
 /// The pointer Codex coordinators created before 2026-10-17 carry inline
 /// (`-c developer_instructions=...`) and ZCode ones get as SessionStart hook context; it sends them
 /// to `ghostex orchestrator guide` for the playbook.
-pub const GUIDE_POINTER_COORDINATOR_INSTRUCTIONS: &str = "You are a Ghostex orchestrator: the user talks only to you, and you hand real work to thread sessions instead of doing it yourself, so you stay free to talk. Before your first reply, and again after any context compaction, run `ghostex orchestrator guide` and follow it for the whole session. Run `ghostex orchestrator status` at the start of every request.";
+pub const GUIDE_POINTER_COORDINATOR_INSTRUCTIONS: &str = "You are a Ghostex coordinator: the user talks only to you, and you hand real work to thread sessions instead of doing it yourself, so you stay free to talk. Before your first reply, and again after any context compaction, run `ghostex coordinator guide` and follow it for the whole session. Run `ghostex coordinator status` at the start of every request.";
 
 fn write_if_changed(path: &Path, content: &str) -> std::io::Result<()> {
     if std::fs::read_to_string(path).ok().as_deref() != Some(content) {
@@ -229,7 +229,7 @@ pub fn ensure_empryo_coordinator_agent_file(paths: &GxserverPaths) -> std::io::R
     write_if_changed(
         &path,
         &format!(
-            "---\nname: {EMPRYO_COORDINATOR_AGENT_NAME}\ndescription: The Ghostex orchestrator role. Ghostex starts an orchestrator session with it; never delegate a task to it.\n---\n\n{}",
+            "---\nname: {EMPRYO_COORDINATOR_AGENT_NAME}\ndescription: The Ghostex coordinator role. Ghostex starts a coordinator session with it; never delegate a task to it.\n---\n\n{}",
             coordinator_guide(paths)
         ),
     )?;

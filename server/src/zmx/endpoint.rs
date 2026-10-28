@@ -625,7 +625,7 @@ pub fn dispatch_zmx_lifecycle_endpoint(
                 /*
                 CDXC:SessionSleep 2026-10-21 DECISION:
                 User: "let's please not sleep main coordinator when there's threads under it that
-                are active". An orchestrator with a thread that is working or waiting on a question
+                are active". A coordinator with a thread that is working or waiting on a question
                 or approval is declined here too, so every automatic sleep agrees with the sweep
                 (server/src/session_auto_sleep.rs); an explicit Sleep on the row still goes through.
                 */

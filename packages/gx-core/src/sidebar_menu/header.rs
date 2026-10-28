@@ -309,7 +309,7 @@ fn new_coordinator_row(group_id: &str) -> MenuItem {
     MenuItem {
         info: Some(NEW_ORCHESTRATOR_BENEFITS.to_string()),
         ..MenuItem::row(
-            "New Orchestrator…",
+            "New Coordinator…",
             "users-group",
             MenuCommand::project_action(group_id, "coordinator", None),
         )

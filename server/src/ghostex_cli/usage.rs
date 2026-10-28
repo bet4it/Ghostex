@@ -603,8 +603,8 @@ pub fn usage() -> String {
             "Stop a stuck session's agent and start it again on the same conversation (its current turn is lost)",
         ),
         format_help_command(
-            "orchestrator --help",
-            "Run an orchestrator: one agent you talk to that starts, supervises, and reports on thread sessions",
+            "coordinator --help",
+            "Run a coordinator: one agent you talk to that starts, supervises, and reports on thread sessions",
         ),
         format_help_command(
             "agentbox status | list | url <session> [--screen] [--json]",

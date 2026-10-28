@@ -27,7 +27,7 @@ const ROW_HEIGHT: f32 = 24.0;
 const ROW_GAP: f32 = 2.0;
 const LIST_MAX: f32 = 360.0;
 
-/// The Threads pill's menu: the header line, the rows and "Show recent" / "N more" / "Show fewer".
+/// The Workers pill's menu: the header line, the rows and "Show recent" / "N more" / "Show fewer".
 pub(super) fn threads_menu_height(panel: &Value) -> f32 {
     let rows = panel["rows"].as_array().map_or(0, Vec::len)
         + usize::from(!text(panel, "emptyLabel").is_empty());
@@ -41,7 +41,7 @@ pub(super) fn threads_menu_height(panel: &Value) -> f32 {
 }
 
 impl NativeChatView {
-    /// The Threads pill's floating menu: what the Threads panel above the composer listed, with the
+    /// The Workers pill's floating menu: what the Threads panel above the composer listed, with the
     /// same rows and steps. Drawn in the menu's window (`option_menu/pill_menu.rs`) with this
     /// view's listeners, so a row still talks to the chat it belongs to.
     pub(super) fn threads_menu_body(
@@ -56,7 +56,7 @@ impl NativeChatView {
         let s = p.scale;
         let header = super::chat_pills::pill_menu_header(
             "titlebar/users-group.svg",
-            "Threads",
+            "Workers",
             text(&panel, "meta"),
             // The pill's waiting colour (CDXC:SessionChat 2026-10-27 in the core's
             // extras/chat_pills.rs): the sidebar's red for an approval, its pink for a question.
@@ -110,9 +110,9 @@ impl NativeChatView {
                 .id("chat-coordinator-threads-more")
                 .role(gpui::Role::Button)
                 .aria_label(match step {
-                    0 => "Show fewer threads".to_string(),
-                    1 => "Show recent threads".to_string(),
-                    _ => format!("Show {more} threads"),
+                    0 => "Show fewer workers".to_string(),
+                    1 => "Show recent workers".to_string(),
+                    _ => format!("Show {more} workers"),
                 })
                 .h(px(super::chat_pills::MENU_FOOTER_HEIGHT * s))
                 .flex()
@@ -133,7 +133,7 @@ impl NativeChatView {
         });
         Some(super::chat_pills::pill_menu_column(
             "chat-coordinator-threads",
-            "Orchestrator threads",
+            "Coordinator workers",
             header,
             listed.then(|| rows.into_any_element()),
             footer,
@@ -180,7 +180,7 @@ impl NativeChatView {
                 text(row, "key")
             )))
             .role(gpui::Role::Button)
-            .aria_label(format!("Open thread {title}"))
+            .aria_label(format!("Open worker {title}"))
             .flex()
             .items_center()
             .gap(px(8.0 * s))

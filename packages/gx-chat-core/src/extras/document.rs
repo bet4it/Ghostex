@@ -95,7 +95,7 @@ pub fn document(state: &ChatState, context: &ChatContext, into: &mut Document) {
                 state.session.coordinator_threads.as_ref(),
             ) {
                 crate::extras::welcome::wrap_new_session_welcome_title(
-                    "What should this orchestrator work on?",
+                    "What should this coordinator work on?",
                 )
             } else {
                 new_session_welcome_title(agent_name.as_deref())

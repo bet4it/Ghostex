@@ -63,7 +63,7 @@ pub(crate) fn create_agent_session_params_for_project(
         Some(_) => {
             if crate::coordinators::coordinator_create_request(params)?.is_some() {
                 return Err(DomainStateError::bad_request(
-                    "An orchestrator runs on this computer. Start it without a box.",
+                    "A coordinator runs on this computer. Start it without a box.",
                 ));
             }
             Some(crate::agentbox::box_agent_family(
@@ -512,7 +512,7 @@ fn apply_requested_agent_model(
         }
         if crate::coordinators::coordinator_create_request(params)?.is_none() {
             return Err(DomainStateError::bad_request(
-                "A ZCode thread keeps its configured model; only an orchestrator's own model can be set.",
+                "A ZCode thread keeps its configured model; only a coordinator's own model can be set.",
             ));
         }
         return Ok((command, None));
@@ -617,7 +617,7 @@ fn refuse_unsupported_coordinator_agent(
         .map(|_| ())
         .ok_or_else(|| {
             DomainStateError::bad_request(format!(
-                "An orchestrator runs on {}. Pick one of those agents.",
+                "A coordinator runs on {}. Pick one of those agents.",
                 crate::coordinators::coordinator_agent_families_text()
             ))
         })

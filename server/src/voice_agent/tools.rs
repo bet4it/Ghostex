@@ -36,7 +36,7 @@ fn all_definitions() -> Value {
         {
             "type": "function",
             "name": "list_sessions",
-            "description": "List the user's open agent sessions with title, project, agent and state (working, waiting on a question, waiting on an approval, idle, sleeping). Waiting sessions come first. An orchestrator (orchestrator true) is followed by its sub-threads, the sessions it runs for the user: each has subThreadOf (its orchestrator's title) and is not a top-level session.",
+            "description": "List the user's open agent sessions with title, project, agent and state (working, waiting on a question, waiting on an approval, idle, sleeping). Waiting sessions come first. A coordinator (orchestrator true) is followed by its sub-threads, the sessions it runs for the user: each has subThreadOf (its coordinator's title) and is not a top-level session.",
             "parameters": {
                 "type": "object",
                 "properties": {

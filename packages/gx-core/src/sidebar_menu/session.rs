@@ -745,7 +745,7 @@ fn full_menu(
             .is_some_and(ghostex_gx_protocol::coordinator_agent_family_supported)
     {
         advanced.push(MenuItem::row(
-            "Make Orchestrator",
+            "Make Coordinator",
             "users-group",
             MenuCommand::session_action(id, "makeCoordinator"),
         ));
