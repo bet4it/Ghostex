@@ -170,6 +170,12 @@ fn settle_with_ids(
     let prompt_open = state.session.prompt.is_some();
     terminal_tail::expire(&mut state.extras.terminal_tail, (working, prompt_open));
     search::settle(&mut state.extras.search, &items);
+    let action = crate::extras::working_card::current_tool_action(state);
+    crate::extras::working_card_label::settle_action_clock(
+        &mut state.extras.action_clock,
+        action,
+        context.now_ms,
+    );
     settle_activity_clock(state, context);
     arm_timers(state, context);
     effects
@@ -184,14 +190,22 @@ fn settle_activity_clock(state: &mut ChatState, context: &ChatContext) {
         return;
     }
     let activity = state.session.terminal_activity.as_ref();
-    let has_clock = activity.is_some_and(|activity| {
-        activity.get("elapsedSeconds").is_some()
-            || crate::extras::background_tasks::has_background_task_clock(activity)
-    });
+    // A running tool's elapsed time on the working card ticks on the same clock.
+    let action = state
+        .extras
+        .action_clock
+        .as_ref()
+        .map(|clock| clock.key.clone());
+    let has_clock = action.is_some()
+        || activity.is_some_and(|activity| {
+            activity.get("elapsedSeconds").is_some()
+                || crate::extras::background_tasks::has_background_task_clock(activity)
+        });
     let detected_at = activity
         .and_then(|activity| activity.get("detectedAt"))
         .and_then(Value::as_str)
-        .map(str::to_string);
+        .map(str::to_string)
+        .or(action);
     if state.extras.activity_now_ms.is_none() {
         state.extras.activity_now_ms = Some(context.now_ms);
     }

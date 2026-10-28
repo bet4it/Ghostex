@@ -47,6 +47,14 @@ pub struct WorkingCard {
     pub pills: Vec<String>,
     /// What a screen reader says for the card.
     pub aria_label: String,
+    /// A tool label in runs for the two-row top row, its file paths shortened (`dim` folders);
+    /// empty for any other label (extras/working_card_label.rs).
+    #[serde(default)]
+    pub label_parts: Vec<crate::extras::working_card_label::WorkingCardLabelPart>,
+    /// How long the running tool has run ("14s"), for the two-row top row; `null` when its start
+    /// is unknown or under a second.
+    #[serde(default)]
+    pub elapsed: Option<String>,
 }
 
 /// One pill on the working card (`extras::chat_pills`): a panel folded into a pill that opens a

@@ -42,9 +42,13 @@ pub(super) const WORKING_CARD_GAP: f32 = 9.0;
 /// card's height and with it the transcript's visible area above.
 const PILL_HEIGHT: f32 = 22.0;
 
-/// The label's own row above the pills when the card takes two rows (unscaled): the pills' height
-/// plus 2px under it.
-const TOP_ROW_HEIGHT: f32 = PILL_HEIGHT + 2.0;
+/// The label's own row above the divider when the card takes two rows (unscaled), and the room
+/// above and below it.
+const TOP_ROW_HEIGHT: f32 = PILL_HEIGHT;
+const TOP_ROW_PAD: f32 = 7.0;
+
+/// The room above and below the pills under the divider (unscaled): the same, so they sit evenly.
+const PILLS_ROW_PAD: f32 = 7.0;
 
 /// How far the label rises into its row while the card grows (unscaled).
 const LABEL_RISE: f32 = 6.0;
@@ -266,7 +270,21 @@ impl NativeChatView {
         };
         let label = card["label"].as_str().map(str::to_owned);
         let chat = cx.entity_id();
-        let label = label.map(|label| self.working_card_label(label, kind, chat, p));
+        // With two rows the top row shows the label in runs, its file paths shortened (the
+        // core's `labelParts`); one row keeps the label as it is.
+        let two_row_layout = label.is_some()
+            && (self.working_card.rows.get().two_rows()
+                || (!reduced_motion
+                    && self
+                        .working_card
+                        .transition
+                        .get()
+                        .is_some_and(|t| !t.to_two && t.running())));
+        let parts = card["labelParts"]
+            .as_array()
+            .filter(|parts| two_row_layout && !parts.is_empty())
+            .cloned();
+        let label = label.map(|label| self.working_card_label(label, kind, chat, parts, p));
         let mut trailing = Vec::new();
         if kind == "activity" {
             if let Some(hint) = activity["hint"].as_str() {
@@ -420,7 +438,7 @@ impl NativeChatView {
                 }
                 _ => label_line.into_any_element(),
             };
-            let pills_area = self.working_card_pills_area(pills, !has_label, p, cx);
+            let pills_area = self.working_card_pills_area(pills, !has_label, false, p, cx);
             return padded(div())
                 .id("chat-working-card-header")
                 .min_h(px((PILL_HEIGHT + 2.0 * HEADER_PAD_Y) * s))
@@ -431,58 +449,82 @@ impl NativeChatView {
                 .child(pills_area)
                 .into_any_element();
         }
-        // Two rows: the lead and the whole label's line on top, the pills under it. The top row
-        // grows in (or shrinks away on a collapse) while the pills keep their place at the bottom.
+        // Two rows (option C): the lead, the label and the action's time on top; a hairline across
+        // the card; the pills under it, from the left (extras/working_card_label.rs has the
+        // user's words). The top row and its divider grow in (or shrink away on a collapse) while
+        // the pills keep their place at the bottom.
+        let elapsed = card["elapsed"].as_str().map(|elapsed| {
+            div()
+                .flex_shrink_0()
+                .text_size(px(12.0 * s))
+                .text_color(p.muted)
+                .font_features(FontFeatures(vec![("tnum".into(), 1)].into()))
+                .child(elapsed.to_owned())
+        });
         let top = padded(div())
             .h(px(TOP_ROW_HEIGHT * s))
-            .pb(px(2.0 * s))
             .children(lead)
-            .child(label_line);
-        let top_height = TOP_ROW_HEIGHT * s;
-        let top = match transition.filter(|t| !reduced && t.running()) {
+            .child(label_line)
+            .children(elapsed);
+        let top = div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .pt(px(TOP_ROW_PAD * s))
+            .pb(px(TOP_ROW_PAD * s))
+            .child(top)
+            .relative();
+        let lane = div()
+            .w_full()
+            .flex()
+            .flex_col()
+            .child(top)
+            // The hairline between the rows, the card's own border colour, edge to edge.
+            .child(div().h(px(1.0)).mx(px(2.0 * s)).bg(p.input_border));
+        let lane_height = (TOP_ROW_HEIGHT + 2.0 * TOP_ROW_PAD) * s + 1.0;
+        let lane = match transition.filter(|t| !reduced && t.running()) {
             Some(t) => {
                 let to_two = t.to_two;
                 let (id, motion) = animation(if to_two { "grow" } else { "shrink" }, t.generation);
                 div()
                     .w_full()
                     .overflow_hidden()
-                    .child(top.relative())
+                    .child(lane)
                     .with_animation(id, motion, move |wrap, delta| {
                         let shown = if to_two { delta } else { 1.0 - delta };
-                        wrap.h(px(top_height * shown)).opacity(shown)
+                        wrap.h(px(lane_height * shown)).opacity(shown)
                     })
                     .into_any_element()
             }
-            None => top.into_any_element(),
+            None => lane.into_any_element(),
         };
-        let top = match transition.filter(|t| !reduced && t.to_two && t.running()) {
+        let lane = match transition.filter(|t| !reduced && t.to_two && t.running()) {
             // The label rises into its row as it grows.
             Some(t) => {
                 let (id, motion) = animation("rise", t.generation);
                 div()
                     .w_full()
                     .relative()
-                    .child(top)
+                    .child(lane)
                     .with_animation(id, motion, move |wrap, delta| {
                         wrap.top(px(LABEL_RISE * s * (1.0 - delta)))
                     })
                     .into_any_element()
             }
-            None => top,
+            None => lane,
         };
         div()
             .id("chat-working-card-header")
             .w_full()
             .min_w_0()
-            .pt(px(HEADER_PAD_Y * s))
-            .pb(px(HEADER_PAD_Y * s))
             .flex()
             .flex_col()
-            .child(top)
+            .child(lane)
             .child(
                 padded(div())
-                    .h(px(PILL_HEIGHT * s))
-                    .child(self.working_card_pills_area(pills, true, p, cx)),
+                    .h(px((PILL_HEIGHT + 2.0 * PILLS_ROW_PAD) * s))
+                    .py(px(PILLS_ROW_PAD * s))
+                    .child(self.working_card_pills_area(pills, true, true, p, cx)),
             )
             .into_any_element()
     }
@@ -498,6 +540,7 @@ impl NativeChatView {
         &self,
         pills: gpui::Div,
         fill: bool,
+        from_left: bool,
         p: &ChatAppearance,
         cx: &mut Context<Self>,
     ) -> AnyElement {
@@ -540,7 +583,7 @@ impl NativeChatView {
                         div()
                             .flex()
                             .items_center()
-                            .justify_end()
+                            .when(!from_left, |row| row.justify_end())
                             .flex_shrink_0()
                             .min_w(relative(1.0))
                             .child(pills.relative()),
@@ -670,6 +713,7 @@ impl NativeChatView {
         label: String,
         kind: &str,
         chat: gpui::EntityId,
+        parts: Option<Vec<Value>>,
         p: &ChatAppearance,
     ) -> AnyElement {
         let s = p.scale;
@@ -696,7 +740,30 @@ impl NativeChatView {
                     gpui_component::tooltip::Tooltip::new(full.clone()).build(window, cx)
                 })
             })
-            .child(label)
+            .child(match parts {
+                // The two-row top row: a path's folders dimmed and shortened, its file name whole.
+                Some(parts) => {
+                    let mut text = String::new();
+                    let mut dimmed = Vec::new();
+                    for part in &parts {
+                        let run = part["text"].as_str().unwrap_or_default();
+                        if part["dim"] == true {
+                            dimmed.push((
+                                text.len()..text.len() + run.len(),
+                                gpui::HighlightStyle {
+                                    color: Some(p.muted),
+                                    ..Default::default()
+                                },
+                            ));
+                        }
+                        text.push_str(run);
+                    }
+                    gpui::StyledText::new(text)
+                        .with_highlights(dimmed)
+                        .into_any_element()
+                }
+                None => label.into_any_element(),
+            })
             .child(
                 canvas(
                     move |bounds, window, cx| {

@@ -49,6 +49,8 @@ pub struct ExtrasState {
     pub activity_now_ms: Option<f64>,
     /// The `[activity?.detectedAt, hasClock]` the activity clock's effect last ran for.
     pub activity_clock_deps: Option<(Option<String>, bool)>,
+    /// When the working card's current tool action started (extras/working_card_label.rs).
+    pub action_clock: Option<crate::extras::working_card_label::ActionClock>,
 }
 
 /// The stint word the pinned strip shows.
