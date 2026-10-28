@@ -170,7 +170,10 @@ impl GhostexGpuiApp {
         next_settings: &serde_json::Map<String, serde_json::Value>,
         cx: &mut gpui::Context<Self>,
     ) {
-        for remote_machine_id in gpui_disabled_remote_machine_ids(next_settings) {
+        for remote_machine_id in gpui_remote_machine_connections_to_stop(
+            next_settings,
+            self.remote_gxserver_connections.keys(),
+        ) {
             if !self
                 .remote_gxserver_connections
                 .contains_key(remote_machine_id.as_str())

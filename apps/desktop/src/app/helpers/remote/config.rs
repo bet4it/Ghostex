@@ -109,6 +109,30 @@ pub(crate) fn gpui_disabled_remote_machine_ids(
         .unwrap_or_default()
 }
 
+/// The live connections a settings save ends: machines turned off, and machines no longer saved.
+///
+/// CDXC:RemoteMachines 2026-10-28 WHY: Removing a machine in Settings left its SSH tunnel to the
+/// machine's gxserver running for as long as the app stayed open, because only machines turned
+/// off had their connection stopped (found testing a loopback machine on Linux; this code is the
+/// same on macOS, Linux and Windows). A removed machine's connection ends the same way.
+pub(crate) fn gpui_remote_machine_connections_to_stop<'a>(
+    next_settings: &serde_json::Map<String, serde_json::Value>,
+    connected_ids: impl IntoIterator<Item = &'a String>,
+) -> Vec<String> {
+    let mut ids = gpui_disabled_remote_machine_ids(next_settings);
+    for connected in connected_ids {
+        if !ids.contains(connected)
+            && !super::tunnel_and_auth::gpui_settings_object_has_remote_machine_id(
+                next_settings,
+                connected,
+            )
+        {
+            ids.push(connected.clone());
+        }
+    }
+    ids
+}
+
 pub(crate) fn gpui_remote_wsl_distribution_is_valid(distribution: &str) -> bool {
     let distribution = distribution.trim();
     !distribution.is_empty()
@@ -187,3 +211,26 @@ operation is allowed to carry; Rust owns the endpoint map, the timeouts, and the
 local-vs-remote routing, so the CEF modal host never learns a host, a tunnel
 port, or a token — it only ever names a machine by its bounded id.
 */
+
+#[cfg(test)]
+mod connections_to_stop_tests {
+    use super::gpui_remote_machine_connections_to_stop;
+
+    #[test]
+    fn a_removed_or_turned_off_machine_loses_its_connection() {
+        let settings = serde_json::json!({"remoteMachines": [
+            {"id": "remote-kept", "name": "Kept", "sshHost": "a"},
+            {"id": "remote-off", "name": "Off", "sshHost": "b", "disabled": true},
+        ]});
+        let settings = settings.as_object().unwrap();
+        let connected = ["remote-kept", "remote-off", "remote-gone"].map(String::from);
+        let mut stop = gpui_remote_machine_connections_to_stop(settings, connected.iter());
+        stop.sort();
+        assert_eq!(stop, ["remote-gone", "remote-off"]);
+        let nothing_saved = serde_json::Map::new();
+        assert_eq!(
+            gpui_remote_machine_connections_to_stop(&nothing_saved, connected[..1].iter()),
+            ["remote-kept"]
+        );
+    }
+}
