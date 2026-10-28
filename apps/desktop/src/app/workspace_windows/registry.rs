@@ -558,6 +558,8 @@ impl GhostexGpuiApp {
         }
         #[cfg(target_os = "windows")]
         register_gpui_windows_notification_click_target(cx);
+        #[cfg(target_os = "linux")]
+        register_gpui_linux_notification_click_target(cx);
     }
 
     /// The lead closed and this is the oldest remaining window: it runs the app-wide work from now

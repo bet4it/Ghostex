@@ -411,7 +411,7 @@ pub(crate) fn gpui_deliver_macos_session_attention_notification(
 }
 
 /// CDXC:Notifications 2026-10-05 WHY:
-/// Linux shows system notifications through the desktop's freedesktop notification daemon via `notify-send` (libnotify), which every major desktop ships; a click cannot be routed back without keeping a process waiting per notification, so Linux notifications only inform. A missing `notify-send` reports the banners as unavailable.
+/// Linux shows system notifications through the desktop's freedesktop notification daemon via `notify-send` (libnotify), which every major desktop ships. A missing `notify-send` reports the banners as unavailable. Session attention banners no longer come through here (see `gpui_show_linux_session_attention_notification`); the Settings test banner still does.
 #[cfg(target_os = "linux")]
 pub(crate) fn gpui_deliver_linux_notification(
     title: &str,
@@ -428,6 +428,50 @@ pub(crate) fn gpui_deliver_linux_notification(
         Ok(_) => GpuiMacOSNotificationDeliveryResult::Failed,
         Err(_) => GpuiMacOSNotificationDeliveryResult::Unsupported,
     }
+}
+
+/// CDXC:Notifications 2026-10-28 WHY:
+/// Clicking a Ghostex banner on Linux did nothing, where Windows and macOS bring Ghostex up on that session: `notify-send` is fire-and-forget. A session banner now goes over the freedesktop D-Bus interface through GPUI (`gpui_linux` system_notifications.rs, notify-rust), which offers the daemon's "default" action and waits for it on a thread per banner; the click comes back here with the session id as the tag and takes the same path as a Windows toast click (`activate_system_notification`).
+#[cfg(target_os = "linux")]
+pub(crate) fn gpui_show_linux_session_attention_notification(
+    candidate: GpuiSessionAttentionNotificationCandidate,
+    cx: &gpui::App,
+) {
+    cx.show_system_notification(gpui::SystemNotification {
+        tag: candidate.session_id.into(),
+        title: candidate.title.into(),
+        body: candidate.body.into(),
+        actions: Vec::new(),
+    });
+}
+
+/// Banner clicks reach the lead window: GPUI hands them to one app-wide handler, which a new lead
+/// replaces, ending the previous lead's loop with its sender.
+#[cfg(target_os = "linux")]
+pub(crate) fn register_gpui_linux_notification_click_target(
+    cx: &mut gpui::Context<GhostexGpuiApp>,
+) {
+    use futures::StreamExt as _;
+    let (sender, mut receiver) = futures::channel::mpsc::unbounded::<String>();
+    cx.set_app_identity("ghostex", "Ghostex");
+    cx.on_system_notification_response(move |response, _cx| {
+        if response.action_id.is_none() {
+            sender.unbounded_send(response.tag.to_string()).ok();
+        }
+    });
+    cx.spawn(async move |this, cx| {
+        while let Some(target) = receiver.next().await {
+            if this
+                .update_in(cx, |this, window, cx| {
+                    this.activate_system_notification(target, window, cx);
+                })
+                .is_err()
+            {
+                break;
+            }
+        }
+    })
+    .detach();
 }
 
 /// What the menu bar status item last showed, and whose state it showed (see

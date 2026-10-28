@@ -2233,6 +2233,23 @@ impl TerminalView {
             return;
         }
 
+        /*
+        CDXC:Terminal 2026-10-28 WHY:
+        On Linux a middle click pastes the primary selection, the text last selected in any app, as every Linux terminal does; Ghostex only pasted its own terminal's selection, and only with Copy on select turned on, so selecting a command in a browser and middle-clicking into a session did nothing. Linux reads the primary selection first and falls back to this terminal's own selection; other systems keep the setting-gated behavior.
+        */
+        #[cfg(target_os = "linux")]
+        if event.button == MouseButton::Middle {
+            let primary = cx
+                .read_from_primary()
+                .and_then(|item| item.text())
+                .filter(|text| !text.is_empty());
+            if let Some(text) = primary.or_else(|| self.selection_text()) {
+                let _ = self.model.send_paste(&text);
+                self.after_send_input(cx);
+                cx.stop_propagation();
+            }
+            return;
+        }
         if event.button == MouseButton::Middle && self.settings.selection_clipboard_enabled {
             if let Some(text) = self.selection_text() {
                 let _ = self.model.send_paste(&text);
@@ -2480,6 +2497,13 @@ impl TerminalView {
         if event.button == MouseButton::Left {
             self.reporting_drag = false;
             self.drag = None;
+            // The primary selection is what other Linux apps paste on a middle click (see handle_mouse_down).
+            #[cfg(target_os = "linux")]
+            if self.selection.is_some()
+                && let Some(text) = self.selection_text().filter(|text| !text.is_empty())
+            {
+                cx.write_to_primary(ClipboardItem::new_string(text));
+            }
             if self.settings.copy_on_select && self.selection.is_some() {
                 self.copy_selection(cx);
             }

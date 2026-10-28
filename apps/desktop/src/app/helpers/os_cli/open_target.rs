@@ -212,6 +212,16 @@ pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String>
     )
 }
 
+/// CDXC:PlatformSupport 2026-10-28 WHY:
+/// GPUI's `cx.open_url` on Linux runs xdg-open with the display variables GPUI read at startup, after main.rs had hidden `WAYLAND_DISPLAY` to force X11, so it removes `WAYLAND_DISPLAY` from the opener. A Wayland-only browser that is not running yet (Omarchy's Chromium) then exits with "Failed to connect to Wayland display" while xdg-open still returns 0, so GPUI never falls back to the desktop portal and the link does nothing. Links the app opens itself go through `gpui_spawn_os_open`, which gives the opener the session's Wayland display back.
+pub(crate) fn gpui_open_external_url(url: &str, cx: &gpui::App) {
+    #[cfg(all(unix, not(target_os = "macos")))]
+    if gpui_spawn_os_open(std::ffi::OsStr::new(url)).is_ok() {
+        return;
+    }
+    cx.open_url(url);
+}
+
 #[cfg(target_os = "windows")]
 pub(crate) fn gpui_spawn_os_open(target: &std::ffi::OsStr) -> Result<(), String> {
     std::process::Command::new("rundll32.exe")

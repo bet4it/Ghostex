@@ -728,7 +728,7 @@ impl GhostexGpuiApp {
     #[cfg(target_os = "linux")]
     pub(crate) fn open_linux_update_download_page(&mut self, cx: &mut gpui::Context<Self>) {
         if let Some(update) = self.linux_update.as_ref() {
-            cx.open_url(&update.release_page_url());
+            crate::app::helpers::gpui_open_external_url(&update.release_page_url(), cx);
         }
     }
 }

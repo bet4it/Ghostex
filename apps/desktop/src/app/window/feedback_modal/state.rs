@@ -544,7 +544,7 @@ impl GpuiFeedbackModalWindow {
                     }
                     None => "GitHub opened in your browser with your report filled in, with personal data removed. Check it, then press Create there.",
                 };
-                cx.open_url(&issue.url);
+                crate::app::helpers::gpui_open_external_url(&issue.url, cx);
                 this.offline_notice = Some(notice.to_string());
                 cx.notify();
             });
@@ -554,7 +554,7 @@ impl GpuiFeedbackModalWindow {
 
     pub(super) fn open_issue(&mut self, cx: &mut Context<Self>) {
         if let FeedbackStep::Sent { url, .. } = &self.step {
-            cx.open_url(url);
+            crate::app::helpers::gpui_open_external_url(url, cx);
         }
     }
 

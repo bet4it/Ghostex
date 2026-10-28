@@ -193,7 +193,7 @@ impl GhostexGpuiApp {
             .and_then(Value::as_str)
             == Some("external");
         if external {
-            cx.open_url(&url);
+            crate::app::helpers::gpui_open_external_url(&url, cx);
             return;
         }
         let message = GpuiSidebarOpenBrowserUrlMessage {
