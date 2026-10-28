@@ -4075,6 +4075,10 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   It adds a Claude button (grey, like its neighbours) to the sidebar's top row, next to the Issues button.
   Clicking it turns Claude on: claude.ai takes the whole window, from any
   project, and the sidebar, the side panel and the Commands pane are hidden.
+  The sidebar's top buttons (Toggle sidebar, the Agents Panel toggle, Claude,
+  Search, the bell and the menu) stay where they are, so the Claude button is
+  in the same spot to turn it off, and the header no longer names the project
+  and session you were in.
   Claude never gets a tab in the side panel; you can still open the side panel
   beside it (the Browser and every other view work there as usual), and bring
   the Commands pane back with its usual button and shortcut. Showing the

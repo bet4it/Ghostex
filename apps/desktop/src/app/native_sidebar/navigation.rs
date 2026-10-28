@@ -95,6 +95,27 @@ impl GhostexGpuiApp {
         usage_meter_count: usize,
         cx: &mut gpui::Context<Self>,
     ) -> AnyElement {
+        let owns_window_corner = !footer && !self.sidebar_collapsed;
+        self.render_native_sidebar_row(
+            appearance,
+            footer,
+            usage_meter_count,
+            owns_window_corner,
+            cx,
+        )
+    }
+
+    /// The top row (or with `footer` the bottom bar). `owns_window_corner` draws it as the docked
+    /// sidebar's top row, in the window's top-left corner: the desktop's Claude header draws that
+    /// same row while Claude has the sidebar hidden (app/claude_web/header.rs).
+    pub(crate) fn render_native_sidebar_row(
+        &self,
+        appearance: &SidebarAppearance,
+        footer: bool,
+        usage_meter_count: usize,
+        owns_window_corner: bool,
+        cx: &mut gpui::Context<Self>,
+    ) -> AnyElement {
         let scale = appearance.scale;
         let label = if footer { "Commands" } else { "Search" };
         let action_id = if footer { "commands" } else { "sessions" };
@@ -128,7 +149,6 @@ impl GhostexGpuiApp {
         occludes it, and a caption press never reaches an `on_click`, so every button in this row
         occludes there.
         */
-        let owns_window_corner = !footer && !self.sidebar_collapsed;
         /*
         CDXC:Sidebar 2026-09-21 DECISION:
         User: the Search and the Commands buttons are icon-only buttons with the icon they already

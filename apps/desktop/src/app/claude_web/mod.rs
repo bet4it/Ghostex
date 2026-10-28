@@ -3,10 +3,12 @@
 //! this barrel stays thin.
 mod accounts;
 mod column;
+mod header;
 mod sidebar_button;
 mod takeover;
 mod view;
 
 pub(crate) use accounts::*;
+pub(crate) use header::*;
 pub(crate) use takeover::*;
 pub(crate) use view::*;

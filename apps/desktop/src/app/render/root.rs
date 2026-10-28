@@ -1385,6 +1385,9 @@ impl Render for GhostexGpuiApp {
                             .child(self.render_workspace_with_command_pane(window, cx))
                             .child(self.render_workarea_header(window, cx)),
                     )
+                    // The sidebar's menu, opened from the header's copy of the sidebar's top row
+                    // while Claude has the sidebar hidden (app/claude_web/header.rs).
+                    .children(self.render_claude_sidebar_menu(window, cx))
                     // Collapsed, the reveal's hot zone lies over the workarea's left edge (the
                     // decision is on `floating_reveal_edge_want`); last child so it paints above.
                     // macOS keeps it as a native view instead, above the CEF pages too.
