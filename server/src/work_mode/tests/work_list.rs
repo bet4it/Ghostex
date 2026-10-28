@@ -5,6 +5,7 @@ use serde_json::{json, Value};
 use super::*;
 
 fn linear_workspace_list() -> Value {
+    let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
     let cwd = "/gx-char/list/linear-app";
     let api_key = "lin-key-work-list";
     let project = project("PCharLinList", cwd);
@@ -108,6 +109,7 @@ fn linear_workspace_list() -> Value {
 }
 
 fn github_workspace_list() -> Value {
+    let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
     let cwd = "/gx-char/list/github-app";
     let project = project("PCharGhList", cwd);
     let sessions = vec![session("PCharGhList", "S3", json!({ "githubIssues": [5] }))];
@@ -168,6 +170,7 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
         &linear_workspace_list(),
         json!({
           "tracker": "linear",
+          "ghAvailable": true,
           "items": [
             {
               "key": "linear:ACM-1",
@@ -330,6 +333,7 @@ fn a_github_workspace_lists_its_issues_with_their_prs_folded_in() {
         &github_workspace_list(),
         json!({
           "tracker": "github",
+          "ghAvailable": true,
           "items": [
             {
               "key": "issue:acme/web#6",

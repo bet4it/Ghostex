@@ -79,11 +79,27 @@ thread_local! {
     static GH_ASSUMED_AVAILABLE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// CDXC:SessionLinks 2026-10-28 WHY:
-/// A test that needs `gh` signed in says so for its own thread only. The process-wide answer is shared by every test and tests run in parallel, so on a computer without `gh` another test's `gh auth status` probe could start before a seeded `true` and store `false` after it.
+/// Puts `gh_cli_is_available` and `cached_gh_cli_available` back to what they were when dropped.
 #[cfg(test)]
-pub(crate) fn assume_gh_cli_available_for_test() {
-    GH_ASSUMED_AVAILABLE.with(|assumed| assumed.set(true));
+#[must_use = "bind it for the whole test: `let _gh = ...`; a bare `_` drops it at once"]
+pub(crate) struct GhAssumedAvailable {
+    previous: bool,
+}
+
+#[cfg(test)]
+impl Drop for GhAssumedAvailable {
+    fn drop(&mut self) {
+        GH_ASSUMED_AVAILABLE.with(|assumed| assumed.set(self.previous));
+    }
+}
+
+/// CDXC:SessionLinks 2026-10-28 WHY:
+/// A test that needs `gh` signed in says so for its own thread, for as long as it holds the guard. The process-wide answer is shared by every test and tests run in parallel, so on a computer without `gh` another test's `gh auth status` probe could start before a seeded `true` and store `false` after it. A guard rather than a flag that stays set, because libtest runs a test on the harness thread when it cannot spawn one, and a flag left set would leak into the next test run there.
+#[cfg(test)]
+pub(crate) fn assume_gh_cli_available_for_test() -> GhAssumedAvailable {
+    GhAssumedAvailable {
+        previous: GH_ASSUMED_AVAILABLE.with(|assumed| assumed.replace(true)),
+    }
 }
 
 pub(crate) fn gh_cli_is_available() -> bool {

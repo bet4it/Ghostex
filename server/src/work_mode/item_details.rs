@@ -1395,6 +1395,7 @@ mod tests {
 
     #[test]
     fn reading_a_linear_ticket_returns_its_details_and_row() {
+        let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
         let temp = tempfile::tempdir().expect("tempdir");
         let paths = crate::paths::get_gxserver_paths(Some(temp.path().to_path_buf()));
         let api_key = "lin-key-details-read";

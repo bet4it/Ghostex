@@ -39,6 +39,13 @@ fn a_team_choice_wins_then_this_computers_then_linear_when_a_key_applies() {
     assert_eq!(tracker(DEFAULT_WORKSPACE_ID), ("linear", "default"));
     // A workspace that does not exist is the default one.
     assert_eq!(tracker("ws-char-missing"), ("linear", "default"));
+    // It takes the default workspace's own pick over the key, which the line above cannot tell.
+    let default_picked = json!({ "workspaces": { DEFAULT_WORKSPACE_ID: { "tracker": "github" } } });
+    let (picked, source) = workspace_work_tracker(&paths, &default_picked, "ws-char-missing");
+    assert_eq!(
+        (picked.as_wire(), source.as_wire()),
+        ("github", "workspace")
+    );
     // The workspace's own pick still beats the key.
     assert_eq!(tracker("ws-char-picked"), ("github", "workspace"));
 

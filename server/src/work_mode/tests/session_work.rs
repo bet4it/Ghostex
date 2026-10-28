@@ -253,7 +253,7 @@ fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loadin
     set_branch(cwd, "main");
     // The repo is known, but the issue was never read.
     seed_work_github(cwd, Some("acme/web"), Vec::new(), Vec::new());
-    crate::session_git_status::assume_gh_cli_available_for_test();
+    let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
     let project = project(project_id, cwd);
     let session = session(project_id, "S9", json!({ "githubIssues": [9] }));
     assert_published(

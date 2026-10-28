@@ -137,10 +137,9 @@ pub(super) fn work_project(
     }
 }
 
-/// The list without what depends on the computer or the clock (`ghAvailable`, `generatedAt`).
+/// The list without what depends on the clock (`generatedAt`).
 pub(super) fn stable_list(mut list: Value) -> Value {
     let object = list.as_object_mut().unwrap();
-    object.remove("ghAvailable");
     object.remove("generatedAt");
     list
 }
