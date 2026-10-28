@@ -72,6 +72,8 @@ pub fn owner(kind: &ActionKind) -> Option<Family> {
         | ActionKind::JumpToQuestion
         | ActionKind::QuestionForLater
         | ActionKind::QuestionListFilter
+        | ActionKind::QuestionListMore
+        | ActionKind::QuestionListReset
         | ActionKind::AsyncQuestionToggle
         | ActionKind::AsyncQuestionNavigate
         | ActionKind::AsyncQuestionText

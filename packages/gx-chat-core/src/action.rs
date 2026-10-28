@@ -170,6 +170,8 @@ action_kinds! {
     JumpToQuestion => "jumpToQuestion",
     QuestionForLater => "questionForLater",
     QuestionListFilter => "questionListFilter",
+    QuestionListMore => "questionListMore",
+    QuestionListReset => "questionListReset",
     AsyncQuestionToggle => "asyncQuestionToggle",
     AsyncQuestionNavigate => "asyncQuestionNavigate",
     AsyncQuestionText => "asyncQuestionText",

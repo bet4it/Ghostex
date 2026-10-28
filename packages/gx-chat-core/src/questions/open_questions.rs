@@ -69,6 +69,10 @@ pub struct OpenQuestions {
     /// The picked filter's id (`all`, `html`, `qa`, `charts`); `questionListFilter` picks one.
     #[serde(default)]
     pub filter: String,
+    /// How many rows `sections` leaves out (`page_sections`); the list ends in a "Show more" row
+    /// while this is above zero, and `questionListMore` adds a page.
+    #[serde(default)]
+    pub remaining: u32,
 }
 
 /// One of the list's filters.
@@ -141,6 +145,8 @@ pub struct OpenQuestionsState {
     pub jump: Option<OpenQuestionJump>,
     /// The list's picked filter; empty is All.
     pub filter: String,
+    /// How many pages of the long sections the list shows; 0 is the first page.
+    pub pages: u32,
 }
 
 const FILTERS: [(&str, &str); 4] = [
@@ -160,7 +166,59 @@ fn filter_shows(filter: &str, kind: &str) -> bool {
     }
 }
 
-/// `questionListFilter {filter}`: the list shows what the filter picks.
+/// How many rows of the long sections one page of the list shows: about one panel of rows (the
+/// desktop panel is 380 px of 26 px rows, the phone's 520 pt of 40 pt rows).
+pub const LIST_PAGE: usize = 15;
+
+/// The sections whose rows are always all listed: what waits on the reader, which is few, and which
+/// the cards and the phone's flags read whole.
+fn always_whole(section: &str) -> bool {
+    matches!(section, "unanswered" | "later")
+}
+
+/// The list paged: Unanswered and For later whole, then the other sections' rows in their order
+/// up to `pages` pages of `LIST_PAGE` (page 0 is the first), the rest left out. A section keeps
+/// its `count` (the full total) even when its rows are cut. Returns the sections and how many rows
+/// were left out.
+///
+/// CDXC:SessionChat 2026-10-28 DECISION:
+/// User, of a chat with 356 resources: "make this not show all those resources like this, make it show just 1 scroll worth then i need to click show more to load 1 more page of them then scrolling to the bottom loads more (to make that thing lighter)". The panel builds one page of rows, then a Show more row adds a page, and after that click scrolling to the bottom adds the next by itself (`questionListMore`); changing the filter or closing the panel starts again from one page (`questionListReset`). Counts stay the full totals.
+pub fn page_sections(
+    sections: Vec<QuestionListSection>,
+    pages: u32,
+) -> (Vec<QuestionListSection>, u32) {
+    let mut budget = (pages as usize + 1) * LIST_PAGE;
+    let mut left_out = 0usize;
+    let paged = sections
+        .into_iter()
+        .map(|mut section| {
+            if !always_whole(&section.id) {
+                let keep = section.rows.len().min(budget);
+                budget -= keep;
+                left_out += section.rows.len() - keep;
+                section.rows.truncate(keep);
+            }
+            section
+        })
+        .collect();
+    (paged, left_out as u32)
+}
+
+/// `questionListMore`: the list shows one more page.
+pub fn more(state: &mut ChatState) {
+    state.questions.open_questions.pages += 1;
+    state.core.request_publish();
+}
+
+/// `questionListReset`: back to the first page (the panel closed).
+pub fn reset_pages(state: &mut ChatState) {
+    if state.questions.open_questions.pages != 0 {
+        state.questions.open_questions.pages = 0;
+        state.core.request_publish();
+    }
+}
+
+/// `questionListFilter {filter}`: the list shows what the filter picks, from its first page.
 pub fn pick_filter(state: &mut ChatState, filter: &str) {
     let filter = if FILTERS.iter().any(|(id, _)| *id == filter) && filter != "all" {
         filter.to_string()
@@ -169,6 +227,7 @@ pub fn pick_filter(state: &mut ChatState, filter: &str) {
     };
     if state.questions.open_questions.filter != filter {
         state.questions.open_questions.filter = filter;
+        state.questions.open_questions.pages = 0;
         state.core.request_publish();
     }
 }
@@ -447,6 +506,24 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
     .flatten()
     .collect::<Vec<_>>()
     .join(" \u{b7} ");
+    let (sections, remaining) = page_sections(
+        all.iter()
+            .filter_map(|section| {
+                let rows: Vec<QuestionListRow> = section
+                    .rows
+                    .iter()
+                    .filter(|row| filter_shows(filter, &row.kind))
+                    .cloned()
+                    .collect();
+                (!rows.is_empty()).then(|| QuestionListSection {
+                    count: rows.len() as u32,
+                    rows,
+                    ..section.clone()
+                })
+            })
+            .collect(),
+        state.questions.open_questions.pages,
+    );
     OpenQuestions {
         count,
         text: "Previous question \u{2191}".to_string(),
@@ -478,22 +555,8 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
         } else {
             filter.to_string()
         },
-        sections: all
-            .iter()
-            .filter_map(|section| {
-                let rows: Vec<QuestionListRow> = section
-                    .rows
-                    .iter()
-                    .filter(|row| filter_shows(filter, &row.kind))
-                    .cloned()
-                    .collect();
-                (!rows.is_empty()).then(|| QuestionListSection {
-                    count: rows.len() as u32,
-                    rows,
-                    ..section.clone()
-                })
-            })
-            .collect(),
+        sections,
+        remaining,
     }
 }
 

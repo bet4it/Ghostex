@@ -97,6 +97,8 @@ pub fn handle(state: &mut ChatState, action: &UserAction, context: &ChatContext)
                 .unwrap_or_default();
             crate::questions::open_questions::pick_filter(state, filter);
         }
+        ActionKind::QuestionListMore => crate::questions::open_questions::more(state),
+        ActionKind::QuestionListReset => crate::questions::open_questions::reset_pages(state),
         ActionKind::QuestionForLater => {
             let id = action
                 .param("id")

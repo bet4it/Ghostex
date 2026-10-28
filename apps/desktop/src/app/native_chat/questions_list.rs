@@ -83,6 +83,15 @@ fn later_action(section: &str, kind: &str, id: &str) -> Option<(&'static str, Va
 pub(super) struct QuestionList {
     /// The sections the reader folded or opened against their default.
     toggled: HashSet<String>,
+    /// "Show more" was clicked, so scrolling to the bottom adds the next page by itself; cleared
+    /// when the list closes or its filter changes.
+    auto_more: std::cell::Cell<bool>,
+    /// The filter the list was last drawn under, which `auto_more` belongs to.
+    auto_filter: std::cell::RefCell<String>,
+    /// The `remaining` an automatic page was last asked at, so one stay at the bottom asks once.
+    auto_asked_at: std::cell::Cell<Option<u64>>,
+    /// The list's scroll position, which the bottom check reads.
+    scroll: gpui::ScrollHandle,
     /// Redraws the open list every 30 s so the ages on its rows keep up (dropped with the list).
     tick: Option<gpui::Task<()>>,
     /// The filter dropdown's trigger, in screen space, which its pick list opens below.
@@ -110,7 +119,14 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
                 + ROW_HEIGHT,
         );
     }
-    let rows: f32 = sections
+    // The "Show more" row ends the list while the core left rows out.
+    let more = if open["remaining"].as_u64().unwrap_or(0) > 0 {
+        ROW_HEIGHT
+    } else {
+        0.0
+    };
+    let rows: f32 = more
+        + sections
         .iter()
         .map(|section| {
             let shown = if list.folded(&text(section, "id")) {
@@ -120,7 +136,7 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
             };
             SECTION_HEIGHT + shown as f32 * ROW_HEIGHT
         })
-        .sum();
+        .sum::<f32>();
     Some(
         super::chat_pills::MENU_HEADER_HEIGHT
             + super::chat_pills::MENU_SECTION_GAP
@@ -161,8 +177,12 @@ impl NativeChatView {
     }
 
     /// The list went away: its refresh stops.
-    pub(super) fn questions_menu_closed(&mut self) {
+    pub(super) fn questions_menu_closed(&mut self, cx: &mut Context<Self>) {
         self.question_list.tick = None;
+        self.question_list.auto_more.set(false);
+        self.question_list.auto_asked_at.set(None);
+        // Reopening starts again from one page (the core's `questionListReset`).
+        self.invoke(json!({"type": "questionListReset"}), cx);
     }
 
     fn toggle_question_section(&mut self, section: String, cx: &mut Context<Self>) {
@@ -306,13 +326,40 @@ impl NativeChatView {
             Some(trigger),
             p,
         );
+        let remaining = open["remaining"].as_u64().unwrap_or(0);
+        // A new filter starts again from the top and from one page.
+        let filter = text(&open, "filter");
+        if *self.question_list.auto_filter.borrow() != filter {
+            *self.question_list.auto_filter.borrow_mut() = filter;
+            self.question_list.auto_more.set(false);
+            self.question_list.auto_asked_at.set(None);
+            self.question_list
+                .scroll
+                .set_offset(gpui::point(px(0.0), px(0.0)));
+        }
+        if self.question_list.auto_more.get()
+            && remaining > 0
+            && self.question_list.auto_asked_at.get() != Some(remaining)
+            && self.question_list_at_bottom()
+        {
+            // Scrolled to the bottom after a Show more: the next page comes by itself.
+            self.question_list.auto_asked_at.set(Some(remaining));
+            cx.spawn(async move |this, cx| {
+                let _ = this.update(cx, |this, cx| {
+                    this.invoke(json!({"type": "questionListMore"}), cx)
+                });
+            })
+            .detach();
+        }
         let mut list = div()
             .id("chat-questions-list")
             .flex()
             .flex_col()
             .flex_shrink_0()
             .max_h(px(LIST_MAX * s))
-            .overflow_y_scroll();
+            .overflow_y_scroll()
+            .track_scroll(&self.question_list.scroll)
+            .on_scroll_wheel(cx.listener(|_, _, _, cx| cx.notify()));
         if sections.is_empty() {
             list = list.child(
                 div()
@@ -335,6 +382,9 @@ impl NativeChatView {
                 }
             }
         }
+        if remaining > 0 {
+            list = list.child(self.question_show_more_row(remaining, p, cx));
+        }
         Some(
             div()
                 .id("chat-questions-menu")
@@ -349,6 +399,57 @@ impl NativeChatView {
                 ))
                 .into_any_element(),
         )
+    }
+
+    /// Whether the list is scrolled to its end (and long enough to scroll at all).
+    fn question_list_at_bottom(&self) -> bool {
+        let scroll = &self.question_list.scroll;
+        let max = scroll.max_offset().y;
+        max > px(0.0) && scroll.offset().y <= -(max - px(2.0))
+    }
+
+    /// The list's last row while the core left rows out: a click adds a page, and from then on
+    /// scrolling to the bottom adds the next ones by itself.
+    fn question_show_more_row(
+        &self,
+        remaining: u64,
+        p: &ChatAppearance,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
+        div()
+            .id("chat-questions-show-more")
+            .role(gpui::Role::Button)
+            .aria_label(format!("Show more, {remaining} left"))
+            .flex_shrink_0()
+            .h(px(ROW_HEIGHT * s))
+            .flex()
+            .items_center()
+            .justify_center()
+            .gap(px(6.0 * s))
+            .rounded(px(5.0 * s))
+            .text_size(px(12.0 * s))
+            .text_color(p.card_muted)
+            .chat_cursor_pointer()
+            .hover(|style| {
+                style
+                    .bg(p.foreground.opacity(0.06))
+                    .text_color(p.foreground)
+            })
+            .child("Show more")
+            .child(
+                div()
+                    .text_color(p.muted)
+                    .font_features(FontFeatures(vec![("tnum".into(), 1)].into()))
+                    .child(remaining.to_string()),
+            )
+            .on_click(cx.listener(|this, _, _, cx| {
+                cx.stop_propagation();
+                this.question_list.auto_more.set(true);
+                this.question_list.auto_asked_at.set(None);
+                this.invoke(json!({"type": "questionListMore"}), cx);
+            }))
+            .into_any_element()
     }
 
     /// A section's header: the chevron, its title and its count, folding the section on a click.
@@ -574,5 +675,25 @@ mod tests {
         assert!(later_action("unanswered", "chart", "c").is_none());
         assert_eq!(later_icon("later"), "titlebar/arrow-back-up.svg");
         assert_eq!(later_icon("unanswered"), "titlebar/clock.svg");
+    }
+
+    #[test]
+    fn the_show_more_row_adds_its_height_until_the_cap() {
+        let section = json!({"id": "pages", "rows": [{"id": "a"}], "count": 30});
+        let list = QuestionList::default();
+        let whole = json!({"total": 30, "sections": [section.clone()], "remaining": 0});
+        let cut = json!({"total": 30, "sections": [section.clone()], "remaining": 29});
+        let base = questions_menu_height(&whole, &list).unwrap();
+        assert_eq!(questions_menu_height(&cut, &list).unwrap(), base + ROW_HEIGHT);
+        // A long page is capped at the list's maximum, Show more row or not.
+        let rows: Vec<Value> = (0..15).map(|i| json!({"id": i})).collect();
+        let long = json!({"total": 90, "sections": [{"id": "answered", "rows": rows, "count": 80}], "remaining": 65});
+        let capped = questions_menu_height(&long, &list).unwrap();
+        assert_eq!(
+            capped,
+            super::super::chat_pills::MENU_HEADER_HEIGHT
+                + super::super::chat_pills::MENU_SECTION_GAP
+                + LIST_MAX
+        );
     }
 }

@@ -579,7 +579,7 @@ impl NativeChatView {
             self.session_details_menu_closed(cx);
         }
         if trigger == super::questions_list::QUESTIONS_TRIGGER {
-            self.questions_menu_closed();
+            self.questions_menu_closed(cx);
         }
     }
 }
