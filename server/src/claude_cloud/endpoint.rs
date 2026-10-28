@@ -48,9 +48,11 @@ pub(crate) async fn claude_cloud_action(
         "send" => super::start::send_to_cloud_session,
         "conversation" => super::chat::read_conversation,
         "pageStatus" => super::page_status::apply_page_status,
-        _ => return Err(DomainStateError::bad_request(
-            "action must be get, start, send, conversation, pageStatus, bringBack or copy.",
-        )),
+        _ => {
+            return Err(DomainStateError::bad_request(
+                "action must be get, start, send, conversation, pageStatus, bringBack or copy.",
+            ))
+        }
     };
     tokio::task::spawn_blocking(move || blocking(&state, &params))
         .await
