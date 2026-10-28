@@ -295,7 +295,7 @@ impl GhostexGpuiApp {
     /// The picker's current palette, agents, cached accounts and cached boxes.
     fn new_thread_picker_config(&self) -> NewThreadPickerConfig {
         NewThreadPickerConfig {
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
             agents: self.ordered_new_thread_picker_agents(),
             agents_loaded: self.new_thread_picker_agents.is_some(),
             accounts: self
@@ -406,7 +406,7 @@ impl GhostexGpuiApp {
                     picker.glass = window_glass_active();
                     picker.frosted_fill = picker
                         .glass
-                        .then(|| crate::app::helpers::frosted_modal_fill(picker.surface_color()));
+                        .then(|| crate::app::helpers::frosted_dialog_fill(picker.surface_color()));
                     picker
                 });
                 *picker_out.borrow_mut() = Some(picker.clone());

@@ -125,6 +125,22 @@ struct PickerColors {
 
 impl PickerColors {
     fn resolve(p: &ModalPalette) -> Self {
+        let colors = Self::resolve_solid(p);
+        if !p.glass {
+            return colors;
+        }
+        // On the popover glass the selected row, the filter field and the dividers take the
+        // dialogs' stronger washes (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+        let washes = frosted_dialog_washes(p.light);
+        Self {
+            selected_background: washes.raised,
+            input_background: washes.raised,
+            divider: rgba_of(washes.hairline, washes.hairline.a * 0.7),
+            ..colors
+        }
+    }
+
+    fn resolve_solid(p: &ModalPalette) -> Self {
         if p.light {
             let foreground = rgb(0x262626);
             Self {
@@ -1426,7 +1442,7 @@ impl Render for GpuiNewThreadPickerWindow {
             .border_color(hsla(c.frame_border))
             // Under window glass the picker's window blurs what is behind it, so its fill thins.
             // Under glass it takes the app's frosted dialog fill, passed in by the app because this
-            // file also builds into the demo binary (`frosted_modal_fill` in helpers/window_glass.rs).
+            // file also builds into the demo binary (`frosted_dialog_fill` in helpers/window_glass.rs).
             .bg(self.frosted_fill.unwrap_or_else(|| hsla(c.surface)))
             .font_family(PICKER_FONT)
             .text_size(px(ROW_TEXT_SIZE))

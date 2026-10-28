@@ -26,7 +26,7 @@ impl GhostexGpuiApp {
             .and_then(AgentsHubTab::from_id)
             .unwrap_or(AgentsHubTab::Mds);
         let config = AgentsHubModalConfig {
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
             initial_tab,
             initial_skill: message
                 .get("initialSkill")

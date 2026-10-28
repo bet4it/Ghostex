@@ -87,6 +87,33 @@ pub(crate) fn css_mix(a: Rgba, weight_a: f32, b: Rgba) -> Rgba {
     }
 }
 
+/// The ink washes of a dialog or panel on the popover glass (`frosted_dialog_fill`): a section
+/// panel, a field or raised control at rest and hovered (also a selected row), and the hairline.
+/// One set for the form dialogs, Settings, the Agents Hub, Search by Prompt, Quick Access and the
+/// New Thread picker, so their fields and rows read the same on the thinner glass.
+#[derive(Clone, Copy)]
+pub(crate) struct FrostedDialogWashes {
+    pub(crate) panel: Rgba,
+    pub(crate) raised: Rgba,
+    pub(crate) raised_hover: Rgba,
+    pub(crate) hairline: Rgba,
+}
+
+pub(crate) fn frosted_dialog_washes(light: bool) -> FrostedDialogWashes {
+    let ink = if light { 0x000000 } else { 0xffffff };
+    let (panel, raised, raised_hover, hairline) = if light {
+        (0.04, 0.07, 0.11, 0.16)
+    } else {
+        (0.05, 0.09, 0.12, 0.12)
+    };
+    FrostedDialogWashes {
+        panel: modal_rgba(ink, panel),
+        raised: modal_rgba(ink, raised),
+        raised_hover: modal_rgba(ink, raised_hover),
+        hairline: modal_rgba(ink, hairline),
+    }
+}
+
 /// A filled button's background at rest, under the pointer and while pressed.
 #[derive(Clone, Copy)]
 pub(crate) struct ButtonFills {
@@ -195,21 +222,17 @@ impl ModalPalette {
         self
     }
 
-    /// [`Self::frosted`] for a form dialog on the thinner popover glass (CDXC:AppModal 2026-10-29
-    /// on `frosted_dialog_fill`): its fields, section panels and hairlines take a stronger ink
-    /// wash, so they still read as panes over a backdrop that shows through more.
+    /// [`Self::frosted`] for a dialog or panel on the thinner popover glass (CDXC:AppModal
+    /// 2026-10-29 on `frosted_dialog_fill`): its fields, section panels and hairlines take the
+    /// stronger [`frosted_dialog_washes`], so they still read as panes over a backdrop that shows
+    /// through more.
     pub(crate) fn frosted_dialog(self, fill: Rgba) -> Self {
         let mut palette = self.frosted(fill);
-        let ink = if palette.light { 0x000000 } else { 0xffffff };
-        let (panel, raised, raised_hover, hairline) = if palette.light {
-            (0.04, 0.07, 0.11, 0.16)
-        } else {
-            (0.05, 0.09, 0.12, 0.12)
-        };
-        palette.panel = modal_rgba(ink, panel);
-        palette.raised = modal_rgba(ink, raised);
-        palette.raised_hover = modal_rgba(ink, raised_hover);
-        palette.hairline = modal_rgba(ink, hairline);
+        let washes = frosted_dialog_washes(palette.light);
+        palette.panel = washes.panel;
+        palette.raised = washes.raised;
+        palette.raised_hover = washes.raised_hover;
+        palette.hairline = washes.hairline;
         palette
     }
 
@@ -316,6 +339,9 @@ mod tests {
             assert!(dialog.raised_hover.a > dialog.raised.a);
             assert!(dialog.panel.a > panel.panel.a);
             assert!(dialog.hairline.a > panel.hairline.a);
+            let washes = frosted_dialog_washes(light);
+            assert_eq!(dialog.raised, washes.raised);
+            assert_eq!(dialog.hairline, washes.hairline);
         }
     }
 }

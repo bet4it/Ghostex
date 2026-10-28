@@ -33,9 +33,9 @@ impl GhostexGpuiApp {
         palette.frosted(frosted_modal_fill(palette.surface.into()).into())
     }
 
-    /// The palette of a small form dialog (Send Bug / Feedback, Add Project, Rename and the like):
-    /// under window glass the Accounts & limits popover's thinner frost rather than the large
-    /// panels' darker fill (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+    /// The palette of a form dialog (Send Bug / Feedback, Add Project, Rename and the like) and of
+    /// Settings, the Agents Hub and the New Thread picker: under window glass the Accounts & limits
+    /// popover's thinner frost (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
     pub(crate) fn gpui_native_dialog_palette(&self) -> ModalPalette {
         let palette = self.gpui_native_modal_solid_palette();
         if !window_glass_active() {
