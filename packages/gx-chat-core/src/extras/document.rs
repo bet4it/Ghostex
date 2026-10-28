@@ -46,8 +46,13 @@ pub fn document(state: &ChatState, context: &ChatContext, into: &mut Document) {
     if !background.is_null() {
         into.working_strip.presentation = None;
     }
-    into.chat_pills =
-        chat_pills::chat_pills(&threads_panel, &tasks_panel, &fleet_strip, &background);
+    into.chat_pills = chat_pills::chat_pills(
+        &into.open_questions,
+        &threads_panel,
+        &tasks_panel,
+        &fleet_strip,
+        &background,
+    );
     // The ? question pill rides on the card, so a waiting question alone shows it.
     into.working_card = working_card::working_card(
         state,

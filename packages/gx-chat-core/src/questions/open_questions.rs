@@ -14,6 +14,9 @@
 //! CDXC:SessionChat 2026-10-27 DECISION:
 //! User: "i want hovering over the ? mark "Previous questions" pill in the chat view to show me a list of all the questions. should look like this threads one in terms of having sections and i really care about the "already answered ones" so i can click to jump to those previously answered ones. make sure we sort by date". The pill carries a list of every question form and question page in the chat (`sections`), in the Links card's folding sections: Unanswered, For later, Answered and Withdrawn, each with its count, rows newest first, each row the page's title (or the form's first question), its tags and its time; a row jumps to its card and flashes it. The pill stays while the chat has any question, so the list is always reachable, but its count, attention dot and ping are only for unanswered ones (`count`). On the desktop hovering opens the list and a click still steps to the previous unanswered question (opening the list when none waits); on the phone a tap opens it.
 //!
+//! CDXC:SessionChat 2026-10-28 DECISION:
+//! User: "please make the menu that appears when clicking on question not appear on hover, instead should appear when clicking on a new button we add there. call this button resources so that i can just click on the ? mark pill to jump between questions or click on this new button to see the list that we show. show the new resources button between threads and ? pills in the bar and give resources a different icon". The list now opens from a Resources pill (`chatPills`, extras/chat_pills.rs, right after the ? pill and before Threads) while the list has any row (`total`); a second click or Escape closes it. The ? pill never opens a list: a click only steps through the questions (`previous`), and it shows while there is any to step through (`questionTotal`). With none unanswered the click steps through the For later and Answered ones instead (newest first, wrapping), so the pill is never dead. Supersedes the 2026-10-27 hover and the click that opened the list when nothing waited.
+//!
 //! CDXC:SessionChat 2026-10-27 DECISION:
 //! User, of the list: "we're not indicating HTML pages from normal questions here", "also please show "All" "Html" "Q&A" "Charts" as 4 selections so i can jump to previous generated content", "also i wanna see even Htmls that don't have any questions in them so i can jump back to them". Every row says what it is (`kind`: an HTML page, a Q&A form or a chart), and four filters sit over the list (`filters`, the reader's pick `filter`): All, Html (pages, with or without questions), Q&A (```questions forms) and Charts (```visual drawings: charts, stats, tables). Forms and question pages keep the Unanswered, For later, Answered and Withdrawn sections; pages that ask nothing are listed under Pages and charts under Charts, newest first. The pill's count, dot and ping stay about unanswered questions only.
 
@@ -40,9 +43,13 @@ pub struct OpenQuestions {
     pub newest: Option<String>,
     /// The last jump, or `null` before the first.
     pub jump: Option<OpenQuestionJump>,
-    /// Every form and question page in the list; the pill shows while this is above zero.
+    /// Every form, page and chart in the list; the Resources pill shows while this is above zero.
     #[serde(default)]
     pub total: u32,
+    /// The forms and question pages the ? pill can step through (`jump_pool`, unanswered or not);
+    /// the pill shows while this is above zero.
+    #[serde(default)]
+    pub question_total: u32,
     /// The list's header detail: "2 unanswered · 1 for later".
     #[serde(default)]
     pub summary: String,
@@ -92,6 +99,13 @@ pub struct QuestionListRow {
     /// When it was asked, as a message's time reads ("14:03", "yesterday at 09:12"); empty when
     /// the transcript does not say.
     pub time: String,
+    /// How long ago (`message_time::age_label`: "now", "4m", "yesterday", "3d") as of this
+    /// document; empty when the transcript gives no time. The renderers recompute it from `at_ms`.
+    #[serde(default)]
+    pub age: String,
+    /// The epoch milliseconds it was asked at, when the transcript says.
+    #[serde(default)]
+    pub at_ms: Option<i64>,
     /// The full date, for a tooltip.
     pub time_title: String,
 }
@@ -192,6 +206,23 @@ pub fn later_waiting(state: &ChatState) -> Vec<String> {
         .collect()
 }
 
+/// The askers the ? pill steps through, oldest first: the unanswered ones while any wait, else
+/// every question form and page the list shows as For later or Answered (answers on their way
+/// included), so a click always goes somewhere while the chat has a question. Withdrawn and
+/// inherited ones are left out.
+pub fn jump_pool(state: &ChatState) -> Vec<&Asker> {
+    let open = unanswered(state);
+    if !open.is_empty() {
+        return open;
+    }
+    state
+        .transcript_view
+        .askers
+        .iter()
+        .filter(|asker| !asker.obsolete && !asker.inherited)
+        .collect()
+}
+
 /// Which section of the list an asker belongs in, or `None` for one this chat does not list (an
 /// unanswered question inherited from the session this one was forked from).
 fn section_of(
@@ -286,6 +317,12 @@ pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection
         .collect()
 }
 
+fn age_of(at: Option<i64>, context: &ChatContext) -> String {
+    at.map_or_else(String::new, |at| {
+        crate::transcript::message_time::age_label(context.now_millis(), at)
+    })
+}
+
 fn list_row(asker: &Asker, context: &ChatContext) -> QuestionListRow {
     let time = crate::transcript::message_time::message_time(asker.at, context);
     let title = if asker.title.is_empty() {
@@ -306,6 +343,8 @@ fn list_row(asker: &Asker, context: &ChatContext) -> QuestionListRow {
         title,
         tags: asker.tags.clone(),
         time: time["label"].as_str().unwrap_or_default().to_string(),
+        age: age_of(asker.at, context),
+        at_ms: asker.at,
         time_title: time["title"].as_str().unwrap_or_default().to_string(),
     }
 }
@@ -330,6 +369,8 @@ fn content_row(
         },
         tags: Vec::new(),
         time: time["label"].as_str().unwrap_or_default().to_string(),
+        age: age_of(item.at, context),
+        at_ms: item.at,
         time_title: time["title"].as_str().unwrap_or_default().to_string(),
     }
 }
@@ -399,13 +440,14 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
         count,
         text: "Previous question \u{2191}".to_string(),
         accessibility_label: match count {
-            0 => format!("Chat Resources: {summary}. Show the list"),
+            0 => "No unanswered questions: go to a previous one".to_string(),
             1 => "1 unanswered question: go to it".to_string(),
             _ => format!("{count} unanswered questions: go to the previous one"),
         },
         newest: open.last().map(|asker| asker.id.clone()),
         jump: state.questions.open_questions.jump.clone(),
         total,
+        question_total: jump_pool(state).len() as u32,
         summary,
         filters: FILTERS
             .iter()
@@ -445,12 +487,13 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
 
 /// `previousQuestion`: the pill's click. It goes to the unanswered question before the one it went
 /// to last (wrapping to the newest after the oldest), or to the newest when it has not gone
-/// anywhere yet or the last one is no longer waiting.
+/// anywhere yet or the last one is no longer waiting. With none unanswered it steps the same way
+/// through the For later and Answered questions (`jump_pool`).
 ///
 /// CDXC:SessionChat 2026-10-14 WHY:
 /// Starting again from the newest whenever the reader sat at the bottom was tried and dropped: the newest question usually sits at the bottom, so the second click landed on it again instead of stepping back.
 pub fn previous(state: &mut ChatState, context: &ChatContext) -> Vec<Effect> {
-    let open: Vec<Asker> = unanswered(state).into_iter().cloned().collect();
+    let open: Vec<Asker> = jump_pool(state).into_iter().cloned().collect();
     if open.is_empty() {
         return Vec::new();
     }
@@ -602,6 +645,49 @@ mod tests {
             .unwrap_or_default()
     }
 
+    fn pool_ids(state: &ChatState) -> Vec<String> {
+        jump_pool(state).iter().map(|asker| asker.id.clone()).collect()
+    }
+
+    #[test]
+    fn the_question_pill_steps_through_unanswered_ones_then_the_rest() {
+        let mut state = ChatState::default();
+        let mut answered = asker("done", AskerKind::Form, Some(1_000));
+        answered.answered = true;
+        let mut withdrawn = asker("gone", AskerKind::Page, Some(1_500));
+        withdrawn.obsolete = true;
+        state.transcript_view.askers.push(answered);
+        state.transcript_view.askers.push(withdrawn);
+        state
+            .transcript_view
+            .askers
+            .push(asker("open", AskerKind::Form, Some(2_000)));
+        // One waits: the pill steps through the waiting ones only.
+        assert_eq!(pool_ids(&state), ["open"]);
+        // Everything settled: it steps through the answered ones (never the withdrawn), oldest
+        // first so `step` walks them newest to oldest and wraps.
+        state.transcript_view.askers[2].answered = true;
+        assert_eq!(pool_ids(&state), ["done", "open"]);
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!((pill.count, pill.question_total), (0, 2));
+        assert_eq!(step(2, None), 1);
+        assert_eq!(step(2, Some(1)), 0);
+        assert_eq!(step(2, Some(0)), 1, "it wraps");
+    }
+
+    #[test]
+    fn a_chat_with_only_pages_and_charts_has_nothing_for_the_question_pill() {
+        let mut state = ChatState::default();
+        state.transcript_view.askers.push({
+            let mut gone = asker("gone", AskerKind::Page, None);
+            gone.obsolete = true;
+            gone
+        });
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!(pill.question_total, 0);
+        assert_eq!(pill.total, 1, "the withdrawn page is still in the list");
+    }
+
     #[test]
     fn the_pill_shows_while_a_question_is_unanswered() {
         let mut state = ChatState::default();
@@ -613,6 +699,52 @@ mod tests {
         assert_eq!(pill.count, 1);
         assert_eq!(pill.total, 1);
         assert_eq!(pill.text, "Previous question \u{2191}");
+    }
+
+    #[test]
+    fn the_for_later_button_moves_a_row_between_sections_and_back() {
+        let mut state = ChatState::default();
+        state
+            .transcript_view
+            .askers
+            .push(asker("a", AskerKind::Form, Some(1_000)));
+        let list = |state: &ChatState| project(state, &ChatContext::default());
+        assert_eq!(section(&list(&state), "unanswered"), vec!["a"]);
+        // The row's button sends `questionForLater {id, later: true}`: it shows at once.
+        crate::questions::later::set(&mut state, "a", true);
+        let pill = list(&state);
+        assert!(section(&pill, "unanswered").is_empty());
+        assert_eq!(section(&pill, "later"), vec!["a"]);
+        assert_eq!(pill.count, 0, "a put-off question leaves the count");
+        // "Back to open": `later: false`.
+        crate::questions::later::set(&mut state, "a", false);
+        let pill = list(&state);
+        assert_eq!(section(&pill, "unanswered"), vec!["a"]);
+        assert!(section(&pill, "later").is_empty());
+    }
+
+    #[test]
+    fn a_row_carries_how_long_ago_it_was_asked() {
+        let mut state = ChatState::default();
+        state
+            .transcript_view
+            .askers
+            .push(asker("a", AskerKind::Form, Some(1_000)));
+        state
+            .transcript_view
+            .askers
+            .push(asker("b", AskerKind::Form, None));
+        let pill = project(&state, &ChatContext::default());
+        let row = |id: &str| {
+            pill.sections
+                .iter()
+                .flat_map(|section| &section.rows)
+                .find(|row| row.id == id)
+                .unwrap()
+        };
+        assert_eq!(row("a").at_ms, Some(1_000));
+        assert!(!row("a").age.is_empty());
+        assert_eq!((row("b").at_ms, row("b").age.as_str()), (None, ""));
     }
 
     #[test]

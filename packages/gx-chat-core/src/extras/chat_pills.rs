@@ -19,6 +19,7 @@
 use serde_json::Value;
 
 use crate::document::ChatPill;
+use crate::questions::open_questions::OpenQuestions;
 
 fn text(value: &Value, key: &str) -> String {
     value
@@ -32,15 +33,30 @@ fn count(value: &Value, key: &str) -> u64 {
     value.get(key).and_then(Value::as_u64).unwrap_or(0)
 }
 
-/// The pills, in the order the row shows them, from the four projected panel values (`null` when
-/// the panel is absent).
+/// The pills, in the order the row shows them, from the chat's resource list and the four
+/// projected panel values (`null` when the panel is absent).
+///
+/// CDXC:SessionChat 2026-10-28 DECISION:
+/// User: "show the new resources button between threads and ? pills in the bar and give resources a different icon". Resources is the first pill after the renderers' ? pill, ahead of Threads; it opens the Chat Resources list (questions/open_questions.rs) and shows while the list has any row, with the row count.
 pub fn chat_pills(
+    resources: &OpenQuestions,
     threads: &Value,
     tasks: &Value,
     fleet: &Value,
     background: &Value,
 ) -> Vec<ChatPill> {
     let mut pills = Vec::new();
+    if resources.total > 0 {
+        pills.push(ChatPill {
+            id: "resources".to_string(),
+            label: "Resources".to_string(),
+            count: resources.total.to_string(),
+            waiting: String::new(),
+            running: false,
+            aria_label: format!("Resources, {}", resources.summary),
+            meta: resources.summary.clone(),
+        });
+    }
     if threads.is_object() {
         // The count is what the menu lists first: the threads working or waiting on the user.
         let in_flight = count(threads, "inFlight");
@@ -116,29 +132,53 @@ pub fn chat_pills(
 
 #[cfg(test)]
 mod tests {
-    use super::chat_pills;
+    use super::{chat_pills, OpenQuestions};
     use serde_json::{json, Value};
+
+    /// Resources comes first, ahead of Threads (the renderers' ? pill sits before both), and only
+    /// while the list has a row.
+    #[test]
+    fn resources_sit_between_the_question_pill_and_threads() {
+        let resources = OpenQuestions {
+            total: 4,
+            summary: "2 unanswered".to_string(),
+            ..OpenQuestions::default()
+        };
+        let threads = json!({"inFlight": 1, "working": 0});
+        let tasks = json!({"done": 1, "total": 2});
+        let ids: Vec<String> = chat_pills(&resources, &threads, &tasks, &Value::Null, &Value::Null)
+            .into_iter()
+            .map(|pill| pill.id)
+            .collect();
+        assert_eq!(ids, ["resources", "threads", "tasks"]);
+        let pill = &chat_pills(&resources, &Value::Null, &Value::Null, &Value::Null, &Value::Null)[0];
+        assert_eq!((pill.label.as_str(), pill.count.as_str()), ("Resources", "4"));
+        assert_eq!(pill.aria_label, "Resources, 2 unanswered");
+
+        let empty = chat_pills(&OpenQuestions::default(), &threads, &Value::Null, &Value::Null, &Value::Null);
+        assert_eq!(empty[0].id, "threads", "an empty list has no Resources pill");
+    }
 
     #[test]
     fn subagents_count_the_running_ones_while_any_run() {
         let fleet = json!({"rows": [{"working": true}, {"working": false}, {"working": false}]});
-        let pill = &chat_pills(&Value::Null, &Value::Null, &fleet, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &Value::Null, &Value::Null, &fleet, &Value::Null)[0];
         assert_eq!((pill.count.as_str(), pill.running), ("1", true));
 
         let finished = json!({"rows": [{"working": false}, {"working": false}]});
-        let pill = &chat_pills(&Value::Null, &Value::Null, &finished, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &Value::Null, &Value::Null, &finished, &Value::Null)[0];
         assert_eq!((pill.count.as_str(), pill.running), ("2", false));
     }
 
     #[test]
     fn threads_run_only_while_one_is_working() {
         let waiting = json!({"inFlight": 1, "working": 0, "attention": true});
-        let pill = &chat_pills(&waiting, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &waiting, &Value::Null, &Value::Null, &Value::Null)[0];
         assert_eq!((pill.count.as_str(), pill.running), ("1", false));
         assert_eq!(pill.waiting, "approval");
 
         let working = json!({"inFlight": 2, "working": 2});
-        let pill = &chat_pills(&working, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &working, &Value::Null, &Value::Null, &Value::Null)[0];
         assert!(pill.running);
         assert_eq!(pill.waiting, "");
     }
@@ -148,11 +188,11 @@ mod tests {
     #[test]
     fn threads_waiting_tone() {
         let both = json!({"inFlight": 3, "working": 1, "attention": true, "question": true});
-        let pill = &chat_pills(&both, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &both, &Value::Null, &Value::Null, &Value::Null)[0];
         assert_eq!((pill.running, pill.waiting.as_str()), (true, "approval"));
 
         let asking = json!({"inFlight": 2, "working": 1, "question": true});
-        let pill = &chat_pills(&asking, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(&OpenQuestions::default(), &asking, &Value::Null, &Value::Null, &Value::Null)[0];
         assert_eq!((pill.running, pill.waiting.as_str()), (true, "question"));
     }
 }

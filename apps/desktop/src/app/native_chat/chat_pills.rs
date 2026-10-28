@@ -51,8 +51,8 @@ pub(super) struct ChatPillBounds {
     tasks: Rc<Cell<Bounds<Pixels>>>,
     subagents: Rc<Cell<Bounds<Pixels>>>,
     background: Rc<Cell<Bounds<Pixels>>>,
-    /// The ? pill, which its question list (questions_list.rs) opens against.
-    pub(super) questions: Rc<Cell<Bounds<Pixels>>>,
+    /// The Resources pill, which the question list (questions_list.rs) opens against.
+    resources: Rc<Cell<Bounds<Pixels>>>,
 }
 
 impl ChatPillBounds {
@@ -61,6 +61,7 @@ impl ChatPillBounds {
             "threads" => self.threads.clone(),
             "tasks" => self.tasks.clone(),
             "background" => self.background.clone(),
+            super::questions_list::QUESTIONS_MENU => self.resources.clone(),
             _ => self.subagents.clone(),
         }
     }
@@ -142,6 +143,7 @@ fn trigger_id(id: &str) -> &'static str {
         "threads" => "chat-pill-threads",
         "tasks" => "chat-pill-tasks",
         "background" => "chat-pill-background",
+        // The Resources pill opens the question list.
         super::questions_list::QUESTIONS_MENU => super::questions_list::QUESTIONS_TRIGGER,
         _ => "chat-pill-subagents",
     }
@@ -150,6 +152,7 @@ fn trigger_id(id: &str) -> &'static str {
 fn icon(id: &str) -> &'static str {
     match id {
         "threads" => "titlebar/users-group.svg",
+        "resources" => "titlebar/stack.svg",
         "tasks" => "titlebar/list-check.svg",
         "background" => "titlebar/terminal-2.svg",
         _ => "titlebar/users.svg",
@@ -299,14 +302,14 @@ impl NativeChatView {
         cx: &Context<Self>,
     ) -> Option<AnyElement> {
         let open = &self.snapshot["openQuestions"];
-        if open["total"].as_u64().unwrap_or(0) == 0 && self.open_question_pill_text().is_none() {
+        if open["questionTotal"].as_u64().unwrap_or(0) == 0
+            && self.open_question_pill_text().is_none()
+        {
             return None;
         }
         let waiting = open["count"].as_u64().unwrap_or(0) > 0;
         let color = p.card_muted;
         let label = text(open, "accessibilityLabel");
-        let menu_open = self.chat_menu_is_open(super::questions_list::QUESTIONS_TRIGGER);
-        let measured = self.pill_bounds.questions.clone();
         let content = if self.question_ping.showing_count() {
             div()
                 .text_size(px(11.5 * p.scale))
@@ -322,24 +325,14 @@ impl NativeChatView {
             icon_pill("chat-previous-question", content, p)
                 .relative()
                 .aria_label(label)
-                .aria_expanded(menu_open)
                 .border_color(p.foreground.opacity(0.1))
-                .when(menu_open, |pill| pill.bg(p.foreground.opacity(0.08)))
                 .hover(|style| style.bg(p.foreground.opacity(0.06)))
-                .on_hover(cx.listener(|chat, hovered: &bool, window, cx| {
-                    chat.question_pill_hovered(*hovered, cx);
-                    chat.question_list_pill_hovered(*hovered, window, cx);
+                .on_hover(cx.listener(|chat, hovered: &bool, _, cx| {
+                    chat.question_pill_hovered(*hovered, cx)
                 }))
-                .on_click(cx.listener(move |chat, _, window, cx| {
+                .on_click(cx.listener(|chat, _, _, cx| {
                     cx.stop_propagation();
-                    if waiting {
-                        if chat.chat_menu_is_open(super::questions_list::QUESTIONS_TRIGGER) {
-                            chat.close_pill_menu(cx);
-                        }
-                        chat.previous_question(cx)
-                    } else {
-                        chat.open_questions_menu(false, window, cx)
-                    }
+                    chat.previous_question(cx)
                 }))
                 .when(waiting, |pill| {
                     pill.children(super::question_ping::attention_dot(
@@ -347,11 +340,6 @@ impl NativeChatView {
                         p,
                     ))
                 })
-                .child(
-                    canvas(move |bounds, _, _| measured.set(bounds), |_, _, _, _| {})
-                        .absolute()
-                        .inset(px(-p.scale)),
-                )
                 .into_any_element(),
         )
     }
@@ -459,7 +447,12 @@ impl NativeChatView {
             .on_click(cx.listener(move |this, _, window, cx| {
                 cx.stop_propagation();
                 let anchor = this.working_card.menu_anchor(bounds.get());
-                this.toggle_pill_menu(&id, anchor, window, cx)
+                this.toggle_pill_menu(&id, anchor, window, cx);
+                if id == super::questions_list::QUESTIONS_MENU
+                    && this.chat_menu_is_open(trigger)
+                {
+                    this.keep_question_ages_current(cx);
+                }
             }))
             .child(
                 // The pill's own border box, which its menu lines up with (right edges equal; it

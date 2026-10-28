@@ -80,3 +80,9 @@ pub(crate) use read_aloud::{
 pub(crate) use transport::current_model_catalog;
 pub(crate) use worker::{ChatHostHandle, set_endpoint};
 pub(crate) use world::ChatHostOutput;
+
+/// The chat host's clock in epoch milliseconds (the page's on the web build), for what the chat
+/// words by age (`native_chat/questions_list.rs`).
+pub(crate) fn now_millis() -> i64 {
+    platform::now_millis()
+}

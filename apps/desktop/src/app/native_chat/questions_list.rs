@@ -1,10 +1,11 @@
-//! The ? pill's list (chat_pills.rs draws the pill): every question form, page and chart in the
+//! The Resources pill's list (chat_pills.rs draws the pill; a click opens it, a second click or
+//! Escape closes it, and the ? pill never opens it): every question form, page and chart in the
 //! chat, under the All / Html / Q&A / Charts filter (a small dropdown on the header's line), in
 //! folding sections (Unanswered, For later, Answered and Withdrawn for questions, then Pages and
 //! Charts), each row jumping to its card. The sections, their rows and their order are the core's
 //! (`openQuestions.sections`,
 //! packages/gx-chat-core/src/questions/open_questions.rs, where the user's decision lives); this
-//! opens the list on hover, folds its sections and draws it in the pills' menu window
+//! folds its sections and draws it in the pills' menu window
 //! (`option_menu/pill_menu.rs`), in the Links card's section look (native_sidebar/links_list.rs).
 //!
 //! CDXC:SessionChat 2026-10-27 SEE-ALSO:
@@ -15,15 +16,14 @@ use crate::app::native_chat::cursor::ChatCursor as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, Context, FontFeatures, InteractiveElement as _, IntoElement, ParentElement as _,
-    SharedString, StatefulInteractiveElement as _, Styled as _, Task, Window, div, px, svg,
+    SharedString, StatefulInteractiveElement as _, Styled as _, Window, div, px, svg,
 };
 use serde_json::{Value, json};
 use std::collections::HashSet;
-use std::time::Duration;
 
 /// The list's id among the pill menus, and its trigger's.
-pub(super) const QUESTIONS_MENU: &str = "questions";
-pub(super) const QUESTIONS_TRIGGER: &str = "chat-pill-questions";
+pub(super) const QUESTIONS_MENU: &str = "resources";
+pub(super) const QUESTIONS_TRIGGER: &str = "chat-pill-resources";
 pub(super) const QUESTIONS_MENU_WIDTH: f32 = 440.0;
 
 /// One section header, one row and the list's cap, unscaled: fixed, so the menu knows its height
@@ -32,45 +32,59 @@ const SECTION_HEIGHT: f32 = 22.0;
 const ROW_HEIGHT: f32 = 26.0;
 const LIST_MAX: f32 = 380.0;
 
-/// How long the pointer rests on the pill before the list opens, and how long it may be off both
-/// the pill and the list before a list it opened closes.
-const OPEN_DELAY: Duration = Duration::from_millis(300);
-const CLOSE_DELAY: Duration = Duration::from_millis(350);
+/// How often an open list redraws so its ages stay current.
+const AGE_REFRESH: std::time::Duration = std::time::Duration::from_secs(30);
 
 /// The sections that start folded: the withdrawn ones need nothing.
 fn folded_by_default(section: &str) -> bool {
     section == "withdrawn"
 }
 
-/// A row's hover tooltip: title, tags and the full time. The row itself shows only the title and
-/// the short time; the tags (Q633 Q634 …) were dropped from it (user decision 2026-10-28: "seeing
-/// the question numbers here on the right is useless") but stay readable here.
+/// A row's hover tooltip: its title and the full date and time it was asked. No Q numbers
+/// anywhere in the list (user, 2026-10-28: "lets also not show the Q numbers in the question
+/// tooltip when hovering on them").
 fn row_tooltip(row: &Value) -> String {
-    let tags = row["tags"]
-        .as_array()
-        .into_iter()
-        .flatten()
-        .filter_map(Value::as_str)
-        .collect::<Vec<_>>()
-        .join(" ");
-    [text(row, "title"), tags, text(row, "timeTitle")]
+    [text(row, "title"), text(row, "timeTitle")]
         .into_iter()
         .filter(|part| !part.is_empty())
         .collect::<Vec<_>>()
         .join("\n")
 }
 
-/// The list's hover and folding, per chat.
+/// How long ago a row was asked, worded as of `now_ms` from its `atMs`; the document's own `age`
+/// when the row carries no stamp (it was worded when the document was built).
+fn row_age(row: &Value, now_ms: i64) -> String {
+    match row["atMs"].as_i64() {
+        Some(at) => ghostex_gx_chat_core::transcript::message_time::age_label(now_ms, at),
+        None => text(row, "age"),
+    }
+}
+
+/// The button a row offers: "For later" on a form or page still waiting, "Back to open" on one
+/// put off. It sends the action the question cards' own button sends (`questionForLater`), so
+/// the cards and the list agree. Other rows (answered, withdrawn, pages and charts that ask
+/// nothing) offer none.
+fn later_action(section: &str, kind: &str, id: &str) -> Option<(&'static str, Value)> {
+    if kind == "chart" {
+        return None;
+    }
+    match section {
+        "unanswered" => Some(("For later", json!({"type": "questionForLater", "id": id, "later": true}))),
+        "later" => Some((
+            "Back to open",
+            json!({"type": "questionForLater", "id": id, "later": false}),
+        )),
+        _ => None,
+    }
+}
+
+/// The list's folding, per chat.
 #[derive(Default)]
 pub(super) struct QuestionList {
-    on_pill: bool,
-    on_list: bool,
-    /// The list on screen was opened by the hover, so leaving closes it again; one opened by a
-    /// click stays until the next click or Escape.
-    by_hover: bool,
     /// The sections the reader folded or opened against their default.
     toggled: HashSet<String>,
-    timer: Option<Task<()>>,
+    /// Redraws the open list every 30 s so the ages on its rows keep up (dropped with the list).
+    tick: Option<gpui::Task<()>>,
     /// The filter dropdown's trigger, in screen space, which its pick list opens below.
     filter_bounds: std::rc::Rc<std::cell::Cell<gpui::Bounds<gpui::Pixels>>>,
 }
@@ -114,6 +128,15 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
     )
 }
 
+/// The glyph of a row's For later button: a clock to put it off, the way back once it is.
+fn later_icon(section: &str) -> &'static str {
+    if section == "later" {
+        "titlebar/arrow-back-up.svg"
+    } else {
+        "titlebar/clock.svg"
+    }
+}
+
 /// What a row is, by its icon: an HTML page, a Q&A form or a chart.
 fn kind_icon(kind: &str) -> &'static str {
     match kind {
@@ -124,87 +147,22 @@ fn kind_icon(kind: &str) -> &'static str {
 }
 
 impl NativeChatView {
-    /// The pointer came onto the ? pill or left it: the list opens after a moment's rest and a
-    /// list the hover opened closes once the pointer has left both the pill and the list.
-    pub(super) fn question_list_pill_hovered(
-        &mut self,
-        hovered: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.question_list.on_pill = hovered;
-        if hovered && !self.chat_menu_is_open(QUESTIONS_TRIGGER) {
-            self.question_list.timer = Some(cx.spawn_in(window, async move |this, cx| {
-                cx.background_executor().timer(OPEN_DELAY).await;
-                let _ = this.update_in(cx, |this, window, cx| {
-                    if this.question_list.on_pill && !this.chat_menu_is_open(QUESTIONS_TRIGGER) {
-                        this.open_questions_menu(true, window, cx);
-                    }
-                });
-            }));
-        } else if !hovered {
-            self.schedule_question_list_close(window, cx);
-        }
-    }
-
-    /// The pointer came onto the open list or left it.
-    fn question_list_hovered(
-        &mut self,
-        hovered: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        self.question_list.on_list = hovered;
-        if !hovered {
-            self.schedule_question_list_close(window, cx);
-        }
-    }
-
-    fn schedule_question_list_close(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        if !self.question_list.by_hover {
-            self.question_list.timer = None;
-            return;
-        }
-        self.question_list.timer = Some(cx.spawn_in(window, async move |this, cx| {
-            cx.background_executor().timer(CLOSE_DELAY).await;
-            let _ = this.update(cx, |this, cx| {
-                let list = &this.question_list;
-                if list.by_hover
-                    && !list.on_pill
-                    && !list.on_list
-                    && this.chat_menu_is_open(QUESTIONS_TRIGGER)
-                {
-                    this.close_pill_menu(cx);
+    /// While the list is open, redraws it every 30 s: the ages on its rows are worded from the
+    /// clock, not from a document change.
+    pub(super) fn keep_question_ages_current(&mut self, cx: &mut Context<Self>) {
+        self.question_list.tick = Some(cx.spawn(async move |this, cx| {
+            loop {
+                cx.background_executor().timer(AGE_REFRESH).await;
+                if this.update(cx, |_, cx| cx.notify()).is_err() {
+                    break;
                 }
-            });
+            }
         }));
     }
 
-    /// Opens the list over the ? pill (`by_hover`: the hover opened it), or, for a click, shuts the
-    /// list the pill already has open.
-    pub(super) fn open_questions_menu(
-        &mut self,
-        by_hover: bool,
-        window: &mut Window,
-        cx: &mut Context<Self>,
-    ) {
-        if by_hover && self.chat_menu_is_open(QUESTIONS_TRIGGER) {
-            return;
-        }
-        let anchor = self
-            .working_card
-            .menu_anchor(self.pill_bounds.questions.get());
-        let was_open = self.chat_menu_is_open(QUESTIONS_TRIGGER);
-        self.toggle_pill_menu(QUESTIONS_MENU, anchor, window, cx);
-        self.question_list.by_hover = by_hover && !was_open;
-        self.question_list.on_list = false;
-    }
-
-    /// The list went away.
+    /// The list went away: its refresh stops.
     pub(super) fn questions_menu_closed(&mut self) {
-        self.question_list.by_hover = false;
-        self.question_list.on_list = false;
-        self.question_list.timer = None;
+        self.question_list.tick = None;
     }
 
     fn toggle_question_section(&mut self, section: String, cx: &mut Context<Self>) {
@@ -301,8 +259,7 @@ impl NativeChatView {
     }
 
     /// The filter's pick list, below its trigger with their right edges lined up, so it opens
-    /// leftwards inside the popup. Picking keeps the list up, so a list the hover
-    /// opened stays while the reader uses it.
+    /// leftwards inside the popup. Picking keeps the list up.
     fn open_question_list_filters(&mut self, cx: &mut Context<Self>) {
         let open = &self.snapshot["openQuestions"];
         let picked = text(open, "filter");
@@ -320,8 +277,6 @@ impl NativeChatView {
                 })
             })
             .collect();
-        self.question_list.by_hover = false;
-        self.question_list.timer = None;
         let anchor = self.question_list.filter_bounds.get();
         if let Some(menu) = self.option_menu.clone() {
             menu.update(cx, |menu, cx| {
@@ -384,9 +339,6 @@ impl NativeChatView {
             div()
                 .id("chat-questions-menu")
                 .w_full()
-                .on_hover(cx.listener(|this, hovered: &bool, window, cx| {
-                    this.question_list_hovered(*hovered, window, cx)
-                }))
                 .child(super::chat_pills::pill_menu_column(
                     "chat-questions",
                     "Chat Resources",
@@ -449,6 +401,48 @@ impl NativeChatView {
 
     /// One form or page: what it is, its title and when it was asked (its tags are only in the
     /// hover tooltip). A click scrolls the transcript to its card and flashes it.
+    /// A row's small icon button (shown while the pointer is on the row) that puts it off For later
+    /// or back to open. Its press stops here, so it never also jumps to the question.
+    #[allow(clippy::too_many_arguments)]
+    fn later_row_button(
+        &self,
+        id: &str,
+        label: &'static str,
+        action: Value,
+        group: SharedString,
+        icon: &'static str,
+        p: &ChatAppearance,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
+        div()
+            .id(SharedString::from(format!("chat-questions-later:{id}")))
+            .role(gpui::Role::Button)
+            .aria_label(label)
+            .flex_shrink_0()
+            .size(px(20.0 * s))
+            .flex()
+            .items_center()
+            .justify_center()
+            .rounded(px(4.0 * s))
+            .opacity(0.0)
+            .group_hover(group, |this| this.opacity(1.0))
+            .chat_cursor_pointer()
+            .hover(|style| style.bg(p.foreground.opacity(0.1)))
+            .tooltip(move |window, cx| gpui_component::tooltip::Tooltip::new(label).build(window, cx))
+            .child(
+                svg()
+                    .path(icon)
+                    .size(px(13.0 * s))
+                    .text_color(p.card_muted),
+            )
+            .on_click(cx.listener(move |this, _, _, cx| {
+                cx.stop_propagation();
+                this.invoke(action.clone(), cx);
+            }))
+            .into_any_element()
+    }
+
     fn question_list_row(
         &self,
         section: &str,
@@ -459,8 +453,11 @@ impl NativeChatView {
         let s = p.scale;
         let id = text(row, "id");
         let title = text(row, "title");
-        let time = text(row, "time");
-        let icon = kind_icon(&text(row, "kind"));
+        let age = row_age(row, crate::app::gx_chat::now_millis());
+        let kind = text(row, "kind");
+        let later = later_action(section, &kind, &id);
+        let icon = kind_icon(&kind);
+        let group = SharedString::from(format!("chat-questions-row-group:{id}"));
         let (icon_color, title_color) = match section {
             "answered" => (p.success(), p.foreground),
             "withdrawn" => (p.muted, p.card_muted),
@@ -470,6 +467,7 @@ impl NativeChatView {
         let jump = id.clone();
         div()
             .id(SharedString::from(format!("chat-questions-row:{id}")))
+            .group(group.clone())
             .role(gpui::Role::Button)
             .aria_label(format!("Go to {title}"))
             .flex()
@@ -504,16 +502,19 @@ impl NativeChatView {
                     .when(section == "withdrawn", |title| title.line_through())
                     .child(title),
             )
-            .when(!time.is_empty(), |this| {
+            .when(!age.is_empty(), |this| {
                 this.child(
                     div()
                         .flex_shrink_0()
                         .text_size(px(11.0 * s))
                         .text_color(p.muted)
                         .font_features(FontFeatures(vec![("tnum".into(), 1)].into()))
-                        .child(time),
+                        .child(age),
                 )
             })
+            .children(later.map(|(label, action)| {
+                self.later_row_button(&id, label, action, group.clone(), later_icon(section), p, cx)
+            }))
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
                 this.invoke(json!({"type": "jumpToQuestion", "id": jump}), cx);
@@ -528,22 +529,50 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tooltip_keeps_title_tags_and_time() {
+    fn tooltip_has_the_title_and_full_time_but_no_q_numbers() {
         let row = json!({
             "title": "Run 4, part 3 of 3",
             "tags": ["Q633", "Q634"],
             "time": "1:57 AM",
-            "timeTitle": "Today at 1:57 AM",
+            "timeTitle": "1:57 AM, 28th October 2026",
         });
-        assert_eq!(
-            row_tooltip(&row),
-            "Run 4, part 3 of 3\nQ633 Q634\nToday at 1:57 AM"
-        );
+        let tooltip = row_tooltip(&row);
+        assert_eq!(tooltip, "Run 4, part 3 of 3\n1:57 AM, 28th October 2026");
+        assert!(!tooltip.contains("Q633"));
     }
 
     #[test]
     fn tooltip_skips_empty_parts() {
         let row = json!({"title": "Page", "tags": [], "time": "", "timeTitle": ""});
         assert_eq!(row_tooltip(&row), "Page");
+    }
+
+    #[test]
+    fn the_age_is_worded_from_the_stamp_as_the_clock_moves() {
+        let row = json!({"atMs": 1_000_000, "age": "stale", "time": "1:57 AM"});
+        assert_eq!(row_age(&row, 1_000_000 + 30_000), "now");
+        assert_eq!(row_age(&row, 1_000_000 + 4 * 60_000), "4m");
+        assert_eq!(row_age(&row, 1_000_000 + 2 * 3_600_000), "2h");
+        assert_eq!(row_age(&row, 1_000_000 + 30 * 3_600_000), "yesterday");
+        assert_eq!(row_age(&row, 1_000_000 + 3 * 86_400_000), "3d");
+        let unstamped = json!({"age": "5m"});
+        assert_eq!(row_age(&unstamped, 9_999_999_999), "5m");
+        assert_eq!(row_age(&json!({}), 5), "");
+    }
+
+    #[test]
+    fn the_for_later_button_toggles_by_section() {
+        let (label, action) = later_action("unanswered", "form", "f1").unwrap();
+        assert_eq!(label, "For later");
+        assert_eq!(action, json!({"type": "questionForLater", "id": "f1", "later": true}));
+        let (label, action) = later_action("later", "page", "p1").unwrap();
+        assert_eq!(label, "Back to open");
+        assert_eq!(action, json!({"type": "questionForLater", "id": "p1", "later": false}));
+        for section in ["answered", "withdrawn", "pages", "charts"] {
+            assert!(later_action(section, "form", "x").is_none(), "{section}");
+        }
+        assert!(later_action("unanswered", "chart", "c").is_none());
+        assert_eq!(later_icon("later"), "titlebar/arrow-back-up.svg");
+        assert_eq!(later_icon("unanswered"), "titlebar/clock.svg");
     }
 }
