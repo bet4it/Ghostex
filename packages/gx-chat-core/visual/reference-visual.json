@@ -8,7 +8,8 @@
     "image": "#5f9878",
     "skill": "#668773",
     "sideChat": "#8a7fc4",
-    "comment": "#7f8fb8"
+    "comment": "#7f8fb8",
+    "session": "#8d929b"
   },
   "transcript": {
     "dark": {
@@ -18,7 +19,8 @@
       "skill": "#a3d9bd",
       "url": "#6cb4ff",
       "sideChat": "#bdb2f5",
-      "comment": "#b4c3ef"
+      "comment": "#b4c3ef",
+      "session": "#e4e4e7"
     },
     "light": {
       "file": "#3f6aa8",
@@ -27,7 +29,8 @@
       "skill": "#3d7458",
       "url": "#1447e6",
       "sideChat": "#5a4ab0",
-      "comment": "#4b5c99"
+      "comment": "#4b5c99",
+      "session": "#27272a"
     }
   },
   "icons": {

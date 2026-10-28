@@ -48,6 +48,7 @@ pub mod run_command;
 pub mod script_loops;
 pub mod sent_message;
 pub mod sent_message_script;
+pub mod session_mentions;
 pub mod settled;
 pub mod shell_script;
 pub mod side_question;

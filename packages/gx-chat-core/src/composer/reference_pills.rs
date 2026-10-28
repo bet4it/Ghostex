@@ -55,6 +55,8 @@ pub enum ReferenceKind {
     SideChat,
     /// A Changes view review comment (`review_comments.rs`).
     Comment,
+    /// Another agent session, `[<title>](<Global Ref>)` (`transcript/session_mentions.rs`).
+    Session,
 }
 
 impl ReferenceKind {
@@ -68,6 +70,7 @@ impl ReferenceKind {
             Self::Url => "url",
             Self::SideChat => "sideChat",
             Self::Comment => "comment",
+            Self::Session => "session",
         }
     }
 }
@@ -262,6 +265,7 @@ pub fn reference_path_label(label: &str, path: &str, kind: ReferenceKind) -> Opt
             | ReferenceKind::Url
             | ReferenceKind::SideChat
             | ReferenceKind::Comment
+            | ReferenceKind::Session
     ) {
         return None;
     }
@@ -305,6 +309,18 @@ pub fn reference_path_label(label: &str, path: &str, kind: ReferenceKind) -> Opt
 pub fn reference_display_label(label: &str, path: &str, kind: ReferenceKind) -> String {
     if kind == ReferenceKind::Skill || kind == ReferenceKind::Comment {
         return label.to_string();
+    }
+    if kind == ReferenceKind::Session {
+        let shown = crate::transcript::session_mentions::pill_label(label);
+        let characters: Vec<char> = shown.chars().collect();
+        if characters.len() <= REFERENCE_PILL_MAX_LABEL_CHARACTERS {
+            return shown;
+        }
+        let mut out: String = characters[..REFERENCE_PILL_MAX_LABEL_CHARACTERS - 1]
+            .iter()
+            .collect();
+        out.push('\u{2026}');
+        return out;
     }
     let path_label = reference_path_label(label, path, kind);
     let shown = path_label.as_deref().unwrap_or(label);
@@ -675,6 +691,18 @@ pub fn composer_references(text: &str) -> Vec<ComposerReference> {
         if destination.path.is_empty() {
             continue;
         }
+        // A mention of another session (Copy ID, the `+` picker) is its agent pill.
+        if ghostex_gx_protocol::parse_global_session_ref(destination.path.trim()).is_some() {
+            references.push(ComposerReference {
+                end: indexed.offset(destination.end),
+                identity: format!("session:{}", destination.path.trim()),
+                kind: ReferenceKind::Session,
+                label,
+                path: destination.path.trim().to_string(),
+                start: indexed.offset(start),
+            });
+            continue;
+        }
         let bare = path_without_coordinates(&destination.path);
         if destination.path.starts_with('#')
             || (has_uri_scheme(bare)
@@ -697,4 +725,29 @@ pub fn composer_references(text: &str) -> Vec<ComposerReference> {
         });
     }
     references
+}
+
+#[cfg(test)]
+mod session_chip_tests {
+    use super::*;
+
+    #[test]
+    fn a_mention_in_the_draft_is_a_session_chip() {
+        let references = composer_references("ask [Fix login](S90:P3lv0:G1) and [x](https://a.b)");
+        assert_eq!(references[0].kind, ReferenceKind::Session);
+        assert_eq!(references[0].path, "S90:P3lv0:G1");
+        assert_eq!(references[1].kind, ReferenceKind::Url);
+        assert_eq!(
+            reference_display_label("Fix login", "S90:P3lv0:G1", ReferenceKind::Session),
+            "+Fix login"
+        );
+        assert_eq!(
+            reference_display_label(
+                "Model and effort inventory",
+                "S90:P3lv0:G1",
+                ReferenceKind::Session
+            ),
+            "+Model and effort\u{2026}"
+        );
+    }
 }

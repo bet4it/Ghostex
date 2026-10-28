@@ -80,11 +80,29 @@ pub(super) fn replacements(
         .filter(|reference| !reference.revealed)
         .filter_map(|reference| {
             let color = markdown_links::composer_color(&reference.kind, appearance)?;
+            // A mention of another session (gx-chat-core `session_mentions.rs`) leads with that
+            // session's agent logo, as its pill does in the transcript.
+            let icon = if reference.kind == "session" {
+                let known = crate::app::gx_chat::session_directory::find(&reference.path);
+                let agent = known
+                    .as_ref()
+                    .map_or("", |session| session.agent_id.as_str());
+                markdown_links::session_pill_icon(
+                    ghostex_gx_chat_core::extras::agents::default_agent_by_id(Some(agent))
+                        .map_or(agent, |(icon, _)| icon),
+                    known.as_ref().is_some_and(|session| session.coordinator),
+                    appearance,
+                )
+                .0
+                .to_string()
+            } else {
+                format!("chat-references/{}.svg", reference.kind)
+            };
             Some(
                 InlineReplacement::new(reference.range.clone(), reference.pill.clone())
                     .color(color)
                     .icon(
-                        format!("chat-references/{}.svg", reference.kind),
+                        icon,
                         gpui::px(
                             COMPOSER_FONT_PX * appearance.scale * markdown_links::VISUAL.icon_em,
                         ),

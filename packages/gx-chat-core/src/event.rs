@@ -114,6 +114,31 @@ pub struct KnownSession {
     /// The session is a coordinator (an orchestrator): its cards draw the crown, as its sidebar
     /// row does.
     pub coordinator: bool,
+    /// `working`, `idle` or `attention`, for the composer's `+` picker. Not a name: a change to it
+    /// alone does not rebuild the transcript ([`KnownSession::same_names`]).
+    pub activity: String,
+    /// `running`, `sleeping` or `stopped`, for the `+` picker.
+    pub lifecycle_state: String,
+    /// When the session last did something worth sorting by (an ISO time), for the `+` picker's
+    /// newest-first order.
+    pub active_at: String,
+}
+
+impl KnownSession {
+    /// Whether two lists name the same sessions the same way, so the transcript's cards and pills
+    /// would read the same: everything but the `+` picker's live fields.
+    pub fn same_names(a: &[KnownSession], b: &[KnownSession]) -> bool {
+        a.len() == b.len()
+            && a.iter().zip(b).all(|(a, b)| {
+                a.global_ref == b.global_ref
+                    && a.project_id == b.project_id
+                    && a.session_id == b.session_id
+                    && a.title == b.title
+                    && a.agent_id == b.agent_id
+                    && a.agent_name == b.agent_name
+                    && a.coordinator == b.coordinator
+            })
+    }
 }
 
 /// What the host knows when it opens a chat.

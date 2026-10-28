@@ -11,6 +11,7 @@ use serde_json::{json, Value};
 
 use crate::extras::agents::{agent_icon_id, default_agent_by_id};
 use crate::transcript::jsstr::js_trim;
+use crate::transcript::session_mentions::card_pill;
 
 /// The jump button's label, whichever session it opens.
 pub const GO_TO_SESSION: &str = "Go to session";
@@ -24,7 +25,7 @@ fn text<'a>(value: &'a Value, key: &str) -> &'a str {
 }
 
 /// The agent's artwork id: the agent id the header or the send's result named, else its name.
-fn agent_icon(agent_id: &str, agent_name: &str) -> Value {
+pub(crate) fn agent_icon(agent_id: &str, agent_name: &str) -> Value {
     default_agent_by_id(Some(agent_id))
         .or_else(|| default_agent_by_id(Some(agent_name)))
         .map(|(icon, _)| icon)
@@ -60,6 +61,29 @@ fn session_target(reference: &str) -> Value {
         return Value::Null;
     }
     json!({ "projectId": parts[1], "sessionId": parts[2], "label": GO_TO_SESSION })
+}
+
+/// The other session's pill after `prefix`, when the card knows its title and can open it; `Null`
+/// otherwise, and the renderers draw the plain sentence (`name`).
+fn titled_pill(
+    prefix: &str,
+    title: &str,
+    agent_icon: &Value,
+    coordinator: bool,
+    session: &Value,
+    gone: bool,
+) -> Value {
+    if js_trim(title).is_empty() || !session.is_object() {
+        return Value::Null;
+    }
+    card_pill(
+        prefix,
+        title,
+        agent_icon.clone(),
+        coordinator,
+        session,
+        gone,
+    )
 }
 
 /// A session title in a row's sentence, quoted so it reads as a name (`Message from "Fix login"`).
@@ -147,6 +171,7 @@ pub fn dress_received(message: &mut Value) {
         return;
     }
     let agent = agent_display_name(text(inter, "agentId"), text(inter, "agentName"));
+    let session_title = text(inter, "sessionTitle").to_string();
     let name = match (text(inter, "sessionTitle"), agent.as_str()) {
         ("", "") => "Message from another agent".to_string(),
         ("", agent) => format!("Message from {agent}"),
@@ -171,9 +196,20 @@ pub fn dress_received(message: &mut Value) {
             error => error,
         }
     };
-    let card = card(
+    let icon = agent_icon(text(inter, "agentId"), &agent);
+    let session = session_target(text(inter, "replyTo"));
+    let coordinator = inter["coordinator"] == true;
+    let pill = titled_pill(
+        "Message from",
+        &session_title,
+        &icon,
+        coordinator,
+        &session,
+        inter["gone"] == true,
+    );
+    let mut card = card(
         "received",
-        agent_icon(text(inter, "agentId"), &agent),
+        icon,
         name.clone(),
         name,
         text(&message["time"], "label"),
@@ -184,10 +220,11 @@ pub fn dress_received(message: &mut Value) {
         } else {
             Value::Null
         },
-        session_target(text(inter, "replyTo")),
+        session,
         Vec::new(),
     );
-    message["interAgentMessage"]["card"] = crowned(card, inter["coordinator"] == true);
+    card["pill"] = pill;
+    message["interAgentMessage"]["card"] = crowned(card, coordinator);
 }
 
 /// Brings one recipient's status up to date from gxserver's delivery watch: a send that answered
@@ -315,6 +352,21 @@ fn recipient_phrase(recipient: &Value) -> String {
     }
 }
 
+/// A recipient's pill, when a session title names it.
+fn recipient_pill(prefix: &str, recipient: &Value, icon: &Value, session: &Value) -> Value {
+    if recipient["titled"] != true {
+        return Value::Null;
+    }
+    titled_pill(
+        prefix,
+        &recipient_label(recipient),
+        icon,
+        recipient["coordinator"] == true,
+        session,
+        recipient["gone"] == true,
+    )
+}
+
 /// Writes a sent message's `card` from its `recipients`, once each one is named:
 /// `Message to "<session>"`, or `Message to N sessions` with each recipient listed inside.
 pub fn dress_sent(sent: &mut Value) {
@@ -329,21 +381,23 @@ pub fn dress_sent(sent: &mut Value) {
         }
         .to_string();
         let coordinator = recipient["coordinator"] == true;
-        sent["card"] = crowned(
-            card(
-                "sent",
-                recipient_icon(recipient),
-                sentence.clone(),
-                sentence,
-                "",
-                delivery_status(recipient),
-                &failure,
-                Value::Null,
-                recipient_session(recipient),
-                Vec::new(),
-            ),
-            coordinator,
+        let icon = recipient_icon(recipient);
+        let session = recipient_session(recipient);
+        let pill = recipient_pill("Message to", recipient, &icon, &session);
+        let mut row = card(
+            "sent",
+            icon,
+            sentence.clone(),
+            sentence,
+            "",
+            delivery_status(recipient),
+            &failure,
+            Value::Null,
+            session,
+            Vec::new(),
         );
+        row["pill"] = pill;
+        sent["card"] = crowned(row, coordinator);
         return;
     }
     let count = recipients.len();
@@ -359,13 +413,15 @@ pub fn dress_sent(sent: &mut Value) {
         .iter()
         .zip(statuses.iter().zip(icons))
         .map(|(recipient, (status, icon))| {
+            let session = recipient_session(recipient);
             json!({
                 "direction": "sent",
                 "name": recipient_label(recipient),
+                "pill": recipient_pill("", recipient, &icon, &session),
                 "agentIcon": icon,
                 "coordinator": recipient["coordinator"] == true,
                 "status": status,
-                "session": recipient_session(recipient),
+                "session": session,
             })
         })
         .collect();

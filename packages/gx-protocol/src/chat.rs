@@ -207,6 +207,11 @@ pub struct ChatMessage {
     /// (`server_error`, `rate_limit`, …). Omitted on every other row.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub api_error: Option<String>,
+    /// On a user row that has `@` mentions: the ones gxserver found on disk, in the spelling
+    /// `bare_file_paths` gives them; only these become file pills
+    /// (server/src/session_chat_mention_paths.rs). Absent on every other row.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub mention_paths: Option<Vec<String>>,
 }
 
 /// Where an accepted send stands with the terminal, as the sending client sees it.

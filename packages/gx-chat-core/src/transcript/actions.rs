@@ -239,6 +239,9 @@ pub fn handle(state: &mut ChatState, action: &UserAction, context: &ChatContext)
             if let Some(tag) = crate::questions::open_questions::link_tag(&href) {
                 return crate::questions::open_questions::jump_to_tag(state, context, tag);
             }
+            if let Some(target) = ghostex_gx_protocol::parse_global_session_ref(href.trim()) {
+                return open_mentioned_session(state, target);
+            }
             match classify_link_href(&href) {
                 LinkTarget::File(path) => vec![position_effect(&href, path)],
                 // CDXC:SessionChat 2026-10-26 WHY: Shift+click on a chat link opens it in the system browser (the 2026-08-03 SessionChat comment in the desktop's session_chat/host_actions.rs). The TypeScript brain passed the click's `external` on to the host; the Rust port dropped it, so Shift+click opened the app's Browser like a plain click.
@@ -460,4 +463,28 @@ fn restore_prompt(prompt: String) -> Effect {
         caret: Some(caret),
         from_history: false,
     }
+}
+
+/// A click on an agent pill (`session_mentions.rs`): the session it names, switched to as its
+/// sidebar row would be. A session the host's loaded list no longer has does nothing; before the
+/// list has loaded the click is passed on with the ref's own ids.
+fn open_mentioned_session(
+    state: &ChatState,
+    target: ghostex_gx_protocol::GlobalSessionRef<'_>,
+) -> Vec<Effect> {
+    let sessions = &state.transcript_view.session_directory;
+    let found = sessions.iter().find(|session| {
+        session.project_id == target.project_id && session.session_id == target.session_id
+    });
+    let (project_id, session_id) = match found {
+        Some(session) => (session.project_id.clone(), session.session_id.clone()),
+        None if sessions.is_empty() => {
+            (target.project_id.to_string(), target.session_id.to_string())
+        }
+        None => return Vec::new(),
+    };
+    vec![Effect::HostAction {
+        action: "openAgentSession".to_string(),
+        params: Box::new(json!({ "projectId": project_id, "sessionId": session_id })),
+    }]
 }

@@ -31,7 +31,9 @@ use crate::transcript::message_text::{
     user_turn_copy_markdown,
 };
 use crate::transcript::message_time::message_time;
-use crate::transcript::native_markdown::{native_markdown, without_question_forms};
+use crate::transcript::native_markdown::{
+    native_markdown, native_markdown_with_mentions, without_question_forms,
+};
 use crate::transcript::noise::suppressed_turn_presentation;
 use crate::transcript::open_questions::{
     askers, link_question_tags, linkable_tags, linked_words, tag_words, Asker, QuestionTag,
@@ -160,8 +162,13 @@ pub fn project_message(
     };
     // Code-block headers, GitHub alerts, and typed file paths, marked for the native renderer.
     // A ```questions block somebody typed stays code: only the agent's own reply asks the reader.
+    let mentions = message.mention_paths.as_deref().unwrap_or_default();
     let native_body = if is_user {
-        without_question_forms(native_markdown(&user_line_breaks(&displayed_body), true))
+        without_question_forms(native_markdown_with_mentions(
+            &user_line_breaks(&displayed_body),
+            true,
+            mentions,
+        ))
     } else {
         native_markdown(&displayed_body, false)
     };
@@ -175,7 +182,13 @@ pub fn project_message(
     let collapsed_body = is_user
         .then(|| collapsed_prompt(&displayed_body))
         .flatten()
-        .map(|preview| without_question_forms(native_markdown(&user_line_breaks(&preview), true)));
+        .map(|preview| {
+            without_question_forms(native_markdown_with_mentions(
+                &user_line_breaks(&preview),
+                true,
+                mentions,
+            ))
+        });
     let suppressed = suppressed_turn_presentation(message);
     let rows = tool_rows(&tool_pairs, agent_path, working_directory, durations);
     let system_card = classify_system_card(message, &displayed_body);

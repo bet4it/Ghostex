@@ -470,11 +470,20 @@ pub(crate) async fn handle_read_session_chat_http(
         })
         .await;
         return match history {
-            Ok(Ok(value)) => routed_json(
-                Some(endpoint_path),
-                StatusCode::OK,
-                rpc_success(request_id, value),
-            ),
+            Ok(Ok(mut value)) => {
+                if let Some(page) = value.as_object_mut() {
+                    crate::session_chat_mention_paths::annotate_result(
+                        page,
+                        &project_id,
+                        &session_id,
+                    );
+                }
+                routed_json(
+                    Some(endpoint_path),
+                    StatusCode::OK,
+                    rpc_success(request_id, value),
+                )
+            }
             outcome => domain_error_response(
                 endpoint_path,
                 request_id,
@@ -1105,6 +1114,7 @@ pub(crate) async fn handle_read_session_chat_http(
             result.insert("error".to_string(), json!("Transcript unavailable"));
         }
     }
+    crate::session_chat_mention_paths::annotate_result(&mut result, &project_id, &session_id);
     routed_json(
         Some(endpoint_path),
         StatusCode::OK,

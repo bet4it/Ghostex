@@ -1167,8 +1167,12 @@ Session Chat renders the same agent session as a chat GUI: composer with
 image paste and Ctrl+G rich prompt editor, a prompt queue that sends when the
 agent stops, transcript with thinking, tool, and edit cards, subagent
 transcripts, question and approval cards, rewind, and a note per session.
-Type `@` in the chat box to mention a project file and `$` to pick one of the
-agent's skills. The `$` list holds the skills that agent's own CLI loads: its
+Type `@` in the chat box to mention a project file, `$` to pick one of the
+agent's skills, and `+` (at the start or after a space) to mention another agent
+session of the same project: the list shows each session's logo, title and
+whether it is working, newest first, and narrows as you type. A picked session
+goes in as a mention, `[<title>](<Global Ref>)`, which the agent can pass to
+`ghostex agents send`. The `$` list holds the skills that agent's own CLI loads: its
 home skills folders (Codex, Pi, Cursor, Gemini CLI and GitHub Copilot also read
 `~/.agents/skills`, and Cursor lists its own built-in skills too) and the skills folders inside the session's project. A picked skill shows as a pill in the way that agent invokes
 skills: `/skill-name` for Claude Code, which Claude receives as its slash
@@ -2603,10 +2607,14 @@ still starting, and fails with the reason when the agent did not take it. If Gho
 a queued message, the row stays in the recipient's queue marked Not delivered
 with Retry and Delete, and the sending agent gets a note saying so. `agents close
 <session-ref>` ends that session, including any unfinished work. `ghostex read-session-chat` and `ghostex read-text` read replies.
-In the chat, a message between agents is one line with that agent's logo,
-named after the other session's title: Message from "<session title>" for one
-another agent sent, Message to "<session title>" for one this session's agent
-sent. Click the line to read the whole message. One command that sends the same
+In the chat, a message between agents is one line with that agent's logo and
+the other session's pill: Message from +<session title> for one another agent
+sent (thread reports included), Message to +<session title> for one this
+session's agent sent with `agents send`, `agents create --task` or
+`orchestrator start-thread`. Click the pill to switch to that session; click the
+rest of the line to read the whole message. A mention of a session in a message
+(from Copy ID or the `+` list) shows as the same pill with the session's current
+title. A pill whose session is gone is greyed out and opens nothing. One command that sends the same
 message to several sessions is a single "Message to 2 sessions" line that lists
 each recipient when opened. A session Ghostex cannot find any more reads
 "Message from another agent".
@@ -2615,12 +2623,14 @@ An agent can also read or search any other thread, including a sleeping one:
 conversation, and `--grep "<words>" --context 1` finds where a topic came up.
 `<session>` can be any id from the sidebar's Copy Details (right-click a session,
 Copy > Copy Details; its Global Ref is the most precise), or the title. The same
-Copy menu also copies the session's branch, its Linear issue ID and link, and its
-pull request or GitHub issue link when it has them.
+Copy menu also has Copy ID, which copies a mention of the session,
+`[<session title>](<Global Ref>)`, to paste into another chat (it shows there
+as the session's pill), and copies the session's branch, its Linear issue ID and
+link, and its pull request or GitHub issue link when it has them.
 Copy Details lists the session's agent, title, Global Ref, agent session id,
-zmx name and project, and ends with a pointer to `$ghostex-agents`: paste it
-into another agent's chat and mention that skill, and the agent can message or
-read that session. `ghostex sessions --json` prints the same short facts for
+zmx name and project, and ends by telling the agent to run `ghostex agents`,
+which explains how to message other agents and check their status: paste it
+into another agent's chat and that agent can message or read that session. `ghostex sessions --json` prints the same short facts for
 every session, plus its project id and status; add `--full` for everything
 Ghostex knows about each one.
 On older versions without `agents`, use the existing commands below.
