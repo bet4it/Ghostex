@@ -810,3 +810,20 @@ fn deepseek_harness_prose_and_menus_are_not_its_status_line() {
     );
     assert_eq!(pro.effort.unwrap().value, "off");
 }
+
+/// A new Codex 0.164 session whose config names no reasoning effort, as it painted on Linux.
+#[test]
+fn a_codex_footer_with_the_default_effort_still_names_its_model() {
+    let screen = ">_ OpenAI Codex (v0.164.0)\n     ~/Projects/ftue-demo\n› Ask Codex to do anything\n  GPT-6.1-Sol default · ~/Projects/ftue-demo\n  ? for shortcuts\n";
+    let detected = detect_session_chat_selection(SessionChatOptionAgent::Codex, screen)
+        .expect("codex selection");
+    assert_eq!(
+        detected.model.map(|choice| choice.value),
+        Some("gpt-6.1-sol".to_string())
+    );
+    assert_eq!(detected.effort, None);
+    let fast = "› Ask Codex to do anything\n  GPT-6.1-Sol default fast · ~/proj\n";
+    let detected = detect_session_chat_selection(SessionChatOptionAgent::Codex, fast)
+        .expect("codex selection with fast");
+    assert_eq!(detected.fast, Some(true));
+}

@@ -58,6 +58,7 @@ pub fn read_claude_question_tab(
     questions: &[SessionChatQuestion],
     screen: &str,
 ) -> Option<ClaudeQuestionTab> {
+    let screen = &crate::session_chat_resume_prompt::strip_claude_side_panel(screen);
     let position = claude_question_selector_position(questions, screen)?;
     let mut tab = ClaudeQuestionTab {
         position,

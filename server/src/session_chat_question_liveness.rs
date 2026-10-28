@@ -30,6 +30,8 @@ pub fn claude_question_selector_on_screen(
     questions: &[SessionChatQuestion],
     screen_text: &str,
 ) -> bool {
+    // Claude Code's files side panel (`strip_claude_side_panel`) runs into every line otherwise.
+    let screen_text = &crate::session_chat_resume_prompt::strip_claude_side_panel(screen_text);
     // The selector can be on any question's tab (the user may have moved
     // through them in the terminal) or on the Submit tab after the last one.
     if claude_question_selector_position(questions, screen_text).is_some() {
@@ -178,6 +180,7 @@ pub fn claude_question_selector_position(
     questions: &[SessionChatQuestion],
     screen_text: &str,
 ) -> Option<ClaudeQuestionSelectorPosition> {
+    let screen_text = crate::session_chat_resume_prompt::strip_claude_side_panel(screen_text);
     let lines: Vec<&str> = screen_text.lines().map(str::trim_end).collect();
     let (tab, rows_from) = claude_question_tab_and_rows(questions, &lines)?;
     let highlight = lines[rows_from..]

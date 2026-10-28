@@ -124,6 +124,9 @@ pub struct SearchState {
 pub struct TerminalTailState {
     /// The newest hover read, or `None` before the first one answered.
     pub tail: Option<Value>,
+    /// Whether a turn was running and a question or approval was open when `tail` answered
+    /// (`extras/terminal_tail.rs` `expire`).
+    pub tail_measured_during: Option<(bool, bool)>,
     /// The request id of the hover read in flight, so an older answer is dropped.
     pub hover_request: Option<u64>,
     pub notice_request: Option<u64>,

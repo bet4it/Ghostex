@@ -412,7 +412,9 @@ pub(crate) fn parse_picker_row(line: &str) -> Option<(bool, u32, String)> {
 /// read, but the card's detail came out as the panel's rules and file names run into the command
 /// ("────│notes/long.py (untracked) rm notes/keep2.txt ────│New file not yet staged"), and the
 /// tool, command and reason were not read at all (seen on Omarchy at 200 columns; any wide window
-/// does it). A `│` in one column on most lines of the screen, well right of the left edge, is that
+/// does it). The AskUserQuestion selector had the same problem: its highlight could not be read, so
+/// every answer from the chat was refused (session_chat_question_liveness.rs). A `│` in one column
+/// on most lines of the screen, well right of the left edge, is that
 /// divider: lines that have it are cut there; lines without it are kept whole.
 pub(crate) fn strip_claude_side_panel(text: &str) -> String {
     const DIVIDER: char = '\u{2502}';
@@ -433,7 +435,9 @@ pub(crate) fn strip_claude_side_panel(text: &str) -> String {
         .iter()
         .filter(|line| line.iter().any(|character| !character.is_whitespace()))
         .count();
-    let Some((column, count)) = counts.into_iter().max_by_key(|(column, count)| (*count, *column))
+    let Some((column, count)) = counts
+        .into_iter()
+        .max_by_key(|(column, count)| (*count, *column))
     else {
         return text.to_string();
     };

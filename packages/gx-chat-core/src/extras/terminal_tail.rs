@@ -22,6 +22,19 @@ pub fn retire(tail: &mut TerminalTailState) {
     tail.notice_loading = false;
 }
 
+/// Drops the hover verdict once a turn starts or ends or a question or approval opens or closes.
+///
+/// CDXC:SessionChat 2026-10-28 WHY: The verdict is only read on hover, so a "not ready" read while
+/// Codex's approval box covered its input box stayed red, with Copy Report beside it, long after
+/// the box closed and the agent was waiting for input again (found testing Codex on Linux; every
+/// desktop and the phone draw this document). Neutral is the honest state for an unmeasured screen.
+pub fn expire(tail: &mut TerminalTailState, now: (bool, bool)) {
+    if tail.tail.is_some() && tail.tail_measured_during.is_some_and(|then| then != now) {
+        tail.tail = None;
+        tail.tail_measured_during = None;
+    }
+}
+
 /// `project`: the `terminalTail` document value.
 pub fn project(tail: &TerminalTailState) -> TerminalTail {
     /*

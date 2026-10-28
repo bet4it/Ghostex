@@ -235,6 +235,7 @@ fn option_rows(remainder: &[String]) -> (Vec<TerminalDialogRow>, RangeInclusive<
 /// Claude's panel boundary survives nested menus and clipped footers; a later composer means the panel is historical.
 /// SEE-ALSO: apps/desktop/src/app/native_chat/terminal_dialog.rs.
 pub fn detect_claude_dialog(text: &str) -> Option<TerminalDialog> {
+    let text = &crate::session_chat_resume_prompt::strip_claude_side_panel(text);
     if let Some(dialog) = crate::session_chat_claude_effort_notice::detect_effort_notice(text) {
         return Some(dialog);
     }

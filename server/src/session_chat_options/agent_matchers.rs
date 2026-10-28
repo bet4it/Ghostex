@@ -209,6 +209,14 @@ fn codex_footer_model(segment: &str) -> Option<(String, String, std::str::Split<
     Some((codex_model_value(first)?, first.to_string(), tokens))
 }
 
+/// CDXC:AgentScreenDetection 2026-10-28 WHY:
+/// Codex 0.164 paints `default` where the effort goes when its config names no reasoning effort
+/// (`GPT-6.1-Sol default · ~/proj`). Read as prose, the word dropped the whole footer, so every new
+/// Codex session on such a config showed "Model" and no usage until its first turn wrote a
+/// transcript (found testing Codex on Linux; the reader is shared by every platform). The word
+/// names no effort, so none is reported and the model's own default stands.
+const CODEX_DEFAULT_EFFORT_WORD: &str = "default";
+
 pub(super) fn match_codex_segment(segment: &str) -> Option<SessionChatDetectedSelection> {
     let (model, label, mut tokens) = codex_footer_model(segment)?;
     let mut selection = SessionChatDetectedSelection {
@@ -226,6 +234,8 @@ pub(super) fn match_codex_segment(segment: &str) -> Option<SessionChatDetectedSe
             label: effort.to_string(),
             source: SessionChatOptionEvidence::Terminal,
         });
+        next = tokens.next();
+    } else if next == Some(CODEX_DEFAULT_EFFORT_WORD) {
         next = tokens.next();
     }
     if next == Some("fast") {

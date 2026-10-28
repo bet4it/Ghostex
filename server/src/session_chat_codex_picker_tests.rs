@@ -220,3 +220,25 @@ fn codex_dialogs_drawn_beside_older_lines_are_still_read() {
         Some(Some("read-only".to_string()))
     );
 }
+
+/// Codex 0.164's /model list as it painted on Linux, with GPT-6.1 Terra's spaced name.
+#[test]
+fn gpt_6_1_terra_is_found_by_its_id_in_the_list_and_the_reasoning_title() {
+    let screen = include_str!("../tests/fixtures/codex-model-picker-terra.txt");
+    let rows = model_picker_rows(screen).expect("the model list is read");
+    let find = |id: &str| {
+        rows.iter()
+            .find(|row| row_names(row, id))
+            .map(|row| row.number)
+    };
+    assert_eq!(find("gpt-6.1-terra"), Some(2));
+    assert_eq!(find("gpt-6.1-sol"), Some(1));
+    assert_eq!(find("gpt-5.6-terra"), Some(7));
+    let reasoning = "Select Reasoning Level for GPT-6.1 Terra\n\n› 1. Low (default)\n  2. Medium\n  3. High\n\n  enter default · s session · esc back";
+    assert_eq!(
+        effort_picker_rows(reasoning, "gpt-6.1-terra").map(|rows| rows.len()),
+        Some(3)
+    );
+    assert!(effort_picker_offers_session(reasoning, "gpt-6.1-terra"));
+    assert!(effort_picker_rows(reasoning, "gpt-6.1-sol").is_none());
+}

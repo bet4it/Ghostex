@@ -213,6 +213,30 @@ fn terminal_tail(checks: &mut Checks) {
         core.document()["terminalTail"]["notice"]["open"].clone(),
         json!(false),
     );
+
+    // A verdict read while an approval covered the input box goes neutral once the box closes.
+    core.state_mut().session.prompt = Some(json!({ "kind": "approval" }));
+    core.act(ActionKind::TerminalTailHover, json!({}));
+    let id = core
+        .first_rpc()
+        .expect("a hover during the approval reads the screen");
+    core.settle_ok(
+        id,
+        json!({ "captured": true, "composerState": "notReady", "reason": "Approval open.", "lines": [] }),
+    );
+    core.tick();
+    checks.eq(
+        "the verdict stands while the approval is still open",
+        core.document()["terminalTail"]["readiness"].clone(),
+        json!("notReady"),
+    );
+    core.state_mut().session.prompt = None;
+    core.tick();
+    checks.eq(
+        "the verdict goes neutral once the approval closes",
+        core.document()["terminalTail"]["readiness"].clone(),
+        Value::Null,
+    );
 }
 
 fn subagent(checks: &mut Checks) {

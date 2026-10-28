@@ -167,6 +167,8 @@ fn settle_with_ids(
     if state.core.operation_error_code.as_deref() != Some("composerNotReady") {
         terminal_tail::retire(&mut state.extras.terminal_tail);
     }
+    let prompt_open = state.session.prompt.is_some();
+    terminal_tail::expire(&mut state.extras.terminal_tail, (working, prompt_open));
     search::settle(&mut state.extras.search, &items);
     settle_activity_clock(state, context);
     arm_timers(state, context);
@@ -265,6 +267,10 @@ fn settle_terminal_tail_rpc(
         // Keep the last verdict; a failed read is "unknown", never "not ready".
         if let Ok(result) = outcome {
             tail.tail = Some(result.clone());
+            tail.tail_measured_during = Some((
+                state.session.server_working || state.session.external_working,
+                state.session.prompt.is_some(),
+            ));
         }
         return Some(Vec::new());
     }
