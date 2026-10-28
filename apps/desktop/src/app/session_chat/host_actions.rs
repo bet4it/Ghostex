@@ -692,6 +692,7 @@ impl GhostexGpuiApp {
             "exportTranscript" => TerminalAgentActionRequest::ExportTranscript,
             "stashPrompt" => TerminalAgentActionRequest::StashPrompt,
             "stashedPrompts" => TerminalAgentActionRequest::StashedPrompts,
+            "sessionNote" => TerminalAgentActionRequest::SessionNote,
             _ => return,
         };
         self.handle_gpui_engine_terminal_agent_action(

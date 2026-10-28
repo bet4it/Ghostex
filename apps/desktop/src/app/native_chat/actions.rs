@@ -250,6 +250,22 @@ impl NativeChatView {
         }) {
             rows.push(host_row(action));
         }
+        /*
+        CDXC:SessionChat 2026-10-29 DECISION:
+        User, on the terminal view's More actions menu matching the chat's (Q729, "Yes, add it"): the chat's More actions menu gets a Session note row after Close After Done, opening the same note dialog the terminal row opens, with the same "1" badge when a note exists, on the computer and the phone (apps/mobile/app/src/chat/native/composer/menus.ts). The note toolbar button is never offered (the core's `composerActions.note` is off), so this row is the only way in unless the control folded here itself.
+        */
+        if !(self.composer_control_overflowed("note") && self.composer_control_available("note"))
+            && self.composer_control_available("files")
+        {
+            let mut row = json!({
+                "label":"Session note","iconPath":"titlebar/note.svg","hotkeyAction":"sessionNote",
+                "command":{"type":"host","action":"sessionNote"},
+            });
+            if self.snapshot["composerChrome"]["notePresence"] == true {
+                row["badge"] = json!("1");
+            }
+            rows.push(row);
+        }
         for (id, action, label, icon) in super::toolbar::COMPOSER_CONTROLS {
             // An overflowed control folds into this menu only when the host gave it a handler.
             if self.composer_control_overflowed(id) && self.composer_control_available(id) {

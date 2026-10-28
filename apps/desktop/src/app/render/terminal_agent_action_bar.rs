@@ -326,9 +326,9 @@ Close After Done action, then the host's "Agent" group, then the host's
 remaining actions in host-list order under no heading at all. The headings themselves come from
 [`terminal_agent_bar_menu_group_heading`], keyed off the row that opens each
 block. Prompt editor is intentionally absent because its accent button is always
-visible immediately beside the menu. Session note and Saved prompts are terminal-only
-rows (see the decision on `render_terminal_agent_action_bar`); Skills, Stash prompt and
-Handoff close the menu in the chat's order.
+visible immediately beside the menu. Saved prompts is the one terminal-only row (see
+the decision on `render_terminal_agent_action_bar`); Session note, Skills, Stash prompt
+and Handoff are in the chat's order.
 */
 const TERMINAL_AGENT_BAR_MENU_ROWS: &[Option<TerminalAgentBarAction>] = &[
     Some(TerminalAgentBarAction::VerboseMode),
@@ -389,6 +389,7 @@ impl GhostexGpuiApp {
     /// CDXC:SessionChat 2026-10-29 DECISION:
     /// User: "Please unify the order of the buttons shown at the bottom right here for the terminal view and the chat view. Let's take the chat view as the source of truth." and then "also please make the shown sessions and the ones placed inside the More Actions menu match, there's more buttons on terminal side currently".
     /// The bar shows what the chat composer shows, in its order (`native_chat/toolbar.rs`, `COMPOSER_CONTROLS`, then Dictate, then Send): More, Attach, Maximize, the view toggle (Chat View here, where the chat has Terminal View), Dictate, and the main action last (Prompt editor, in Send's slot). Everything else is a ⋯ menu row in the chat menu's order (`TERMINAL_AGENT_BAR_MENU_ROWS`): Session note after Close After Done, where the chat folds its toolbar controls, and Stash prompt after Skills, with the note's "1" and the stash count as a badge after the row's label (the chat's Stash prompt row does the same). Saved prompts is a terminal-only row under Stash prompt: the chat opens them from Stash prompt when its box is empty, and a terminal cannot see its prompt box.
+    /// User, on the chat's More menu getting the note too (Q729, "Yes, add it"): the chat's menu gets a Session note row after Close After Done, opening the same note dialog as this one, with the same "1" badge, on the computer and the phone (`native_chat/actions.rs`, the phone's `composer/menus.ts`). So both menus now carry it; only Saved prompts stays terminal-only.
     fn render_terminal_agent_action_bar(
         &self,
         surface: TerminalAgentBarSurface,
