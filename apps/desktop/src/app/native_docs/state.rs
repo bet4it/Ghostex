@@ -367,6 +367,9 @@ pub(crate) struct DocsDocument {
     pub(crate) data_view_open: bool,
     /// The table or tree, built from the editor's text while the switch is on (`data_views.rs`).
     pub(crate) data_view: Option<super::data_views::DocsDataView>,
+    /// Reopened from the last visit (`native_docs_restore_open_files`) rather than opened now, so
+    /// a file deleted since then closes quietly (`native_docs_apply_read`).
+    pub(crate) restored: bool,
 }
 
 impl DocsDocument {
@@ -418,6 +421,7 @@ impl DocsDocument {
             _editor_subscription: None,
             data_view_open,
             data_view: None,
+            restored: false,
         }
     }
 }

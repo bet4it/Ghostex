@@ -7,6 +7,9 @@ use serde_json::json;
 use super::state::{DocsDocument, DocsDocumentLoad, DocsFileKind};
 use crate::GhostexGpuiApp;
 
+/// What a file opened from a link or a search says when it is not there any more.
+const MISSING_FILE_MESSAGE: &str = "This file no longer exists.";
+
 impl GhostexGpuiApp {
     /// Opens `path` (or selects it when it is already open) and closes a narrow view's drawer.
     pub(crate) fn native_docs_open(
@@ -199,6 +202,29 @@ impl GhostexGpuiApp {
                 document.load = DocsDocumentLoad::Unsupported(reason);
             }
             self.native_docs_notify(cx);
+            return;
+        }
+        if file["missing"] == true {
+            /*
+            CDXC:Docs 2026-10-28 WHY: the Files view reopens the files that were open last time,
+            and one deleted since then failed with "Manage paths must stay inside the project"
+            (`manage_existing_url` reads every unresolvable path as outside the project), leaving
+            the view on an error instead of the tree (found testing on Linux; every platform).
+            A file that is not there any more answers `missing`: a reopened one without a draft
+            closes quietly, so the view falls back to the next file or the tree, and anything else
+            says plainly that the file is gone.
+            */
+            let quiet = self.native_docs.document(path).is_some_and(|document| {
+                document.restored && !self.native_docs.drafts.contains_key(path)
+            });
+            if quiet {
+                self.native_docs_close(path, cx);
+            } else {
+                if let Some(document) = self.native_docs.document_mut(path) {
+                    document.load = DocsDocumentLoad::Error(MISSING_FILE_MESSAGE.to_string());
+                }
+                self.native_docs_notify(cx);
+            }
             return;
         }
         let error = response["error"]
