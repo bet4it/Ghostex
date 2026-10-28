@@ -137,6 +137,40 @@ pub(crate) fn command_exists(command: &str, home_dir: &Path) -> bool {
     cached_resolve_command_path(command, home_dir).is_some()
 }
 
+/// What hook status says about an agent's CLI.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum CliPresence {
+    Installed,
+    /// Only an install-on-demand launcher is on PATH (`on_demand.rs`): not installed yet.
+    InstallsOnDemand,
+    Missing,
+}
+
+/// CDXC:AgentHooks 2026-10-28 WHY:
+/// Hook status counted any `gemini` on PATH as installed, so setup showed Omarchy's
+/// install-on-first-run launcher (`mise use -g …` then `mise x …`) as "Installed / Connected" while
+/// gxserver's own probes treated the same agent as not installed yet. Status now uses the probe rule
+/// (`on_demand::probe_target`): a real install, or the install a launcher would run once mise has
+/// it, is installed; a launcher alone is "installs on demand".
+pub(crate) fn cli_presence(command: &str, home_dir: &Path) -> CliPresence {
+    cli_presence_with(
+        cached_resolve_command_path(command, home_dir).as_deref(),
+        |path| super::on_demand::probe_target(path, command, home_dir),
+    )
+}
+
+/// `cli_presence` with the resolved PATH entry and the probe rule passed in.
+pub(crate) fn cli_presence_with(
+    resolved: Option<&str>,
+    probe_target: impl FnOnce(&str) -> Option<String>,
+) -> CliPresence {
+    match resolved {
+        None => CliPresence::Missing,
+        Some(path) if probe_target(path).is_some() => CliPresence::Installed,
+        Some(_) => CliPresence::InstallsOnDemand,
+    }
+}
+
 /// Same check, but re-probed now and written back to the cache. Install acts on
 /// the answer, so it must not skip a provider whose CLI appeared inside the
 /// cache window.

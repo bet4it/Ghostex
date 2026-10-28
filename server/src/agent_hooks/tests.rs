@@ -50,6 +50,7 @@ fn hook_status_reports_profile_only_provider_hook_paths() {
     let temp = tempfile::tempdir().expect("tempdir");
     let paths = get_gxserver_paths(Some(temp.path().to_path_buf()));
     let hook_paths = HookPaths::from_paths(&paths);
+    seed_real_cli(&hook_paths.home_dir, "claude");
     write_test_executable(&temp.path().join(".local").join("bin").join("claude"));
     install_notify_hook(&hook_paths).expect("notify hook");
     let profile_path = temp
@@ -168,6 +169,7 @@ fn hook_status_uses_pi_agent_extension_before_legacy_root_paths() {
     let temp = tempfile::tempdir().expect("tempdir");
     let paths = get_gxserver_paths(Some(temp.path().to_path_buf()));
     let hook_paths = HookPaths::from_paths(&paths);
+    seed_real_cli(&hook_paths.home_dir, "pi");
     write_test_executable(&temp.path().join(".local").join("bin").join("pi"));
     install_notify_hook(&hook_paths).expect("notify hook");
     let pi = HookDefinition {
@@ -232,6 +234,7 @@ fn hook_status_reports_legacy_pi_agent_extension_as_update_required() {
     let temp = tempfile::tempdir().expect("tempdir");
     let paths = get_gxserver_paths(Some(temp.path().to_path_buf()));
     let hook_paths = HookPaths::new(paths.home_dir.clone());
+    seed_real_cli(&hook_paths.home_dir, "pi");
     write_test_executable(&temp.path().join(".local").join("bin").join("pi"));
     install_notify_hook(&hook_paths).expect("notify hook");
     let legacy_agent_extension_path = temp
@@ -796,6 +799,14 @@ fn hermes_hooks_cover_every_profile_config() {
     assert!(read_file_text(&dobby).contains("my-audit-hook"));
 }
 
+/// A real (not install-on-first-run) `command` in the test's own home, so hook status reads it
+/// as installed whatever CLIs the machine running the tests has.
+fn seed_real_cli(home: &Path, command: &str) {
+    let path = home.join(".local/bin").join(command);
+    write_test_file(&path, "#!/bin/sh\nexit 0\n");
+    super::probe_cache::seed_command_path_for_test(command, home, Some(path_string(&path)));
+}
+
 fn write_test_file(path: &Path, text: &str) {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent).expect("parent");
@@ -806,4 +817,39 @@ fn write_test_file(path: &Path, text: &str) {
 fn write_test_executable(path: &Path) {
     write_test_file(path, "#!/bin/sh\nexit 0\n");
     set_executable_permissions(path).expect("chmod test executable");
+}
+
+#[test]
+fn an_install_on_first_run_launcher_is_not_an_installed_cli() {
+    use super::on_demand::{classify, Kind};
+    use super::probing::{cli_presence_with, CliPresence};
+    let temp = tempfile::tempdir().expect("tempdir");
+    let home = temp.path();
+    // Omarchy's ~/.local/bin/gemini: installs the agent with mise the first time it runs.
+    let launcher = home.join(".local/bin/gemini");
+    write_test_file(
+        &launcher,
+        "#!/bin/bash\nmise use -g npm:@google/gemini-cli >/dev/null 2>&1\nexec mise x -- gemini \"$@\"\n",
+    );
+    let real = home.join(".local/bin/claude");
+    write_test_file(&real, &"\0binary".repeat(4096));
+    // The probe rule with no mise install behind the launcher.
+    let probe =
+        |path: &str| (classify(Path::new(path), home) == Kind::Real).then(|| path.to_string());
+    assert_eq!(
+        cli_presence_with(Some(&launcher.to_string_lossy()), probe),
+        CliPresence::InstallsOnDemand
+    );
+    assert_eq!(
+        cli_presence_with(Some(&real.to_string_lossy()), probe),
+        CliPresence::Installed
+    );
+    assert_eq!(cli_presence_with(None, probe), CliPresence::Missing);
+    // Once mise has installed it, the launcher resolves to the real install: installed.
+    assert_eq!(
+        cli_presence_with(Some(&launcher.to_string_lossy()), |_| Some(
+            real.to_string_lossy().into_owned()
+        )),
+        CliPresence::Installed
+    );
 }

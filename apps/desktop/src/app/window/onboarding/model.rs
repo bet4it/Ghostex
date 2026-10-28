@@ -77,6 +77,9 @@ pub(crate) struct DetectedAgent {
     pub(crate) detail: Option<String>,
     /// The hook status row said `updateRequired`.
     pub(crate) update_required: bool,
+    /// Only an install-on-first-run launcher is on PATH (gxserver's `cliInstallsOnDemand`, e.g.
+    /// Omarchy's `mise use -g …` wrappers): not installed yet.
+    pub(crate) installs_on_demand: bool,
 }
 
 /// A sidebar catalog agent: id, display name and logo (`DEFAULT_SIDEBAR_AGENTS`).
@@ -145,6 +148,8 @@ pub(crate) fn detected_agents_from_hook_status(
                 hooks_installed: row.get("hookInstalled").and_then(Value::as_bool) == Some(true),
                 update_required: row.get("status").and_then(Value::as_str)
                     == Some("updateRequired"),
+                installs_on_demand: row.get("cliInstallsOnDemand").and_then(Value::as_bool)
+                    == Some(true),
                 agent_id,
                 name,
                 detail,
@@ -918,6 +923,32 @@ mod tests {
 
     #[test]
     fn linux_session_picks_the_computer_use_copy() {
+    #[test]
+    fn a_launcher_only_agent_reads_as_not_installed() {
+        let payload = serde_json::json!({ "agents": [
+            { "agentId": "gemini", "cliInstalled": false, "cliInstallsOnDemand": true, "status": "cliMissing" },
+            { "agentId": "claude", "cliInstalled": true, "hookInstalled": true, "status": "installed" },
+        ]});
+        let agents = detected_agents_from_hook_status(&payload, &[]);
+        let gemini = agents
+            .iter()
+            .find(|agent| agent.agent_id == "gemini")
+            .unwrap();
+        assert!(!gemini.installed && gemini.installs_on_demand);
+        let claude = agents
+            .iter()
+            .find(|agent| agent.agent_id == "claude")
+            .unwrap();
+        assert!(claude.installed && !claude.installs_on_demand);
+        assert_eq!(
+            installed_agents(&agents)
+                .iter()
+                .map(|agent| agent.agent_id.as_str())
+                .collect::<Vec<_>>(),
+            vec!["claude"]
+        );
+    }
+
         assert_eq!(
             ComputerUseDesktop::linux(Some("wayland"), false),
             ComputerUseDesktop::LinuxWayland

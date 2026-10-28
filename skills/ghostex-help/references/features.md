@@ -4219,7 +4219,9 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
 - Welcome to Ghostex is the onboarding that opens the first time Ghostex
   runs. Its five panels cover: the agents found on this computer, with
   Install buttons for Claude Code, Codex, Cursor Agent and Grok Build (an Add
-  to PATH button when an installed CLI is not on PATH), an Install guide
+  to PATH button when an installed CLI is not on PATH; a command that is only
+  a launcher installing the agent the first time it runs, like Omarchy's, shows
+  as not installed yet), an Install guide
   that installs any other supported agent, the Ghostex helper (agent hooks)
   and Computer Use; which views to show (Browser and Files are on by default
   on a first run) and the browser skill; phone pairing and notifications;

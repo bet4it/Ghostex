@@ -984,6 +984,13 @@ impl GpuiOnboardingWindow {
             "Installed, but new terminals cannot find it".to_string()
         } else if installed {
             "Installed, press Rescan".to_string()
+        } else if self
+            .agents
+            .iter()
+            .any(|agent| agent.agent_id == agent_id && agent.installs_on_demand)
+        {
+            // CDXC:Onboarding 2026-10-28 WHY: an install-on-first-run launcher (Omarchy's mise wrappers) is not an install; gxserver reports it apart so setup neither calls it Installed nor hides why a command already answers to the name.
+            "Not installed yet · installs itself the first time you start it".to_string()
         } else if let Some(method) = &method {
             format!("Not installed · {}", method.display_label())
         } else {
