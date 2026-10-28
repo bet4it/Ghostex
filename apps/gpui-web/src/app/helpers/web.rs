@@ -92,6 +92,9 @@ pub(crate) const WINDOW_GLASS_MENU_ALPHA: f32 = 0.78;
 /// A menu's frosted blur samples the desktop behind its native window; a canvas menu has none.
 pub(crate) fn apply_frosted_menu_blur(_window: &gpui::Window) {}
 
+/// A page has no window glass, so a tooltip bubble has no blur to set.
+pub(crate) fn apply_frosted_tooltip_blur(_window: &gpui::Window) {}
+
 /// Never reached with glass off; the sidebar's glass tint has no meaning without glass.
 pub(crate) fn sidebar_glass_tint() -> gpui::Hsla {
     gpui::transparent_black()

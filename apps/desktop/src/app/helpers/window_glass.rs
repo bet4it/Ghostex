@@ -747,7 +747,8 @@ pub(crate) fn frosted_menu_alpha() -> f32 {
     }
 }
 
-/// Default blur radius of a frosted menu or tooltip window (`windowGlassMenuBlurRadius`).
+/// Default blur radius of a frosted menu or tooltip window (`windowGlassMenuBlurRadius`); every
+/// frosted surface but a tooltip blurs `FROSTED_SURFACE_BLUR_SCALE` times it.
 /// Narrower than the main window's glass so the shapes and colours behind a menu still read
 /// through it.
 pub(crate) const FROSTED_MENU_BLUR_RADIUS: f32 = 20.0;
@@ -760,14 +761,33 @@ pub(crate) const FROSTED_MENU_KEEP_SATURATION: bool = true;
 ///
 /// CDXC:Theming 2026-10-15 WHY:
 /// The user's "moving the blur slider does nothing": a window that stays open (Settings and every app modal, the reused frosted menu and tooltip hosts) took the Menu blur only when it opened, so those call this from their render on macOS, where an unchanged radius costs nothing. Windows and Linux have no menu blur radius, and Windows refuses a backdrop change during a draw.
+///
+/// Every frosted surface but a tooltip (the dialogs, the large panels, the popovers and the
+/// dropdowns and menus) blurs `FROSTED_SURFACE_BLUR_SCALE` times the Menu blur value
+/// (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`); tooltips take `apply_frosted_tooltip_blur`.
 pub(crate) fn apply_frosted_menu_blur(window: &gpui::Window) {
     window.set_background_blur_style(
-        gpui::px(f32::from(
-            WINDOW_GLASS_MENU_BLUR_RADIUS.load(Ordering::Relaxed),
-        )),
+        gpui::px(frosted_menu_blur_value() * FROSTED_SURFACE_BLUR_SCALE),
         FROSTED_MENU_KEEP_SATURATION,
     );
 }
+
+/// `apply_frosted_menu_blur` for a tooltip bubble's window: the Menu blur value itself.
+pub(crate) fn apply_frosted_tooltip_blur(window: &gpui::Window) {
+    window.set_background_blur_style(
+        gpui::px(frosted_menu_blur_value()),
+        FROSTED_MENU_KEEP_SATURATION,
+    );
+}
+
+/// The Menu blur slider's value (`windowGlassMenuBlurRadius`), in points.
+fn frosted_menu_blur_value() -> f32 {
+    f32::from(WINDOW_GLASS_MENU_BLUR_RADIUS.load(Ordering::Relaxed))
+}
+
+/// How much more than the Menu blur value a frosted surface other than a tooltip blurs: 25% more,
+/// so the default 20 points become 25 (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+pub(crate) const FROSTED_SURFACE_BLUR_SCALE: f32 = 1.25;
 
 /// The fill of a menu or panel that has a window of its own (the header's dropdowns): the frosted
 /// menu fill under glass, where that window blurs whatever is behind it.
@@ -809,17 +829,18 @@ pub(crate) fn frosted_modal_fill(color: Hsla) -> Hsla {
     color.opacity(frosted_modal_alpha())
 }
 
-/// `popup_window_surface` for a dialog or panel rather than a menu (`frosted_modal_fill`).
-pub(crate) fn popup_window_modal_surface(color: Hsla) -> Hsla {
+/// `popup_window_surface` for a dropdown panel rather than a menu (the titlebar's Notifications,
+/// Tips, Resources and Dev servers panels): the large panels' darker frost (`frosted_panel_fill`).
+pub(crate) fn popup_window_panel_surface(color: Hsla) -> Hsla {
     if window_glass_active() {
-        frosted_modal_fill(color)
+        frosted_panel_fill(color)
     } else {
         color
     }
 }
 
 /// CDXC:AppModal 2026-10-29 DECISION:
-/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark, 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Then, of those large panels: "please make the glass in the settings and other similar windows that we made transparent+frosted show darker bg pls". The large panels stay frosted but take a darker tint (`frosted_panel_fill`): the theme colour, not lifted toward white, covering `FROSTED_PANEL_ALPHA_DARK` (60%) of the blur in dark mode and `FROSTED_PANEL_ALPHA_LIGHT` (75%) in light mode on macOS; Windows keeps the menus' 86%, already darker, and Linux stays opaque. Their washes are unchanged. The form dialogs keep the popover's fill. Glass off, nothing changes.
+/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark, 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Then, of those large panels: "please make the glass in the settings and other similar windows that we made transparent+frosted show darker bg pls". The large panels stay frosted but take a darker tint (`frosted_panel_fill`): the theme colour, not lifted toward white, covering `FROSTED_PANEL_ALPHA_DARK` (60%) of the blur in dark mode and `FROSTED_PANEL_ALPHA_LIGHT` (75%) in light mode on macOS; Windows keeps the menus' 86%, already darker, and Linux stays opaque. Their washes are unchanged. The form dialogs keep the popover's fill. Then, of the bell's Notifications dropdown: "please for dropdowns like this one we need to do same as what we did for settings bg ... this dropdown is too black now": the titlebar's dropdown panels (Notifications, Tips, Resources, Dev servers) take the large panels' fill (`popup_window_panel_surface`) and the dialogs' washes on their cards and hairlines, instead of the 2026-09-30 near-solid fill. And: "we need to make all of those frosted backgrounds we did in settings and other backgrounds have 25% more blur (same for the dropdowns too)": every frosted surface but a tooltip (the dialogs, the large panels, the popovers, the dropdowns and menus) blurs `FROSTED_SURFACE_BLUR_SCALE` (1.25) times the Menu blur value, 25 points at the default 20, so the user's own Menu blur choice still scales it; tooltips keep the Menu blur value. Glass off, nothing changes.
 pub(crate) fn frosted_dialog_fill(color: Hsla) -> Hsla {
     frosted_menu_fill(color)
 }
@@ -971,6 +992,11 @@ mod frosted_dialog_tests {
 
     /// The form dialogs take the Accounts & limits popover's fill (CDXC:AppModal 2026-10-29):
     /// thinner than the large panels' frost on macOS and Windows, opaque on Linux.
+    #[test]
+    fn frosted_surfaces_blur_a_quarter_more_than_the_menu_blur() {
+        assert_eq!(FROSTED_MENU_BLUR_RADIUS * FROSTED_SURFACE_BLUR_SCALE, 25.0);
+    }
+
     #[test]
     fn frosted_dialog_fill_is_the_popover_fill() {
         let chrome: Hsla = gpui::rgb(0x0e0e0e).into();

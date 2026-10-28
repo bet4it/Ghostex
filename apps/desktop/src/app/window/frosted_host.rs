@@ -294,7 +294,7 @@ fn open_host(
             ..Default::default()
         },
         move |window, cx| {
-            crate::app::helpers::apply_frosted_menu_blur(window);
+            apply_host_blur(window, kind);
             match kind {
                 // A tooltip bubble sits inside margins, so its window's blur follows the bubble.
                 FrostedHostKind::Tooltip => window.set_frosted_surface(true),
@@ -338,6 +338,16 @@ fn open_host(
     .ok()
 }
 
+/// A tooltip bubble keeps the Menu blur value; every other host takes the frosted surfaces' 25%
+/// more (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+fn apply_host_blur(window: &Window, kind: FrostedHostKind) {
+    if kind == FrostedHostKind::Tooltip {
+        crate::app::helpers::apply_frosted_tooltip_blur(window);
+    } else {
+        crate::app::helpers::apply_frosted_menu_blur(window);
+    }
+}
+
 pub(crate) struct FrostedHostView {
     kind: FrostedHostKind,
     _observe: Option<Subscription>,
@@ -358,7 +368,7 @@ impl Render for FrostedHostView {
         // The host window is reused, so it follows the Menu blur slider here rather than at open
         // (CDXC:Theming 2026-10-15 on `apply_frosted_menu_blur`).
         #[cfg(target_os = "macos")]
-        crate::app::helpers::apply_frosted_menu_blur(window);
+        apply_host_blur(window, self.kind);
         // A sidebar menu's host hands its tooltips (the New Orchestrator… (i)) to the frosted
         // tooltip window, attached above this one, so the bubble is neither clipped to the menu's
         // window nor drawn under it.
