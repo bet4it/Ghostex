@@ -659,6 +659,16 @@ pub(crate) async fn send_session_chat_message_with_draft(
     .await;
     if let (Err(error), Some(retry_steps)) = (&sent, retry_steps) {
         if paste_not_accepted(error) {
+            // The screen the paste check gave up on goes into the log line below, so a late paste
+            // can be told apart from a half-drawn input box (CDXC:SessionChat 2026-10-29 in
+            // held_redraw.rs).
+            let gave_up_on =
+                crate::session_chat_send::capture_session_terminal_text(&target.zmx_name)
+                    .await
+                    .map(|screen| {
+                        crate::session_chat_composer::composer_terminal_preview_tail(&screen)
+                    })
+                    .unwrap_or_default();
             if let Some(mut late_steps) = late_paste_steps(&retry_steps) {
                 late_steps.insert(
                     0,
@@ -680,7 +690,7 @@ pub(crate) async fn send_session_chat_message_with_draft(
                         &target.project_id,
                         &target.session_id,
                         "The pasted message showed up after the paste check gave up; it was submitted as it was.",
-                        &[],
+                        &gave_up_on,
                     );
                 }
             }

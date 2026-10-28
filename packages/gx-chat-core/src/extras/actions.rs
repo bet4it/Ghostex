@@ -189,7 +189,7 @@ pub fn handle(state: &mut ChatState, action: &UserAction, context: &ChatContext)
 }
 
 /// `POST /api/readSessionTerminalTail`.
-fn read_terminal_tail(request_id: u64) -> Effect {
+pub(crate) fn read_terminal_tail(request_id: u64) -> Effect {
     Effect::SendRpc {
         request_id,
         method: ChatRpcMethod::ReadSessionTerminalTail,

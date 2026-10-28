@@ -4481,11 +4481,15 @@ says why in plain words, closes that session and turns the switch off, so you ca
 still send your report without the agent.
 
 When a chat message cannot reach the agent because Ghostex cannot see its input
-box, the "Message not sent" card has Copy Report. It copies a report of what
-Ghostex sees in that session to the clipboard: the whole terminal screen as
-Ghostex reads it, whether the input box is ready and why not, the terminal's
-size, the session's waiting messages and recent send problems, and the Ghostex
-version and operating system (no folder names or account details). A toast says
+box, the "Message not sent" card has Copy Report, and so does the chat box while
+its Terminal View button is red (it clears by itself once the input box reads
+again). It copies a report of what Ghostex sees in that session to the
+clipboard: the whole terminal screen as Ghostex reads it, whether the input box
+is ready and why not, the terminal's size, the session's waiting messages and
+recent send problems, and the Ghostex version and operating system. It names
+nothing about you: the session's name and id, the project's name, folder paths,
+your user name, emails, account names and other ids are left out or masked
+(shown as `<path>`, `<email>` and the like), including on the screen. A toast says
 it was copied, and Send Bug / Feedback opens with "Collect more data with an
 agent" on, so you can paste the report there and send it to us as a GitHub
 issue. The phone's chat has the same button.

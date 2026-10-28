@@ -95,6 +95,7 @@ mod send_heal;
 mod wiring;
 
 pub(crate) use endpoints::*;
+pub(crate) use held_redraw::repair_unreadable_frame;
 pub(crate) use mid_turn::*;
 pub(crate) use post_send::*;
 pub use scheduler::*;

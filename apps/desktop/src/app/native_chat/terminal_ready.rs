@@ -1,7 +1,8 @@
 //! The composer footer's Terminal View button doubles as the agent CLI's
 //! readiness light. It comes from the session-scoped terminal-tail read the
-//! `composerNotReady` card uses; the read happens only on hover or focus, never
-//! on a background timer.
+//! `composerNotReady` card uses; the read happens on hover or focus, and again on
+//! its own only while it reads not ready, so a red verdict clears itself
+//! (gx-chat-core `extras/terminal_tail.rs`).
 //!
 //! Only a measured verdict tints the glyph: `unknown`, an unreadable screen and
 //! the time before the first hover keep the inherited footer color, because the

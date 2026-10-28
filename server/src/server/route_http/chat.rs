@@ -278,20 +278,38 @@ pub(super) async fn route_chat_http(
         and the capture is a direct socket read measured in single-digit
         milliseconds — the same one every screen-state reader already takes.
         */
-        "/api/readSessionTerminalTail" => handle_domain_http(
-            &state,
-            endpoint.path,
-            request_id,
-            &body_json,
-            |repository, _db, params, _| {
-                crate::session_chat_composer::read_session_terminal_tail(
-                    repository,
-                    &read_project_id(params)?,
-                    &read_session_id(params)?,
-                    params.get("agentId").and_then(Value::as_str),
+        // On a blocking thread: a half-drawn Claude frame is looked at again and may be repaired
+        // before the answer (`repair_unreadable_frame`), which waits about a second.
+        "/api/readSessionTerminalTail" => {
+            let (fallback_path, fallback_id) = (endpoint.path.clone(), request_id.clone());
+            tokio::task::spawn_blocking(move || {
+                handle_domain_http(
+                    &state,
+                    endpoint.path,
+                    request_id,
+                    &body_json,
+                    |repository, _db, params, _| {
+                        crate::session_chat_composer::read_session_terminal_tail(
+                            repository,
+                            &read_project_id(params)?,
+                            &read_session_id(params)?,
+                            params.get("agentId").and_then(Value::as_str),
+                        )
+                    },
                 )
-            },
-        ),
+            })
+            .await
+            .unwrap_or_else(|_| {
+                domain_error_response(
+                    fallback_path,
+                    fallback_id,
+                    crate::domain::DomainStateError {
+                        code: "internalError",
+                        message: "Could not read the terminal screen.".to_string(),
+                    },
+                )
+            })
+        }
         // Copy Report (session_chat_report.rs).
         "/api/readSessionChatReport" => handle_domain_http(
             &state,

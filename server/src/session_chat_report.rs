@@ -6,13 +6,17 @@ use serde_json::{json, Value};
 use crate::domain::{DomainRepository, DomainStateError};
 use crate::server::AppState;
 
+mod mask;
+
+use mask::{report_screen, ReportMask};
+
 /// Send problems the report lists, newest last.
 const RECENT_SEND_PROBLEMS: usize = 8;
 /// A logged message longer than this is cut, so one entry cannot crowd out the screen.
 const PROBLEM_MESSAGE_MAX_CHARS: usize = 240;
 
 /// CDXC:SessionChat 2026-10-25 DECISION:
-/// User: "i want a way to report such issues where it goes and captures the terminal for me into clipboard when the chat composer shows red so ppl can share it… should copy full screen of terminal with 200 width basically as seen by ghostex", with "useful info" about the current state. The report is built here, on the machine that runs the session, so every chat (desktop, web, phone, a remote session) copies the same text: the session, the input-box verdict and the notice the chat acts on, the terminal's size and clients, the queue, the session's recent refused or held sends, and the whole live grid as gxserver captures it. It names no folders, accounts or message text beyond what is on the screen.
+/// User: "i want a way to report such issues where it goes and captures the terminal for me into clipboard when the chat composer shows red so ppl can share it… should copy full screen of terminal with 200 width basically as seen by ghostex", with "useful info" about the current state. The report is built here, on the machine that runs the session, so every chat (desktop, web, phone, a remote session) copies the same text: the session, the input-box verdict and the notice the chat acts on, the terminal's size and clients, the queue, the session's recent refused or held sends, and the whole live grid as gxserver captures it. Since 2026-10-29 it names nothing that identifies the user, the machine or the work (CDXC:SessionChat 2026-10-29 in session_chat_report/mask.rs).
 /// SEE-ALSO: packages/gx-chat-core/src/extras/report.rs (Copy Report: copy, toast, then Send Bug / Feedback), server/src/session_chat_composer.rs (`read_session_terminal_tail`, the same verdict for the not-ready card).
 pub(crate) fn read_session_chat_report(
     state: &AppState,
@@ -27,48 +31,18 @@ pub(crate) fn read_session_chat_report(
         })?;
     let zmx_name = crate::zmx::provider_zmx_session_name(&session)?;
     let agent = crate::session_chat_composer::session_chat_composer_agent_id(&session);
-    let text_of = |key: &str| {
-        session
-            .get(key)
-            .and_then(Value::as_str)
-            .map(str::trim)
-            .filter(|value| !value.is_empty())
-            .map(str::to_string)
-    };
     let global_ref = format!("{}:{project_id}:{session_id}", state.metadata.server_id);
+    let mask = report_mask(
+        repository,
+        &session,
+        &global_ref,
+        &zmx_name,
+        project_id,
+        session_id,
+    );
     let now = chrono::Local::now().format("%Y-%m-%d %H:%M:%S %:z");
-
-    let mut report = String::new();
-    report.push_str("## Ghostex session report\n\n");
-    report.push_str(&format!(
-        "Ghostex {} · {} · copied {now}\n\n",
-        crate::telemetry::base::SERVER_MARKETING_VERSION,
-        os_line(),
-    ));
-
-    report.push_str("### Session\n\n");
-    report.push_str(&format!(
-        "- Agent: {}\n",
-        agent.as_deref().unwrap_or("unknown")
-    ));
-    report.push_str(&format!(
-        "- Session: {global_ref}{}\n",
-        text_of("title")
-            .map(|title| format!(" \"{title}\""))
-            .unwrap_or_default()
-    ));
-    report.push_str(&format!(
-        "- State: {} · {}\n",
-        crate::presentation::effective_lifecycle_state(&session),
-        crate::presentation::presentation_activity(&session, &crate::presentation::now_iso()),
-    ));
     let grid = crate::zmx::read_zmx_grid(&zmx_name)
         .and_then(|grid| serde_json::from_str::<Value>(&grid).ok());
-    report.push_str(&format!(
-        "- Terminal: {zmx_name}{}\n",
-        grid_line(grid.as_ref())
-    ));
-
     // The live grid alone, the screen the user sees, without scrollback.
     let capture = crate::zmx::read_zmx_session_grid_capture(&zmx_name);
     /*
@@ -79,47 +53,153 @@ pub(crate) fn read_session_chat_report(
         &zmx_name,
         agent.as_deref(),
     );
-    report.push_str("\n### What Ghostex sees\n\n");
-    match (verdict.as_ref(), capture.as_ref()) {
-        (Some(verdict), _) => {
-            report.push_str(&verdict_lines(agent.as_deref(), &verdict.text));
-        }
-        (None, Err(error)) => {
-            report.push_str(&format!("- Ghostex could not read the terminal: {error}\n"));
-        }
+    let sees = match (verdict.as_ref(), capture.as_ref()) {
+        (Some(verdict), _) => verdict_lines(agent.as_deref(), &verdict.text),
+        (None, Err(error)) => format!("- Ghostex could not read the terminal: {error}\n"),
         (None, Ok(_)) => {
-            report.push_str("- Input box: unreadable (the terminal capture lost its tail)\n");
+            "- Input box: unreadable (the terminal capture lost its tail)\n".to_string()
         }
-    }
+    };
     let queue = crate::session_chat_queue::read_session_chat_queue_snapshot(
         &state.paths,
         project_id,
         session_id,
     );
-    report.push_str(&format!("- Queue: {}\n", queue_line(&queue.queue)));
+    let report = render_report(
+        &ReportInput {
+            header: format!(
+                "Ghostex {} \u{b7} {} \u{b7} copied {now}",
+                crate::telemetry::base::SERVER_MARKETING_VERSION,
+                os_line(),
+            ),
+            agent: agent.unwrap_or_else(|| "unknown".to_string()),
+            state: format!(
+                "{} \u{b7} {}",
+                crate::presentation::effective_lifecycle_state(&session),
+                crate::presentation::presentation_activity(
+                    &session,
+                    &crate::presentation::now_iso()
+                ),
+            ),
+            grid,
+            sees,
+            queue: queue_line(&queue.queue),
+            problems: recent_send_problems(&state.paths.logs_dir, project_id, session_id),
+            screen: capture.ok().map(|capture| screen_rows(&capture.text)),
+        },
+        &mask,
+    );
+    Ok(json!({ "report": report, "projectId": project_id, "sessionId": session_id }))
+}
 
+/// What the report is made of, read off the session, its terminal and gxserver's logs, before the
+/// mask (`render_report`).
+struct ReportInput {
+    header: String,
+    agent: String,
+    state: String,
+    grid: Option<Value>,
+    /// The input-box and notice lines (`verdict_lines`), or why the screen could not be read.
+    sees: String,
+    queue: String,
+    problems: Vec<String>,
+    /// The live grid's rows (`screen_rows`), when it could be read.
+    screen: Option<String>,
+}
+
+/// The report's Markdown, every line that could carry the user's text masked.
+fn render_report(input: &ReportInput, mask: &ReportMask) -> String {
+    let mut report = String::new();
+    report.push_str("## Ghostex session report\n\n");
+    report.push_str(&format!("{}\n\n", input.header));
+    report.push_str("### Session\n\n");
+    report.push_str(&format!("- Agent: {}\n", mask.apply(&input.agent)));
+    report.push_str(&format!("- State: {}\n", input.state));
+    report.push_str(&format!(
+        "- Terminal: {}\n",
+        grid_line(input.grid.as_ref()).trim_start_matches(" \u{b7} ")
+    ));
+    report.push_str("\n### What Ghostex sees\n\n");
+    report.push_str(&mask.apply(&input.sees));
+    report.push_str(&format!("- Queue: {}\n", mask.apply(&input.queue)));
     report.push_str("\n### Recent send problems\n\n");
-    let problems = recent_send_problems(&state.paths.logs_dir, project_id, session_id);
-    if problems.is_empty() {
+    if input.problems.is_empty() {
         report.push_str("None logged.\n");
     } else {
-        for problem in problems {
-            report.push_str(&format!("- {problem}\n"));
+        for problem in &input.problems {
+            report.push_str(&format!("- {}\n", mask.apply(problem)));
         }
     }
-
-    if let Ok(capture) = capture.as_ref() {
-        let screen = screen_rows(&capture.text);
+    if let Some(screen) = input.screen.as_deref() {
+        let screen = report_screen(mask, screen);
         let fence = code_fence(&screen);
         report.push_str(&format!(
             "\n### Terminal screen{}\n\n{fence}text\n{screen}\n{fence}\n",
-            grid.as_ref()
+            input
+                .grid
+                .as_ref()
                 .and_then(grid_size)
-                .map(|(rows, cols)| format!(" ({rows} × {cols}, as Ghostex reads it)"))
+                .map(|(rows, cols)| format!(" ({rows} \u{d7} {cols}, as Ghostex reads it)"))
                 .unwrap_or_default(),
         ));
     }
-    Ok(json!({ "report": report, "projectId": project_id, "sessionId": session_id }))
+    report
+}
+
+/// What the report hides: the session's ref, ids, terminal name and title, its project's name and
+/// folder, the agent's conversation file and account, and the user's home folder and name (the mask
+/// also catches any other ref, id, UUID, email, URL or path by its shape).
+fn report_mask(
+    repository: &DomainRepository<'_>,
+    session: &Value,
+    global_ref: &str,
+    zmx_name: &str,
+    project_id: &str,
+    session_id: &str,
+) -> ReportMask {
+    let text = |value: &Value, pointer: &str| {
+        value
+            .pointer(pointer)
+            .and_then(Value::as_str)
+            .map(str::to_string)
+            .unwrap_or_default()
+    };
+    let project = repository
+        .get_project(project_id)
+        .ok()
+        .flatten()
+        .unwrap_or(Value::Null);
+    let home = crate::resume_lookup::home_dir();
+    let user = home
+        .file_name()
+        .map(|name| name.to_string_lossy().to_string())
+        .unwrap_or_default();
+    let mut values = vec![
+        (global_ref.to_string(), "<session ref>"),
+        (zmx_name.to_string(), "<terminal>"),
+        (text(session, "/sessionPersistenceName"), "<terminal>"),
+        (
+            text(session, "/runtimeSettings/sessionPersistenceName"),
+            "<terminal>",
+        ),
+        (project_id.to_string(), "<id>"),
+        (session_id.to_string(), "<id>"),
+        (text(session, "/runtimeSettings/agentSessionId"), "<uuid>"),
+        (text(session, "/runtimeSettings/agentSessionPath"), "<path>"),
+        (text(session, "/runtimeSettings/accountName"), "<account>"),
+        (text(session, "/runtimeSettings/accountEmail"), "<email>"),
+        (text(session, "/cwd"), "<path>"),
+        (text(&project, "/path"), "<path>"),
+        (text(&project, "/name"), "<project>"),
+        (text(&project, "/title"), "<project>"),
+        (home.to_string_lossy().to_string(), "<path>"),
+        (user, "<user>"),
+        (std::env::var("USER").unwrap_or_default(), "<user>"),
+    ];
+    for key in ["/title", "/displayTitle", "/primaryTitle", "/terminalTitle"] {
+        values.push((text(session, key), "<session name>"));
+    }
+    ReportMask::new(values)
 }
 
 /// The input-box and notice lines, as the Terminal View glyph and the send gate judge `screen`.
@@ -308,6 +388,78 @@ fn code_fence(screen: &str) -> String {
 #[cfg(test)]
 mod tests {
     use super::verdict_lines;
+    use super::{mask::ReportMask, render_report, ReportInput};
+    use serde_json::json;
+
+    /// Every section of a report carrying the session's ref, its name, a path, an email and a UUID
+    /// comes out with none of them, and keeps what helps debug.
+    #[test]
+    fn a_copied_report_names_nobody() {
+        let polluted = "S90:P3lv0:G1pif \"Main Coordinator\" /Users/madda/dev/_active/Ghostex \
+                        me@example.com ff8d2575-b069-47b5-b375-69750cc8353f";
+        let mask = ReportMask::new([
+            ("S90:P3lv0:G1pif".to_string(), "<session ref>"),
+            ("S90-P3lv0-G1pif".to_string(), "<terminal>"),
+            ("Main Coordinator".to_string(), "<session name>"),
+            ("Ghostex".to_string(), "<project>"),
+            ("/Users/madda/dev/_active/Ghostex".to_string(), "<path>"),
+            ("/Users/madda".to_string(), "<path>"),
+            ("madda".to_string(), "<user>"),
+        ]);
+        let report = render_report(
+            &ReportInput {
+                header: "Ghostex 10.39.1 \u{b7} macOS (aarch64) \u{b7} copied 2026-10-29 02:34:00 +04:00"
+                    .to_string(),
+                agent: "claude".to_string(),
+                state: "running \u{b7} idle".to_string(),
+                grid: Some(json!({
+                    "rows": 42, "cols": 200,
+                    "clients": [
+                        {"state": "visible", "last_size": {"rows": 42, "cols": 200}},
+                        {"state": "chat", "last_size": {"rows": 24, "cols": 200}},
+                    ],
+                })),
+                sees: format!(
+                    "- Input box: not ready: {polluted}\n- Terminal notice: {polluted}\n"
+                ),
+                queue: format!("1 waiting, 1 failed: {polluted}"),
+                problems: vec![format!(
+                    "2026-10-28T11:09:27Z sessionChatSendLatePasteSubmitted: {polluted}"
+                )],
+                screen: Some(format!(
+                    "\u{2500}\u{2500}\u{2500} Main Coordinator \u{2500}\n\u{276f} {polluted}\n  ff8d2575-b069-47b5-b375-69750cc8353f | \u{2026}/Ghostex"
+                )),
+            },
+            &mask,
+        );
+        for gone in [
+            "S90",
+            "P3lv0",
+            "G1pif",
+            "Main Coordinator",
+            "Ghostex/",
+            "/Users",
+            "madda",
+            "me@example.com",
+            "ff8d2575",
+        ] {
+            assert!(!report.contains(gone), "{gone} survived:\n{report}");
+        }
+        for kept in [
+            "Ghostex 10.39.1 \u{b7} macOS (aarch64)",
+            "- Agent: claude",
+            "- State: running \u{b7} idle",
+            "- Terminal: 42 \u{d7} 200 \u{b7} clients: visible 42 \u{d7} 200, chat 24 \u{d7} 200",
+            "- Input box: not ready: <session ref> \"<session name>\" <path> <email> <uuid>",
+            "- Queue: 1 waiting, 1 failed: <session ref>",
+            "2026-10-28T11:09:27Z sessionChatSendLatePasteSubmitted: <session ref>",
+            "### Terminal screen (42 \u{d7} 200, as Ghostex reads it)",
+            "\u{2500}\u{2500}\u{2500} <session name> \u{2500}",
+            "  <uuid> | <path>",
+        ] {
+            assert!(report.contains(kept), "{kept} missing:\n{report}");
+        }
+    }
 
     /// Session G14iv's screen when its report was copied on 2026-10-27 (200 columns, trimmed).
     fn idle_screen() -> String {

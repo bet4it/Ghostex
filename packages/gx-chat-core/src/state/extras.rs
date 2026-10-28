@@ -131,6 +131,11 @@ pub struct TerminalTailState {
     pub tail_measured_during: Option<(bool, bool)>,
     /// The request id of the hover read in flight, so an older answer is dropped.
     pub hover_request: Option<u64>,
+    /// When a "not ready" verdict reads the screen again by itself (`extras/terminal_tail.rs`
+    /// `recheck_due`), so it clears once the input box reads again; `None` otherwise.
+    pub recheck_at_ms: Option<f64>,
+    /// The hover read in flight is a recheck, so its answer schedules the slower follow-up.
+    pub rechecking: bool,
     pub notice_request: Option<u64>,
     /// Copy Report's read in flight (extras/report.rs).
     pub report_request: Option<u64>,

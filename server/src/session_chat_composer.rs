@@ -568,7 +568,7 @@ pub(super) fn grok_composer_draft(screen_text: &str) -> Option<String> {
 /// preview must retain indentation, blank rows, and full-width frame rules.
 /// Omit only empty padding below the last painted row, then bound the physical
 /// rows to the same small tail size used by the endpoint today.
-fn composer_terminal_preview_tail(text: &str) -> Vec<String> {
+pub(crate) fn composer_terminal_preview_tail(text: &str) -> Vec<String> {
     let lines: Vec<String> = text
         .lines()
         .map(|raw| strip_ansi_sgr(raw).trim_end().to_string())
@@ -1193,6 +1193,17 @@ pub fn read_session_terminal_tail(
         Some(capture) => session_composer_verdict(agent.as_deref(), &capture.text),
         None => SessionChatComposerReadiness::default(),
     };
+    // A half-drawn Claude frame on an idle session is repaired before it is reported, so the
+    // Terminal View light and Copy Report do not accuse a session that only needed a repaint
+    // (CDXC:SessionChat 2026-10-29 in session_chat_queue_runtime/held_redraw.rs).
+    let (capture, readiness) = crate::session_chat_queue_runtime::repair_unreadable_frame(
+        &session,
+        project_id,
+        session_id,
+        &zmx_name,
+        agent.as_deref(),
+        (capture, readiness),
+    );
     let lines = capture
         .as_ref()
         .map(|capture| composer_terminal_preview_tail(&capture.text))
