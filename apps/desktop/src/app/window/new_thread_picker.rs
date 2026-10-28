@@ -1442,7 +1442,7 @@ impl Render for GpuiNewThreadPickerWindow {
             .border_color(hsla(c.frame_border))
             // Under window glass the picker's window blurs what is behind it, so its fill thins.
             // Under glass it takes the app's frosted dialog fill, passed in by the app because this
-            // file also builds into the demo binary (`frosted_dialog_fill` in helpers/window_glass.rs).
+            // file also builds into the demo binary (`frosted_panel_fill` in helpers/window_glass.rs).
             .bg(self.frosted_fill.unwrap_or_else(|| hsla(c.surface)))
             .font_family(PICKER_FONT)
             .text_size(px(ROW_TEXT_SIZE))

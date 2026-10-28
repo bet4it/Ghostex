@@ -5,7 +5,7 @@
 //! CDXC:Theming 2026-09-29 DECISION:
 //! User: "make the find by prompt modal also get same transparency as other modals like the cmd + n
 //! modal", and "it should take the colors of the theme applied". The window is the theme's chrome
-//! colour (white in light mode), and under glass it takes the app's frosted dialog fill (`frosted_dialog_fill` since 2026-10-29, `frosted_modal_fill` before) with ink washes
+//! colour (white in light mode), and under glass it takes the app's frosted dialog fill (`frosted_panel_fill` since 2026-10-29, `frosted_modal_fill` before) with ink washes
 //! for its raised fills, the recipe Quick Access and the New Thread picker use. Supersedes the fixed
 //! React greys and the lifted #2b2b2b this window first shipped with.
 use crate::app::window::native_modal_kit::MODAL_UI_FONT;
@@ -68,7 +68,7 @@ impl FindPalette {
         // buttons' hover at the raised wash, the lines at the hairline.
         let washes = frosted_dialog_washes(light);
         Self {
-            background: crate::app::helpers::frosted_dialog_fill(chrome.into()).into(),
+            background: crate::app::helpers::frosted_panel_fill(chrome.into()).into(),
             accent: washes.raised_hover,
             button_hover: washes.raised,
             field: washes.raised,

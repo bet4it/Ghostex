@@ -819,9 +819,36 @@ pub(crate) fn popup_window_modal_surface(color: Hsla) -> Hsla {
 }
 
 /// CDXC:AppModal 2026-10-29 DECISION:
-/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark, 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Glass off, nothing changes.
+/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark, 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Then, of those large panels: "please make the glass in the settings and other similar windows that we made transparent+frosted show darker bg pls". The large panels stay frosted but take a darker tint (`frosted_panel_fill`): the theme colour, not lifted toward white, covering `FROSTED_PANEL_ALPHA_DARK` (60%) of the blur in dark mode and `FROSTED_PANEL_ALPHA_LIGHT` (75%) in light mode on macOS; Windows keeps the menus' 86%, already darker, and Linux stays opaque. Their washes are unchanged. The form dialogs keep the popover's fill. Glass off, nothing changes.
 pub(crate) fn frosted_dialog_fill(color: Hsla) -> Hsla {
     frosted_menu_fill(color)
+}
+
+/// How much of the blur a large frosted panel's tint covers on macOS (Settings and its pages,
+/// Search by Prompt, the Agents Hub, Quick Access, Browser History, the New Thread picker): darker
+/// than the popover's 32% so the backdrop shows through less, still well short of the 2026-09-30
+/// near-solid 86% (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+pub(crate) const FROSTED_PANEL_ALPHA_DARK: f32 = 0.6;
+
+/// `FROSTED_PANEL_ALPHA_DARK` in light mode, against the popover's 60%.
+pub(crate) const FROSTED_PANEL_ALPHA_LIGHT: f32 = 0.75;
+
+/// How much of the blur a large frosted panel's tint covers: `FROSTED_PANEL_ALPHA_DARK` /
+/// `_LIGHT` on macOS, the menus' (and dialogs') coverage on Windows, opaque on Linux.
+pub(crate) fn frosted_panel_alpha() -> f32 {
+    if cfg!(any(target_os = "linux", target_os = "windows")) {
+        frosted_menu_alpha()
+    } else if CHROME_LIGHT_APPEARANCE.load(Ordering::Relaxed) {
+        FROSTED_PANEL_ALPHA_LIGHT
+    } else {
+        FROSTED_PANEL_ALPHA_DARK
+    }
+}
+
+/// The fill of a large frosted panel under glass: the theme colour, not lifted toward white, at
+/// `frosted_panel_alpha` (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+pub(crate) fn frosted_panel_fill(color: Hsla) -> Hsla {
+    color.opacity(frosted_panel_alpha())
 }
 
 /// The window's outermost fill. Under glass it is left clear: the sidebar and the work area each
@@ -949,11 +976,14 @@ mod frosted_dialog_tests {
         let chrome: Hsla = gpui::rgb(0x0e0e0e).into();
         assert_eq!(frosted_dialog_fill(chrome), frosted_menu_fill(chrome));
         let dialog = frosted_dialog_fill(chrome).a;
-        let panel = frosted_modal_fill(chrome).a;
+        let large_panel = frosted_panel_fill(chrome).a;
+        let solid_era = frosted_modal_fill(chrome).a;
         if cfg!(target_os = "macos") {
-            assert!(dialog < panel);
+            // The large panels are darker than the popover yet still clearly see-through.
+            assert!(dialog < large_panel && large_panel < solid_era);
+            assert_eq!(frosted_panel_fill(chrome).l, chrome.l);
         } else {
-            assert!(dialog <= panel);
+            assert!(dialog <= large_panel && large_panel <= solid_era);
         }
     }
 }

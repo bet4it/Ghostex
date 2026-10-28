@@ -132,7 +132,7 @@ impl GhostexGpuiApp {
             .and_then(|raw| serde_json::from_str(&raw).ok())
             .unwrap_or_default();
         let config = SettingsModalConfig {
-            palette: self.gpui_native_dialog_palette(),
+            palette: self.gpui_native_panel_palette(),
             request,
             sidebar_state,
             open_forms,
