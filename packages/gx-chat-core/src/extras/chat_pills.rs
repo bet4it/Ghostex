@@ -63,7 +63,7 @@ pub fn chat_pills(
         let meta = text(threads, "meta");
         pills.push(ChatPill {
             id: "threads".to_string(),
-            label: "Threads".to_string(),
+            label: "Workers".to_string(),
             count: if in_flight > 0 {
                 in_flight.to_string()
             } else {
@@ -78,7 +78,7 @@ pub fn chat_pills(
             }
             .to_string(),
             running: count(threads, "working") > 0,
-            aria_label: format!("Threads, {meta}"),
+            aria_label: format!("Workers, {meta}"),
             meta,
         });
     }

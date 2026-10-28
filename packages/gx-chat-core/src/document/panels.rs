@@ -65,7 +65,7 @@ pub struct ChatPill {
     pub waiting: String,
     /// A subagent or thread in the menu is working: the ? pill's amber corner dot, pulsing.
     pub running: bool,
-    /// The panel's muted detail ("2 working · 212 threads"), the menu's header line.
+    /// The panel's muted detail ("2 working · 212 workers"), the menu's header line.
     pub meta: String,
     pub aria_label: String,
 }

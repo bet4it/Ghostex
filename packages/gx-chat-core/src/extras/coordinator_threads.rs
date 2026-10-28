@@ -47,7 +47,7 @@ pub struct CoordinatorThreadRow {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CoordinatorThreadsPanel {
-    /// "1 working · 94 threads".
+    /// "1 working · 94 workers".
     pub meta: String,
     pub rows: Vec<CoordinatorThreadRow>,
     /// A thread needs the user's approval, which marks the header (red, as the sidebar's approval
@@ -63,11 +63,11 @@ pub struct CoordinatorThreadsPanel {
     pub more_label: String,
     /// The step the link moves to (0 for "Show fewer").
     pub more_step: u32,
-    /// The quiet line when nothing is listed: "No threads working".
+    /// The quiet line when nothing is listed: "No workers working".
     pub empty_label: String,
-    /// Threads working or waiting on the user, what the first step lists and the Threads pill counts.
+    /// Threads working or waiting on the user, what the first step lists and the Workers pill counts.
     pub in_flight: usize,
-    /// Threads working right now, which mark the Threads pill as running (extras/chat_pills.rs).
+    /// Threads working right now, which mark the Workers pill as running (extras/chat_pills.rs).
     pub working: usize,
 }
 
@@ -209,7 +209,7 @@ pub fn settle_open(
         Err(message) => Effect::Toast {
             level: "error".to_string(),
             message: if message.is_empty() {
-                "Could not open that thread.".to_string()
+                "Could not open that worker.".to_string()
             } else {
                 message
             },
@@ -310,7 +310,7 @@ pub fn coordinator_threads_panel(
             "need your approval",
         ));
     }
-    meta.push(plural(total, "thread", "threads"));
+    meta.push(plural(total, "worker", "workers"));
     let rows: Vec<CoordinatorThreadRow> = match all {
         // The full list: its first `listed` rows.
         Some(_) => rows.into_iter().take(listed).map(|(_, row)| row).collect(),
@@ -342,7 +342,7 @@ pub fn coordinator_threads_panel(
         more_label,
         more_step,
         empty_label: if rows.is_empty() {
-            "No threads working".to_string()
+            "No workers working".to_string()
         } else {
             String::new()
         },
