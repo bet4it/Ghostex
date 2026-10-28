@@ -105,8 +105,10 @@ only to get a phone JavaScript fix out).
 
 It **refuses** when a platform's runtime version has no installed app, which
 means the phone's native side changed since the last app build (Kotlin,
-Swift, config plugins, native dependencies, the Rust chat core, the tailcat
-bridge; the full list is `apps/mobile/app/scripts/ota-runtime-version.js`).
+Swift, config plugins, native dependencies, the tailcat bridge; the full list
+is `apps/mobile/app/scripts/ota-runtime-version.js`). The Rust chat core is
+not native: it rides in the update as WebAssembly, so a core-only change
+ships with `release:ota`.
 An update can't carry native code, so that change needs a full release
 (`release:actions`). The refusal lists the native files changed since the
 newest release tag. A runtime that was rolled back (`ota-publish.mjs

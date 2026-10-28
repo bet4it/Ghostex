@@ -428,12 +428,17 @@ const PRODUCT_LIST = [
      * gomobile output that is never committed. The Android job regenerates it from
      * that Go source on every build, so the Go source is a real input to the APK.
      *
-     * The Rust chat core is the second exception, on the same terms: the submodule's
-     * modules/gx-chat-core loads libgx_chat_mobile.so and its UniFFI Kotlin bindings,
-     * which the Android job builds from packages/gx-chat-mobile (and the gx-chat-json,
-     * gx-chat-core, gx-protocol and gx-visual crates it compiles in) and never commits. Without these
-     * pathspecs a release that changed only the chat core would reuse the previous APK.
-     * The same job exports the release's over-the-air update (tooling/release-mobile/ota-export.sh).
+     * The Rust chat core is the second exception: the Android job builds it as WebAssembly into
+     * the page the app bundles (tooling/release-mobile/chat-core-page.sh, from packages/gx-chat-wasm
+     * and the gx-chat-json, gx-chat-core, gx-protocol and gx-visual crates it compiles in) and
+     * never commits it. The same job exports the release's over-the-air update
+     * (tooling/release-mobile/ota-export.sh), and the release publishes that update only when this
+     * product builds, so without these pathspecs a release that changed only the chat core would
+     * reuse the previous APK and phones would never get the change. The core is not native code
+     * (scripts/ota-runtime-version.js leaves it out), so phones take it over the air.
+     *
+     * CDXC:Release 2026-10-28: packages/gx-chat-mobile (the native UniFFI core) left with the
+     * user's choice to remove it (apps/mobile/app/src/chat/rust/wasm-core/bridge.ts).
      *
      * FINGERPRINT_ALGORITHM_REVISION is deliberately NOT bumped for this purely
      * additive change. The header rule exists so a stale record can never be
@@ -451,7 +456,6 @@ const PRODUCT_LIST = [
       { pathspec: 'apps/mobile/app' },
       { pathspec: 'apps/mobile/tailcat-bridge/**' },
       { pathspec: ':(exclude)apps/mobile/tailcat-bridge/build' },
-      { pathspec: 'packages/gx-chat-mobile/**' },
       { pathspec: 'packages/gx-chat-json/**' },
       { pathspec: 'packages/gx-chat-core/**' },
       { pathspec: 'packages/gx-protocol/**' },
