@@ -1,7 +1,7 @@
 {
   "_readme": "Do not edit blind. docs/important/agent-model-catalog.md explains the schema, how every Ghostex client loads this file from GitHub (with the bundled copy as the offline source), how to publish a change, and how to re-collect models, efforts and fast mode from the agent CLIs' own /model pickers.",
   "schemaVersion": 1,
-  "updatedAt": "2026-10-28T03:26:45Z",
+  "updatedAt": "2026-10-28T09:30:00Z",
   "effortLabels": {
     "none": "None",
     "off": "Off",
@@ -69,8 +69,8 @@
       "fastMode": {
         "available": true,
         "command": "/fast",
-        "scope": "session",
-        "notes": "Toggles the service tier between priority and default; the footer appends 'fast'."
+        "scope": "default",
+        "notes": "Toggles the service tier between priority and default and saves it to ~/.codex/config.toml, so new Codex sessions start with it too; the footer appends 'fast'."
       },
       "groups": [
         {

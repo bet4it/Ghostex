@@ -282,7 +282,7 @@ fn codex_lineup(output: &str) -> Option<Value> {
     }
     Some(agent_entry(
         "Codex CLI",
-        json!({ "available": true, "command": "/fast", "scope": "session" }),
+        json!({ "available": true, "command": "/fast", "scope": "default" }),
         rows,
     ))
 }
