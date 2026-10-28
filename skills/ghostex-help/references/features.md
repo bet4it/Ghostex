@@ -3757,10 +3757,11 @@ ticket you later type yourself still links. The + in the list's header (Add on t
 phone) links one by hand: type `SPX-123`, `#123` or `owner/repo#123`, or paste a
 GitHub or Linear link, and press Enter; Ghostex asks GitHub whether a bare number is
 a PR or an issue, and says so under the field when it can't read it or GitHub doesn't
-know it. The work area header shows up
-to three of them after the session's title, open work first, each with its number,
-state and checks, then +N for the rest (or a List pill when they all fit), which
-opens the whole list: each link with its icon (a branch for a pull request, the
+know it. The chat's bar above the composer has a Links pill (between Workers and
+Tasks) that reads like the sidebar's badge: a link icon, one link's number or ID and
++N for the others (`#123`, `SPX-123 +2`); with no links yet but suggestions it says
+`3 suggested`, muted and dashed. Click it for the whole list:
+each link with its icon (a branch for a pull request, the
 GitHub mark for an issue, the Linear logo for a Linear ticket, coloured by its
 state; rest the pointer on the icon to see the state in words, with a pull request's
 checks and review), number and title, and under it, only when there is something to act
@@ -3780,9 +3781,9 @@ a link's × and then Remove?
 within three seconds to remove it; a removed link never comes back by itself. Click
 the pin beside the × to pin a link (the main issue or PR of the session, say): pinned
 links lead a Pinned group at the top of the list, pinned issues and Linear tickets
-first, then pinned pull requests; they come first beside the header's title, and the
+first, then pinned pull requests, and the
 sidebar always shows them under every Session links choice but Off (with Badge, the
-pinned chips sit on a line under the name and the badge counts the rest). Click the pin again to unpin.
+badge names the pinned link). Click the pin again to unpin.
 `ghostex link pin <link>` and `ghostex link unpin <link>` do the same. The pin and the
 × show when the pointer is on a link (a pinned link always shows its filled pin). Each
 link keeps what was last read about it, so its title and state show right away after
@@ -3794,8 +3795,9 @@ A removed link leaves its group at once and stays under a Removed group, folded 
 join by itself again. In the sidebar, **Session links in the sidebar**
 (Settings > Session Cards) picks how a card shows them: Always (a line of chips
 under every card that has links), Selected session (that line only under the
-session you have open), Badge (the default: a small count on the card, coloured by
-the most pressing link: red for failing checks or changes asked for, amber for a
+session you have open), Badge (the default: a small badge on the card with one link's
+number or ID, the pinned one, else the only one, else the most pressing, and +N for the
+others, such as `SPX-123 +2`, coloured by the most pressing link: red for failing checks or changes asked for, amber for a
 review asked for or checks still running, grey once every link is merged or closed), Open work only (a line of the ones
 still open, none once they are all merged or closed), or Off. A session with no
 links yet but links the chat mentioned shows a muted, dashed badge counting those
@@ -3805,12 +3807,9 @@ listing them the same way, with the same open, ×, Remove? and Link as the
 header's list. It is as tall as what it shows and grows or shrinks when you fold a
 group; past half the window's height the list scrolls inside it. It stays while the pointer is on the card or its row (Off shows no
 card). A red dot on +N means a link behind it has failing checks; Ghostex sends no
-notifications for link changes. Turn off **Show session links in the chat's top bar**
-(Settings > Chat) to keep the bar above the chat to the session's title; the sidebar and
-the list still show the links. Sessions on a connected remote machine show their links the
-same way, and pinning, removing and restoring act on that machine. On the phone, the chat shows the same chips under
-its header (its own Settings > Chat has the same switch): tap one to open it, touch and hold to copy its link, and tap +N or
-List for the whole list (touch and hold a link for Copy link, Pin or Unpin and Remove, which asks
+notifications for link changes. Sessions on a connected remote machine show their links the
+same way, and pinning, removing and restoring act on that machine. On the phone, the chat's bar above the composer
+has the same Links pill: tap it for the whole list (touch and hold a link for Copy link, Pin or Unpin and Remove, which asks
 Remove? first; Link adds a suggestion). The
 phone's session list follows the computer's Session links in the sidebar, and a
 session's long-press menu has a Links row that opens the same list. Open links
@@ -3821,7 +3820,7 @@ checked.
 `ghostex link list [--session <session>]` prints a session's links and
 `ghostex link remove <link>` removes one and `ghostex link restore <link>` brings it back. Settings: `sessionLinkOpenTarget`
 (`embedded` or `external`), `sidebarSessionLinks` (`always`, `selected`, `badge`,
-`open` or `off`), `sessionChatHeaderLinks` (`true` or `false`).
+`open` or `off`).
 
 To start a piece of work from a new ticket, open the project's "…" menu and choose
 Create Linear Ticket… (it shows once a Linear key applies to the project; in a

@@ -1,0 +1,163 @@
+//! The Links pill on the working card: the session's links in the sidebar badge's look (gx-core
+//! `SessionLinks::chat_pill`, where the user's decision lives), between the Workers and Tasks
+//! pills. A click opens the session's links list (the desktop's header dropdown, the web build's
+//! card), which the app owns.
+//!
+//! CDXC:SessionLinks 2026-10-28 SEE-ALSO:
+//! The phone draws the same pill in apps/mobile/app/src/chat/native/cards/ChatPills.tsx (`LinksPill`), from apps/mobile/app/src/chat/native/sessionLinks.ts `sessionLinksChatPill`.
+
+use super::{appearance::ChatAppearance, cursor::ChatCursor as _, state::NativeChatView};
+use crate::app::native_sidebar::link_chips::session_link_tone_color;
+use ghostex_gx_core::{SessionKey, SessionLinks, SessionLinksChatPill};
+use gpui::prelude::FluentBuilder as _;
+use gpui::{
+    AnyElement, Context, InteractiveElement as _, IntoElement, ParentElement as _,
+    StatefulInteractiveElement as _, Styled as _, div, px, svg,
+};
+use serde_json::json;
+
+/// The chat pill ids the Links pill goes before: it follows Resources and Workers.
+const AFTER_LINKS: [&str; 3] = ["tasks", "subagents", "background"];
+
+/// Where the Links pill goes among the core's pill ids: before the first of Tasks, Subagents or
+/// Background, else last.
+pub(super) fn links_pill_index(ids: &[&str]) -> usize {
+    ids.iter()
+        .position(|id| AFTER_LINKS.contains(id))
+        .unwrap_or(ids.len())
+}
+
+impl NativeChatView {
+    /// The gxserver session this chat shows, as the sidebar store keys it.
+    fn links_session_key(&self) -> SessionKey {
+        if self.config.machine_id == crate::app::gx_chat::LOCAL_MACHINE_ID {
+            SessionKey::local(
+                self.config.project_id.clone(),
+                self.config.session_id.clone(),
+            )
+        } else {
+            SessionKey::remote(
+                self.config.machine_id.clone(),
+                self.config.project_id.clone(),
+                self.config.session_id.clone(),
+            )
+        }
+    }
+
+    /// Reads the session's links from the sidebar store, in a deferred call because the app entity
+    /// may be mid-update while the chat renders (as `refresh_issue_links` does).
+    pub(super) fn refresh_links_pill(&self, cx: &mut Context<Self>) {
+        let Some(app) = self.config.app.clone() else {
+            return;
+        };
+        let key = self.links_session_key();
+        let chat = cx.weak_entity();
+        cx.defer(move |cx| {
+            let Some(app) = app.upgrade() else {
+                return;
+            };
+            let pill = app
+                .read(cx)
+                .gx_store
+                .core
+                .presentation()
+                .session(&key)
+                .and_then(|session| session.links.as_ref().map(SessionLinks::from_presentation))
+                .and_then(|links| links.chat_pill());
+            let _ = chat.update(cx, |chat, cx| {
+                if chat.links_pill != pill {
+                    chat.links_pill = pill;
+                    cx.notify();
+                }
+            });
+        });
+    }
+
+    /// The pill, in the chat pills' shape with the sidebar badge's text and colours: the link icon,
+    /// one link's ID and "+N" for the others in the most pressing link's colour, its border that
+    /// colour at 45%; muted and dashed ("3 suggested") while the session only has suggestions.
+    pub(super) fn links_pill_element(
+        &self,
+        pill: &SessionLinksChatPill,
+        p: &ChatAppearance,
+        cx: &Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
+        let color = if pill.suggested {
+            p.card_muted
+        } else {
+            session_link_tone_color(pill.tone)
+        };
+        div()
+            .id("chat-pill-links")
+            .role(gpui::Role::Button)
+            .aria_label(pill.aria_label.clone())
+            .flex()
+            .items_center()
+            .flex_shrink_0()
+            .gap(px(4.0 * s))
+            .px(px(8.0 * s))
+            .py(px(2.0 * s))
+            .rounded_full()
+            .border(px(s))
+            .when(pill.suggested, |pill| pill.border_dashed())
+            .border_color(color.opacity(0.45))
+            .text_size(px(11.5 * s))
+            .line_height(px(16.0 * s))
+            .whitespace_nowrap()
+            .text_color(color)
+            .chat_cursor_pointer()
+            .hover(|style| style.bg(p.foreground.opacity(0.06)))
+            .child(
+                svg()
+                    .path("titlebar/link.svg")
+                    .size(px(12.0 * s))
+                    .flex_shrink_0()
+                    .text_color(color),
+            )
+            .child(
+                div()
+                    .when(!pill.suggested, |id| {
+                        id.font_weight(gpui::FontWeight::SEMIBOLD)
+                    })
+                    .child(pill.label.clone()),
+            )
+            .when(pill.more > 0, |this| {
+                this.child(
+                    div()
+                        .text_color(color.opacity(0.75))
+                        .child(format!("+{}", pill.more)),
+                )
+            })
+            .on_click(cx.listener(|this, event: &gpui::ClickEvent, _, cx| {
+                cx.stop_propagation();
+                // The list opens above the card (flipping there for lack of room below), lined up
+                // with the click.
+                let card = this.working_card.card_bounds();
+                let anchor = json!({
+                    "x": f32::from(event.position().x),
+                    "y": f32::from(card.top()),
+                    "width": 1.0,
+                    "height": f32::from(card.size.height),
+                });
+                this.host("sessionLinks", json!({ "anchor": anchor }), cx);
+            }))
+            .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::links_pill_index;
+
+    #[test]
+    fn links_sit_between_workers_and_tasks() {
+        assert_eq!(
+            links_pill_index(&["resources", "threads", "tasks", "subagents"]),
+            2
+        );
+        assert_eq!(links_pill_index(&["resources", "subagents"]), 1);
+        assert_eq!(links_pill_index(&["threads"]), 1);
+        assert_eq!(links_pill_index(&[]), 0);
+    }
+}

@@ -111,7 +111,6 @@ impl GhostexGpuiApp {
                         ),
                 )
             })
-            .children(self.render_web_header_session_links(cx))
             .child(div().flex_1())
             // Start and Open follow the Actions and Open In extensions, as the desktop header does.
             .when(
@@ -148,90 +147,6 @@ impl GhostexGpuiApp {
             ))
             .child(self.render_web_changes_button(cx))
             .into_any_element()
-    }
-
-    /// The open session's link chips after its title, as the desktop header draws them
-    /// (`render/workarea_header/session_links.rs`), unless Settings > Chat > Show session links in
-    /// the chat's top bar is off. "+N" opens the links card beside the session's sidebar row.
-    fn render_web_header_session_links(&self, cx: &mut Context<Self>) -> Option<AnyElement> {
-        use crate::app::native_sidebar::link_chips::{
-            open_session_link_command, session_link_chip_body, session_links_overflow_pill,
-        };
-        if !ghostex_gx_core::SessionLinksInHeader::shown(
-            crate::shared_settings::shared_sidebar_settings_snapshot().object(),
-        ) {
-            return None;
-        }
-        let key = self.open_session.clone()?;
-        let links = self.session_links_of(&key)?;
-        const CHIPS: usize = 3;
-        let shown = links.items.len().min(CHIPS);
-        let hidden = links.items.len() - shown;
-        let border = titlebar_active_text_color().opacity(0.14);
-        let session_id = key.to_sidebar_session_id();
-        let chips = links
-            .items
-            .iter()
-            .take(shown)
-            .enumerate()
-            .map(|(index, link)| {
-                let open = open_session_link_command(link, &session_id);
-                let tooltip = link.hover_card_text();
-                h_flex()
-                    .id(SharedString::from(format!(
-                        "web-header-session-link-{index}"
-                    )))
-                    .flex_shrink_0()
-                    .h(px(20.0))
-                    .px(px(7.0))
-                    .rounded_full()
-                    .border_1()
-                    .border_color(border)
-                    .hover(|chip| chip.bg(titlebar_popup_menu_hover_color()))
-                    .child(session_link_chip_body(
-                        link,
-                        1.0,
-                        11.5,
-                        titlebar_active_text_color(),
-                    ))
-                    .tooltip(move |window, cx| Tooltip::new(tooltip.clone()).build(window, cx))
-                    .when_some(open, |chip, open| {
-                        chip.cursor_pointer()
-                            .on_click(cx.listener(move |app, _, _, cx| {
-                                app.dispatch_native_sidebar_ui(open.clone(), cx);
-                            }))
-                    })
-                    .into_any_element()
-            });
-        let more = (hidden > 0).then(|| {
-            let session_id = session_id.clone();
-            session_links_overflow_pill(
-                hidden,
-                links.overflow_has_failing(shown),
-                1.0,
-                11.5,
-                titlebar_active_text_color(),
-                border,
-            )
-            .id("web-header-session-links-more")
-            .h(px(20.0))
-            .px(px(8.0))
-            .cursor_pointer()
-            .on_click(cx.listener(move |app, _, _, cx| {
-                app.open_session_links_card(session_id.clone(), cx);
-            }))
-            .into_any_element()
-        });
-        Some(
-            h_flex()
-                .flex_shrink_0()
-                .items_center()
-                .gap(px(5.0))
-                .ml(px(4.0))
-                .children(chips)
-                .children(more)
-                .into_any_element(),
-        )
     }
 
     /// The Session details button, as the desktop header draws it

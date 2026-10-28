@@ -222,6 +222,52 @@ impl SessionLinks {
             .skip(shown)
             .any(|item| item.checks.as_deref() == Some("failing"))
     }
+
+    /// The Links pill on the chat's bar above the composer, or `None` with nothing to show.
+    ///
+    /// CDXC:SessionLinks 2026-10-28 DECISION:
+    /// User: "I don't like how the top bar just says "3 suggested" there. I think it's better to move the links to always be in the bar above the composer. It should be between Tasks and Threads down there in a pill, so I just click on it and see all of them. The look of the pill needs to look like the one we have in the sidebar [the Badge option]. It just shows a link icon and the number of links we have. If it's just one link, you can just put the name or the ID of that link, like SPX-123, for example, or #123." So the pill is the sidebar badge's look and text (`badge_label`: the link icon, one link's ID and "+N", in the most pressing link's colour, grey once all are finished); with no linked links but suggestions it reads "3 suggested", quiet like the sidebar's suggestions badge (muted, dashed). A click opens the session's links list. This replaces the chips and the "+N" / "N suggested" / "List" pill in the chat's top bar (and the phone's strip under its header) and the setting that hid them.
+    pub fn chat_pill(&self) -> Option<SessionLinksChatPill> {
+        if self.items.is_empty() {
+            let count = self.suggested.len();
+            return (count > 0).then(|| SessionLinksChatPill {
+                label: format!("{count} suggested"),
+                more: 0,
+                tone: SessionLinkTone::Draft,
+                suggested: true,
+                aria_label: format!("Links, {count} suggested"),
+            });
+        }
+        let (label, more) = self.badge_label()?;
+        let summary = self
+            .badge_link()
+            .map(SessionLink::summary)
+            .unwrap_or_default();
+        Some(SessionLinksChatPill {
+            aria_label: if more > 0 {
+                format!("Links, {summary} and {more} more")
+            } else {
+                format!("Links, {summary}")
+            },
+            label,
+            more,
+            tone: self.most_pressing_tone(),
+            suggested: false,
+        })
+    }
+}
+
+/// The Links pill (`SessionLinks::chat_pill`): its text after the link icon and its colour.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct SessionLinksChatPill {
+    /// The named link's ID (the badge's, `SessionLinks::badge_label`), or "3 suggested".
+    pub label: String,
+    /// The other linked links, drawn "+N" in a lighter weight.
+    pub more: usize,
+    pub tone: SessionLinkTone,
+    /// Only suggestions: drawn quietly (muted, dashed).
+    pub suggested: bool,
+    pub aria_label: String,
 }
 
 impl SessionLink {
@@ -363,6 +409,25 @@ impl SessionLink {
             .join("\n")
     }
 
+    /// How pressing an open link is, lowest first, and the tone it gives the badge: failing checks
+    /// or changes asked for, then a review asked for or checks still running, then open work, then
+    /// a draft.
+    fn pressing_rank(&self) -> (u8, SessionLinkTone) {
+        if self.checks.as_deref() == Some("failing")
+            || self.review.as_deref() == Some("changesRequested")
+        {
+            (0, SessionLinkTone::Closed)
+        } else if self.review.as_deref() == Some("reviewRequired")
+            || self.checks.as_deref() == Some("pending")
+        {
+            (1, SessionLinkTone::Pending)
+        } else if self.state.as_deref() != Some("draft") {
+            (2, self.glyph().1)
+        } else {
+            (3, SessionLinkTone::Draft)
+        }
+    }
+
     /// The tooltip and the list's title fallback: `#318 · Port the Find screen · Open`.
     pub fn summary(&self) -> String {
         [
@@ -461,32 +526,20 @@ impl SessionLinksDisplay {
     }
 }
 
-/// Settings > Chat > Show session links in the chat's top bar (`sessionChatHeaderLinks`).
-///
-/// CDXC:SessionLinks 2026-10-27 DECISION:
-/// User: "also please add setting to not show links in the top bar of the chat view and make it enabled by default". On by default, so a session's chips keep showing beside its title in the bar above the chat (and the phone's strip under its chat header) until turned off; off leaves that bar to the title. The sidebar and the links list are not affected.
-pub struct SessionLinksInHeader;
-
-impl SessionLinksInHeader {
-    pub const SETTING_KEY: &'static str = "sessionChatHeaderLinks";
-
-    /// Whether the chat's top bar shows the session's links; anything but `false` is on.
-    pub fn shown(settings: &serde_json::Map<String, serde_json::Value>) -> bool {
-        settings
-            .get(Self::SETTING_KEY)
-            .and_then(serde_json::Value::as_bool)
-            != Some(false)
-    }
-}
-
-/// The badge a row shows instead of a line: how many links, coloured by the most pressing one.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+/// The badge a row shows instead of a line: one link's ID and "+N" for the others, coloured by the
+/// most pressing link (`SessionLinks::badge_label`).
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SessionLinksBadge {
+    /// Every linked link, or every suggestion.
     pub count: usize,
     pub tone: SessionLinkTone,
     /// The session has no links yet, only suggestions: the badge counts those and is drawn
     /// quietly (muted, dashed).
     pub suggested: bool,
+    /// The named link's ID (`#123`, `SPX-123`), or the suggestion count.
+    pub label: String,
+    /// The other linked links, drawn "+N" in a lighter weight after the ID; 0 draws none.
+    pub more: usize,
 }
 
 /// What one sidebar row shows of its links.
@@ -511,28 +564,37 @@ impl SessionLinks {
     /// CDXC:SessionLinks 2026-10-27 DECISION:
     /// User: "make the badge gray if it's merged (not open)". A badge whose links are all merged or closed (none open) is grey (`Draft`, GitHub's grey), not merged purple; while any of them is open it keeps the most pressing link's colour.
     fn most_pressing_tone_of<'a>(links: impl Iterator<Item = &'a SessionLink>) -> SessionLinkTone {
-        let rank = |link: &SessionLink| -> (u8, SessionLinkTone) {
-            if link.checks.as_deref() == Some("failing")
-                || link.review.as_deref() == Some("changesRequested")
-            {
-                (0, SessionLinkTone::Closed)
-            } else if link.review.as_deref() == Some("reviewRequired")
-                || link.checks.as_deref() == Some("pending")
-            {
-                (1, SessionLinkTone::Pending)
-            } else if link.state.as_deref() != Some("draft") {
-                (2, link.glyph().1)
-            } else {
-                (3, SessionLinkTone::Draft)
-            }
-        };
         // Only open links colour it; none open (or none at all) is grey.
         links
             .filter(|link| !link.finished)
-            .map(rank)
+            .map(SessionLink::pressing_rank)
             .min_by_key(|(rank, _)| *rank)
             .map(|(_, tone)| tone)
             .unwrap_or(SessionLinkTone::Draft)
+    }
+
+    /// The link the badge and the chat's Links pill name: the first pinned one; else the only one;
+    /// else the most pressing open one (the one whose tone colours the badge), the first in the
+    /// list on a tie (gxserver lists open work first); else, every link finished, the first.
+    pub fn badge_link(&self) -> Option<&SessionLink> {
+        if let Some(pinned) = self.items.iter().find(|link| link.pinned) {
+            return Some(pinned);
+        }
+        self.items
+            .iter()
+            .filter(|link| !link.finished)
+            // `min_by_key` keeps the first of equal keys.
+            .min_by_key(|link| link.pressing_rank().0)
+            .or_else(|| self.items.first())
+    }
+
+    /// The badge's text: the named link's ID and how many other links follow it as "+N".
+    ///
+    /// CDXC:SessionLinks 2026-10-28 DECISION:
+    /// User: "If we pin one link, or if it's just one link, we should show the ID for that link instead of just showing the number of total links. Then we can put +3 or something like that if there are more links." From the mockup (Q702 "id", Q703 "yes, as shown"): with several links and none pinned, the most pressing link's ID and "+N". The same text on the sidebar badge (Badge option) and the chat's Links pill; a pinned link no longer has its own line under the name with Badge, it is the badge's ID. The colour stays the most pressing link's (grey once none is open). Supersedes the 2026-10-24 badge that counted the links the pinned chips left out.
+    pub fn badge_label(&self) -> Option<(String, usize)> {
+        let link = self.badge_link()?;
+        Some((link.label.clone(), self.items.len() - 1))
     }
 
     /// What a row shows under `display`; `selected` is whether the row is the session the window
@@ -554,6 +616,8 @@ impl SessionLinks {
                     count: self.suggested.len(),
                     tone: SessionLinkTone::Draft,
                     suggested: true,
+                    label: self.suggested.len().to_string(),
+                    more: 0,
                 }),
                 hover_card: true,
             };
@@ -573,19 +637,17 @@ impl SessionLinks {
             SessionLinksDisplay::Always => (all(), None),
             SessionLinksDisplay::Selected if selected => (all(), None),
             SessionLinksDisplay::Selected => (pinned(), None),
-            // The pinned chips on the line under the name; the title row's badge counts the rest.
-            SessionLinksDisplay::Badge => {
-                let rest = self.items.iter().filter(|link| !link.pinned);
-                let count = rest.clone().count();
-                (
-                    pinned(),
-                    (count > 0).then(|| SessionLinksBadge {
-                        count,
-                        tone: Self::most_pressing_tone_of(rest),
-                        suggested: false,
-                    }),
-                )
-            }
+            // No line: the badge names the pinned (or most pressing) link and counts the rest.
+            SessionLinksDisplay::Badge => (
+                Vec::new(),
+                self.badge_label().map(|(label, more)| SessionLinksBadge {
+                    count: self.items.len(),
+                    tone: self.most_pressing_tone(),
+                    suggested: false,
+                    label,
+                    more,
+                }),
+            ),
             SessionLinksDisplay::OpenOnly => (
                 self.items
                     .iter()
@@ -770,16 +832,42 @@ mod tests {
     }
 
     #[test]
-    fn the_top_bar_shows_links_unless_the_setting_is_off() {
-        use serde_json::json;
-        let shown = |settings: serde_json::Value| {
-            SessionLinksInHeader::shown(settings.as_object().expect("an object"))
+    fn the_chat_pill_reads_like_the_badge_and_says_suggested_quietly() {
+        let pill = links().chat_pill().expect("a pill");
+        assert_eq!(
+            (pill.label.as_str(), pill.more, pill.tone, pill.suggested),
+            ("#1", 2, SessionLinkTone::Closed, false)
+        );
+
+        let mut one = links();
+        one.items.truncate(1);
+        one.items[0].label = "SPX-123".to_string();
+        let pill = one.chat_pill().expect("a pill");
+        assert_eq!((pill.label.as_str(), pill.more), ("SPX-123", 0));
+
+        let suggested = SessionLinks {
+            items: Vec::new(),
+            suggested: links()
+                .without_removed(&["#1".to_string(), "#2".to_string()])
+                .removed,
+            removed: Vec::new(),
         };
-        assert!(shown(json!({})));
-        assert!(shown(json!({ "sessionChatHeaderLinks": true })));
-        assert!(!shown(json!({ "sessionChatHeaderLinks": false })));
-        // A value of the wrong type is the default, on.
-        assert!(shown(json!({ "sessionChatHeaderLinks": "no" })));
+        let pill = suggested.chat_pill().expect("a pill");
+        assert_eq!(
+            (pill.label.as_str(), pill.tone, pill.suggested),
+            ("2 suggested", SessionLinkTone::Draft, true)
+        );
+
+        assert_eq!(SessionLinks::default().chat_pill(), None);
+        let only_removed = SessionLinks {
+            removed: suggested.suggested.clone(),
+            ..SessionLinks::default()
+        };
+        assert_eq!(
+            only_removed.chat_pill(),
+            None,
+            "removed links alone show no pill"
+        );
     }
 
     #[test]
@@ -801,7 +889,7 @@ mod tests {
     }
 
     #[test]
-    fn badge_counts_every_link_in_the_most_pressing_colour() {
+    fn badge_names_the_most_pressing_link_and_counts_the_rest() {
         let row = links().row(SessionLinksDisplay::Badge, false);
         assert!(row.line.is_empty());
         assert_eq!(
@@ -810,8 +898,45 @@ mod tests {
                 count: 3,
                 tone: SessionLinkTone::Closed,
                 suggested: false,
+                label: "#1".to_string(),
+                more: 2,
             })
         );
+    }
+
+    #[test]
+    fn badge_label_one_link_pinned_ties_and_finished() {
+        // One link: its ID alone.
+        let one = SessionLinks {
+            items: vec![link("SPX-123", "open", false)],
+            ..SessionLinks::default()
+        };
+        assert_eq!(one.badge_label(), Some(("SPX-123".to_string(), 0)));
+        // A pinned link is named whatever else is more pressing.
+        let mut pinned = links();
+        pinned.items[2].pinned = true;
+        assert_eq!(pinned.badge_label(), Some(("#3".to_string(), 2)));
+        // Several open links of the same rank: the first in the list.
+        let tie = SessionLinks {
+            items: vec![link("#7", "open", false), link("#8", "open", false)],
+            ..SessionLinks::default()
+        };
+        assert_eq!(tie.badge_label(), Some(("#7".to_string(), 1)));
+        // A review asked for beats plain open work, wherever it sits.
+        let mut review = link("#9", "open", false);
+        review.review = Some("reviewRequired".to_string());
+        let ranked = SessionLinks {
+            items: vec![link("#7", "open", false), review],
+            ..SessionLinks::default()
+        };
+        assert_eq!(ranked.badge_label(), Some(("#9".to_string(), 1)));
+        // Every link finished: the first.
+        let done = SessionLinks {
+            items: vec![link("#3", "merged", true), link("#4", "merged", true)],
+            ..SessionLinks::default()
+        };
+        assert_eq!(done.badge_label(), Some(("#3".to_string(), 1)));
+        assert_eq!(SessionLinks::default().badge_label(), None);
     }
 
     #[test]
@@ -830,6 +955,8 @@ mod tests {
                 count: 2,
                 tone: SessionLinkTone::Draft,
                 suggested: false,
+                label: "#3".to_string(),
+                more: 1,
             })
         );
         // One open link beside the merged ones keeps the open colour.
@@ -845,19 +972,19 @@ mod tests {
                 .map(|badge| badge.tone),
             Some(SessionLinkTone::Open)
         );
-        // A pinned open link leaves the badge counting only merged ones: grey.
+        // A pinned link is the badge's ID, with no line of its own; it still colours it.
         let mut pinned_open = link("#2", "open", false);
         pinned_open.pinned = true;
         let pinned = SessionLinks {
-            items: vec![pinned_open, link("#3", "merged", true)],
+            items: vec![link("#3", "merged", true), pinned_open],
             suggested: Vec::new(),
             removed: Vec::new(),
         };
         let row = pinned.row(SessionLinksDisplay::Badge, false);
-        assert_eq!(row.line, vec![0]);
+        assert!(row.line.is_empty());
         assert_eq!(
-            row.badge.map(|badge| badge.tone),
-            Some(SessionLinkTone::Draft)
+            row.badge.map(|badge| (badge.label, badge.more, badge.tone)),
+            Some(("#2".to_string(), 1, SessionLinkTone::Open))
         );
     }
 

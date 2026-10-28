@@ -1131,20 +1131,6 @@
       "agentWritable": true
     },
     {
-      "key": "sessionChatHeaderLinks",
-      "title": "Show session links in the chat's top bar",
-      "subtitle": "Show the session's pull requests, issues and Linear tickets after its title in the bar above the chat. Turn off to keep that bar to the title; the sidebar and the session's links list still show them.",
-      "tab": "settings",
-      "tabTitle": "General",
-      "group": "chat",
-      "groupTitle": "Chat",
-      "section": "chat",
-      "sectionTitle": "Chat",
-      "type": "boolean",
-      "default": true,
-      "agentWritable": true
-    },
-    {
       "key": "chatCatchMeUp",
       "title": "Catch me up button",
       "subtitle": "Show a Catch me up button at the top right of the chat box while it is empty. It has your Title Generation Agent (a small, cheap model) read the session's last 30 agent messages and shows where the session stands: what needs you, what is done, in progress or untested.",

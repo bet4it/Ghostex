@@ -1,6 +1,8 @@
 //! The working card (`workingCard`, decided in packages/gx-chat-core/src/extras/working_card.rs):
-//! one line with the spark, the label and the pills, in its own row at the top of the composer's
-//! stack (composer.rs). It never opens; each pill opens its own menu (chat_pills.rs).
+//! the spark, the label and the pills, in its own row at the top of the composer's stack
+//! (composer.rs). One line while they fit, else two (the label on top, the pills under it), as
+//! gx-chat-core's `extras/working_card_rows.rs` decides from what this measures. It never opens;
+//! each pill opens its own menu (chat_pills.rs).
 //!
 //! CDXC:SessionChat 2026-10-18 SEE-ALSO:
 //! The phone draws the same card in apps/mobile/app/src/chat/native/cards/WorkingCard.tsx.
@@ -14,14 +16,16 @@ use super::{
 };
 use crate::app::helpers::ThrottledAnimationExt;
 use crate::assets::chat_working::VISUAL;
+use ghostex_gx_chat_core::extras::working_card_rows::{self, RowsInput, RowsMemo};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    AnyElement, Bounds, Context, FontFeatures, InteractiveElement as _, IntoElement,
-    ParentElement as _, Pixels, StatefulInteractiveElement as _, Styled as _, canvas, div, point,
-    px, relative, svg,
+    Animation, AnimationExt as _, AnyElement, Bounds, Context, FontFeatures,
+    InteractiveElement as _, IntoElement, ParentElement as _, Pixels, ScrollHandle,
+    StatefulInteractiveElement as _, Styled as _, canvas, div, point, px, relative, svg,
 };
 use serde_json::Value;
 use std::{cell::Cell, rc::Rc, time::Duration};
+use web_time::Instant;
 
 /// The header line's padding above and below (unscaled).
 const HEADER_PAD_Y: f32 = 6.0;
@@ -38,6 +42,33 @@ pub(super) const WORKING_CARD_GAP: f32 = 9.0;
 /// card's height and with it the transcript's visible area above.
 const PILL_HEIGHT: f32 = 22.0;
 
+/// The label's own row above the pills when the card takes two rows (unscaled): the pills' height
+/// plus 2px under it.
+const TOP_ROW_HEIGHT: f32 = PILL_HEIGHT + 2.0;
+
+/// How far the label rises into its row while the card grows (unscaled).
+const LABEL_RISE: f32 = 6.0;
+
+/// The width of the fade at a scrolling pill row's edge (unscaled).
+const PILLS_FADE: f32 = 24.0;
+
+/// One change between one and two rows, animating for `working_card_rows::ANIMATION_MS`.
+#[derive(Clone, Copy)]
+struct RowsTransition {
+    /// Set by the first frame that draws the change, so a late frame still plays it whole.
+    at: Option<Instant>,
+    to_two: bool,
+    /// Names the animation, so each change plays from its start.
+    generation: u64,
+}
+
+impl RowsTransition {
+    fn running(&self) -> bool {
+        self.at
+            .is_none_or(|at| at.elapsed() < Duration::from_millis(working_card_rows::ANIMATION_MS))
+    }
+}
+
 /// What the card measured at its last paint.
 #[derive(Default)]
 pub(super) struct WorkingCardCells {
@@ -45,9 +76,29 @@ pub(super) struct WorkingCardCells {
     label_truncated: Rc<Cell<bool>>,
     /// The card's border box, which the pills' menus open above.
     bounds: Rc<Cell<Bounds<Pixels>>>,
+    /// The label's natural width on one line, uncut, and what trails it (a compaction's numbers).
+    label_width: Rc<Cell<f32>>,
+    trailing_width: Rc<Cell<f32>>,
+    /// Every pill and timer side by side at their natural widths.
+    pills_width: Rc<Cell<f32>>,
+    /// One row or two, and since when (gx-chat-core `working_card_rows`).
+    rows: Rc<Cell<RowsMemo>>,
+    transition: Rc<Cell<Option<RowsTransition>>>,
+    /// The scrolling pill row, and whether pills hide past its left and right edges.
+    pills_scroll: ScrollHandle,
+    fades: Rc<Cell<(bool, bool)>>,
+    /// Wakes the card when the rule asked to look again (the two-row hold ending) or an animation
+    /// ends, so it settles without anything else redrawing it.
+    wake: Option<(u64, gpui::Task<()>)>,
+    wake_at: Rc<Cell<Option<f64>>>,
 }
 
 impl WorkingCardCells {
+    /// The card's border box at its last paint.
+    pub(super) fn card_bounds(&self) -> Bounds<Pixels> {
+        self.bounds.get()
+    }
+
     /// Where a pill's menu opens against: the pill's left and right edges with the card's top, so
     /// the menu's bottom sits the menu's 4px gap above the card, not above the pill.
     ///
@@ -92,7 +143,9 @@ impl NativeChatView {
         let card = self.snapshot["workingCard"].clone();
         let left_bottom = super::scroll_bottom::transcript_left_bottom(&self.list);
         let header = self.working_card_header(&card, left_bottom, p, cx);
+        self.book_working_card_wake(cx);
         let measured = self.working_card.bounds.clone();
+        let decide = self.working_card_rows_decider(&card, p, cx);
         let card = div()
             .id("chat-working-card")
             .relative()
@@ -105,8 +158,8 @@ impl NativeChatView {
             .border_1()
             .border_color(p.input_border)
             // A capsule, like the pills it carries (the 2026-10-18 DECISION in the core's
-            // extras/working_card.rs).
-            .rounded_full()
+            // extras/working_card.rs); with two rows its corners keep the one-row capsule's radius.
+            .rounded(px((PILL_HEIGHT / 2.0 + HEADER_PAD_Y + 1.0) * p.scale))
             // The composer's own fill, so the card and the chat box under it always match.
             .bg(p.composer_background)
             .overflow_hidden()
@@ -119,9 +172,15 @@ impl NativeChatView {
             .child(
                 // An absolute child with no insets sits inside the 1px border; one border width
                 // out gives the border box.
-                canvas(move |bounds, _, _| measured.set(bounds), |_, _, _, _| {})
-                    .absolute()
-                    .inset(px(-1.0)),
+                canvas(
+                    move |bounds, window, cx| {
+                        measured.set(bounds);
+                        decide(bounds, window, cx);
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset(px(-1.0)),
             )
             .into_any_element();
         Some(card)
@@ -237,8 +296,29 @@ impl NativeChatView {
             trailing.extend(activity_trailing(activity, p, reduced_motion));
         }
         // Right to left from the card's edge: the panel pills, the question pill, the armed timers,
-        // and scroll-to-bottom at the far left, so one appearing moves none of the others; the
-        // label gives up the room.
+        // and scroll-to-bottom at the far left, so one appearing moves none of the others. The
+        // Links pill sits between Workers and Tasks (links_pill.rs).
+        let ids: Vec<&str> = card["pills"]
+            .as_array()
+            .into_iter()
+            .flatten()
+            .filter_map(Value::as_str)
+            .collect();
+        let mut panel_pills: Vec<AnyElement> = ids
+            .iter()
+            .filter_map(|id| {
+                self.snapshot["chatPills"]
+                    .as_array()?
+                    .iter()
+                    .find(|pill| pill["id"] == *id)
+            })
+            .map(|pill| self.chat_pill(pill, p, cx))
+            .collect();
+        if let Some(links) = &self.links_pill {
+            let at = super::links_pill::links_pill_index(&ids).min(panel_pills.len());
+            panel_pills.insert(at, self.links_pill_element(links, p, cx));
+        }
+        let pills_width = self.working_card.pills_width.clone();
         let pills = div()
             .flex()
             .items_center()
@@ -251,46 +331,336 @@ impl NativeChatView {
             )
             .children(self.armed_action_items(p, cx))
             .children(self.previous_question_icon_pill(p, cx))
-            .children(
-                card["pills"]
-                    .as_array()
-                    .into_iter()
-                    .flatten()
-                    .filter_map(Value::as_str)
-                    .filter_map(|id| {
-                        self.snapshot["chatPills"]
-                            .as_array()?
-                            .iter()
-                            .find(|pill| pill["id"] == id)
-                    })
-                    .map(|pill| self.chat_pill(pill, p, cx)),
+            .children(panel_pills)
+            .child(
+                canvas(
+                    move |bounds, _, _| pills_width.set(f32::from(bounds.size.width)),
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
             );
+        let has_label = label.is_some();
+        if !has_label {
+            self.working_card.label_width.set(0.0);
+        }
+        let trailing_width = self.working_card.trailing_width.clone();
+        let trailing = (!trailing.is_empty()).then(|| {
+            div()
+                .relative()
+                .flex()
+                .items_center()
+                .flex_shrink_0()
+                .gap(px(VISUAL.gap * s))
+                .children(trailing)
+                .child(
+                    canvas(
+                        move |bounds, _, _| trailing_width.set(f32::from(bounds.size.width)),
+                        |_, _, _, _| {},
+                    )
+                    .absolute()
+                    .inset_0(),
+                )
+        });
+        if trailing.is_none() {
+            self.working_card.trailing_width.set(0.0);
+        }
+        // Takes what the pills leave on one line, or its own row on two; empty when the card
+        // carries only pills.
+        let label_line = div()
+            .flex()
+            .items_center()
+            .gap(px(VISUAL.gap * s))
+            .flex_1()
+            .min_w_0()
+            .children(label)
+            .children(trailing);
+        let rows = self.working_card.rows.get();
+        let mut transition = self.working_card.transition.get();
+        if let Some(t) = transition.as_mut().filter(|t| t.at.is_none()) {
+            t.at = Some(Instant::now());
+            self.working_card.transition.set(Some(*t));
+            // Wake when the animation ends, so a collapse settles into one line.
+            self.working_card.wake_at.set(Some(
+                crate::app::gx_chat::now_millis() as f64
+                    + working_card_rows::ANIMATION_MS as f64
+                    + 16.0,
+            ));
+        }
+        let reduced = reduced_motion;
+        // Two rows show while the rule says so, and through the collapse back to one.
+        let collapsing = !reduced && transition.is_some_and(|t| !t.to_two && t.running());
+        let two_rows = has_label && (rows.two_rows() || collapsing);
+        let padded = |row: gpui::Div| {
+            row.w_full()
+                .min_w_0()
+                .pl(px(12.0 * s))
+                .pr(px(10.0 * s))
+                .flex()
+                .items_center()
+                .gap(px(VISUAL.gap * s))
+        };
+        let animation = |name: &str, generation: u64| {
+            (
+                gpui::ElementId::Name(format!("chat-working-card-{name}-{generation}").into()),
+                // Ease-out cubic, as the phone's (an ease-out quint grew the row before its label
+                // showed).
+                Animation::new(Duration::from_millis(working_card_rows::ANIMATION_MS))
+                    .with_easing(|t: f32| 1.0 - (1.0 - t).powi(3)),
+            )
+        };
+        if !two_rows {
+            // One line: the label (fading back in at the end of a collapse) and the pills.
+            let label_line = match transition.filter(|t| !reduced && !t.to_two) {
+                Some(t) if has_label => {
+                    let (id, motion) = animation("label-in", t.generation);
+                    label_line
+                        .with_animation(id, motion, |line, delta| line.opacity(delta))
+                        .into_any_element()
+                }
+                _ => label_line.into_any_element(),
+            };
+            let pills_area = self.working_card_pills_area(pills, !has_label, p, cx);
+            return padded(div())
+                .id("chat-working-card-header")
+                .min_h(px((PILL_HEIGHT + 2.0 * HEADER_PAD_Y) * s))
+                .pt(px(HEADER_PAD_Y * s))
+                .pb(px(HEADER_PAD_Y * s))
+                .children(lead)
+                .when(has_label, |row| row.child(label_line))
+                .child(pills_area)
+                .into_any_element();
+        }
+        // Two rows: the lead and the whole label's line on top, the pills under it. The top row
+        // grows in (or shrinks away on a collapse) while the pills keep their place at the bottom.
+        let top = padded(div())
+            .h(px(TOP_ROW_HEIGHT * s))
+            .pb(px(2.0 * s))
+            .children(lead)
+            .child(label_line);
+        let top_height = TOP_ROW_HEIGHT * s;
+        let top = match transition.filter(|t| !reduced && t.running()) {
+            Some(t) => {
+                let to_two = t.to_two;
+                let (id, motion) = animation(if to_two { "grow" } else { "shrink" }, t.generation);
+                div()
+                    .w_full()
+                    .overflow_hidden()
+                    .child(top.relative())
+                    .with_animation(id, motion, move |wrap, delta| {
+                        let shown = if to_two { delta } else { 1.0 - delta };
+                        wrap.h(px(top_height * shown)).opacity(shown)
+                    })
+                    .into_any_element()
+            }
+            None => top.into_any_element(),
+        };
+        let top = match transition.filter(|t| !reduced && t.to_two && t.running()) {
+            // The label rises into its row as it grows.
+            Some(t) => {
+                let (id, motion) = animation("rise", t.generation);
+                div()
+                    .w_full()
+                    .relative()
+                    .child(top)
+                    .with_animation(id, motion, move |wrap, delta| {
+                        wrap.top(px(LABEL_RISE * s * (1.0 - delta)))
+                    })
+                    .into_any_element()
+            }
+            None => top,
+        };
         div()
             .id("chat-working-card-header")
             .w_full()
             .min_w_0()
-            .min_h(px((PILL_HEIGHT + 2.0 * HEADER_PAD_Y) * s))
-            .pl(px(12.0 * s))
-            .pr(px(10.0 * s))
             .pt(px(HEADER_PAD_Y * s))
             .pb(px(HEADER_PAD_Y * s))
             .flex()
-            .items_center()
-            .gap(px(VISUAL.gap * s))
-            .children(lead)
+            .flex_col()
+            .child(top)
             .child(
-                // Takes what the pills leave; empty when the card carries only pills.
+                padded(div())
+                    .h(px(PILL_HEIGHT * s))
+                    .child(self.working_card_pills_area(pills, true, p, cx)),
+            )
+            .into_any_element()
+    }
+
+    /// The pills' area. With room of its own (`fill`: no label beside it, or the bottom of two
+    /// rows) it takes the line's width, keeps the pills at its right end while they fit, and
+    /// scrolls sideways when they don't, fading them out at an edge that hides more of them; the
+    /// card's rounded edge stays whole. Beside a label on one line it is the pills' own width.
+    ///
+    /// CDXC:SessionChat 2026-10-28 DECISION:
+    /// User, of the bar above the composer: "I don't like how the background gets cut off on the right. I think we can do something better than that to show that it's going off screen. I don't like inner shadow." The pills scroll inside the card, inset from its rounded edge, and fade into the card's own fill over 24px at an edge that hides more of them (the right edge until scrolled to the end, the left once scrolled); no fade while everything shows. The phone matches in apps/mobile/app/src/chat/native/cards/WorkingCard.tsx.
+    fn working_card_pills_area(
+        &self,
+        pills: gpui::Div,
+        fill: bool,
+        p: &ChatAppearance,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
+        if !fill {
+            return pills.relative().into_any_element();
+        }
+        let scroll = self.working_card.pills_scroll.clone();
+        let fades = self.working_card.fades.clone();
+        let (left, right) = fades.get();
+        let chat = cx.entity_id();
+        let edge = p.composer_background;
+        let fade = |toward_left: bool| {
+            let ramp = div().absolute().top_0().bottom_0().w(px(PILLS_FADE * s));
+            let ramp = if toward_left {
+                ramp.left_0()
+            } else {
+                ramp.right_0()
+            };
+            ramp.bg(gpui::linear_gradient(
+                90.0,
+                gpui::linear_color_stop(if toward_left { edge } else { edge.opacity(0.0) }, 0.0),
+                gpui::linear_color_stop(if toward_left { edge.opacity(0.0) } else { edge }, 1.0),
+            ))
+        };
+        div()
+            .relative()
+            .flex_1()
+            .min_w_0()
+            .h_full()
+            .child(
                 div()
+                    .id("chat-working-card-pills")
+                    .size_full()
                     .flex()
                     .items_center()
-                    .gap(px(VISUAL.gap * s))
-                    .flex_1()
-                    .min_w_0()
-                    .children(label)
-                    .children(trailing),
+                    .overflow_x_scroll()
+                    .track_scroll(&scroll)
+                    .child(
+                        div()
+                            .flex()
+                            .items_center()
+                            .justify_end()
+                            .flex_shrink_0()
+                            .min_w(relative(1.0))
+                            .child(pills.relative()),
+                    ),
             )
-            .child(pills)
+            .when(left, |area| area.child(fade(true)))
+            .when(right, |area| area.child(fade(false)))
+            .child(
+                canvas(
+                    move |_, _, cx| {
+                        let offset = -f32::from(scroll.offset().x);
+                        let max = f32::from(scroll.max_offset().x);
+                        let next = (offset > 0.5, max - offset > 0.5);
+                        if fades.replace(next) != next {
+                            cx.notify(chat);
+                        }
+                    },
+                    |_, _, _, _| {},
+                )
+                .absolute()
+                .inset_0(),
+            )
             .into_any_element()
+    }
+
+    /// The card's row rule, run once the card has painted and measured its parts: asks
+    /// gx-chat-core for one row or two, starts the animation when that changes, and redraws.
+    fn working_card_rows_decider(
+        &self,
+        card: &Value,
+        p: &ChatAppearance,
+        cx: &Context<Self>,
+    ) -> impl Fn(Bounds<Pixels>, &mut gpui::Window, &mut gpui::App) + 'static {
+        let s = p.scale;
+        let cells = (
+            self.working_card.label_width.clone(),
+            self.working_card.trailing_width.clone(),
+            self.working_card.pills_width.clone(),
+            self.working_card.rows.clone(),
+            self.working_card.transition.clone(),
+            self.working_card.wake_at.clone(),
+        );
+        // As `working_card_header` picks it: activity and worked always lead with a glyph, a tool
+        // or the word only while the agent works.
+        let kind = card["labelKind"].as_str().unwrap_or_default();
+        let has_lead =
+            matches!(kind, "activity" | "worked") || (!kind.is_empty() && card["working"] == true);
+        let phase = card["phase"].as_str().unwrap_or_default().to_string();
+        let chat = cx.entity_id();
+        move |bounds, window, cx| {
+            let (label, trailing, pills, rows, transition, wake_at) = &cells;
+            let gap = VISUAL.gap * s;
+            let trailing = trailing.get();
+            let label = label.get();
+            let input = RowsInput {
+                // The border and the line's padding (12 left, 10 right) come off the card's width.
+                width: f32::from(bounds.size.width) - 2.0 - 22.0 * s,
+                lead: if has_lead {
+                    VISUAL.spark_box * s + gap
+                } else {
+                    0.0
+                },
+                label: if label > 0.0 && trailing > 0.0 {
+                    label + gap + trailing
+                } else {
+                    label
+                },
+                pills: pills.get(),
+                gap,
+                phase: phase.clone(),
+                now_ms: crate::app::gx_chat::now_millis() as f64,
+            };
+            let before = rows.get();
+            let next = working_card_rows::next(&before, &input);
+            rows.set(next);
+            if next.rows.max(1) != before.rows.max(1) {
+                let generation = transition.get().map_or(0, |t| t.generation + 1);
+                transition.set(Some(RowsTransition {
+                    at: None,
+                    to_two: next.two_rows(),
+                    generation,
+                }));
+                // Draw the change on the very next frame (a notify alone waits for the next
+                // redraw something else asks for, the spark's throttled beat on the web).
+                window.refresh();
+                cx.notify(chat);
+            } else if next.recheck_at_ms != before.recheck_at_ms && next.recheck_at_ms.is_some() {
+                wake_at.set(next.recheck_at_ms);
+                window.refresh();
+                cx.notify(chat);
+            }
+        }
+    }
+
+    /// Books the card's wake (`WorkingCardCells::wake_at`): one timer at a time, for the latest
+    /// time asked.
+    fn book_working_card_wake(&mut self, cx: &mut Context<Self>) {
+        let Some(at) = self.working_card.wake_at.take() else {
+            return;
+        };
+        let key = at as u64;
+        if self
+            .working_card
+            .wake
+            .as_ref()
+            .is_some_and(|(booked, _)| *booked == key)
+        {
+            return;
+        }
+        let wait = (at - crate::app::gx_chat::now_millis() as f64).max(0.0);
+        let task = cx.spawn(async move |chat, cx| {
+            cx.background_executor()
+                .timer(Duration::from_millis(wait as u64))
+                .await;
+            let _ = chat.update(cx, |chat, cx| {
+                chat.working_card.wake = None;
+                cx.notify();
+            });
+        });
+        self.working_card.wake = Some((key, task));
     }
 
     /// The label on one line, cut with an ellipsis at its end; when it is cut, hovering it shows the
@@ -304,6 +674,7 @@ impl NativeChatView {
     ) -> AnyElement {
         let s = p.scale;
         let truncated = self.working_card.label_truncated.clone();
+        let natural = self.working_card.label_width.clone();
         let cut = truncated.get();
         let measured = label.clone();
         let full = label.clone();
@@ -336,6 +707,7 @@ impl NativeChatView {
                             .text_system()
                             .shape_line(measured.clone().into(), font_size, &[run], None)
                             .width;
+                        natural.set(f32::from(width));
                         let cut = width > bounds.size.width + px(0.5);
                         if truncated.replace(cut) != cut {
                             cx.notify(chat);

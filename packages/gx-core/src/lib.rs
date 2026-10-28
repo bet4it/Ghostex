@@ -228,7 +228,7 @@ pub use crate::sidebar_view::{
     ProjectContextView, ProjectDiffStats, ProjectDropLanding, ProjectDropRow, ProjectSlotPlan,
     RemoteMachineView, RowNesting, SectionCollapse, SectionId, SectionView, SessionLink,
     SessionLinkGlyph, SessionLinkKind, SessionLinkTone, SessionLinks, SessionLinksBadge,
-    SessionLinksDisplay, SessionLinksInHeader, SessionLinksRow, SessionMenuFacts, SessionRow,
+    SessionLinksChatPill, SessionLinksDisplay, SessionLinksRow, SessionMenuFacts, SessionRow,
     SessionSlotPlan, SessionSortMode, SessionTiming, SessionView, SessionWork,
     SidebarCollapseState, SidebarHiddenItems, SidebarHostInputs, SidebarInputs, SidebarMode,
     SidebarRevealPlan, SidebarSettings, SidebarUiState, SidebarUpdateWork, SidebarView,

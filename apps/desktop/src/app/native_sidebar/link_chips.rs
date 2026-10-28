@@ -142,8 +142,16 @@ pub(crate) fn session_link_chip_body(
         })
 }
 
-/// The Badge option's count: a link icon and the number, in `color`; dashed for suggestions.
-fn session_links_badge_body(count: usize, color: Hsla, dashed: bool, scale: f32) -> gpui::Div {
+/// The Badge option's badge: a link icon, the named link's ID (or the suggestion count) and "+N" for
+/// the other links in a lighter weight, in `color`; dashed for suggestions (gx-core
+/// `SessionLinks::badge_label`).
+fn session_links_badge_body(
+    label: &str,
+    more: usize,
+    color: Hsla,
+    dashed: bool,
+    scale: f32,
+) -> gpui::Div {
     div()
         .flex()
         .flex_shrink_0()
@@ -158,7 +166,18 @@ fn session_links_badge_body(count: usize, color: Hsla, dashed: bool, scale: f32)
         .text_size(px(10.5 * scale))
         .text_color(color)
         .child(titlebar_svg_icon("titlebar/link.svg", 10.0 * scale, color))
-        .child(count.to_string())
+        .child(
+            div()
+                .when(!dashed, |id| id.font_weight(gpui::FontWeight::SEMIBOLD))
+                .child(label.to_string()),
+        )
+        .when(more > 0, |badge| {
+            badge.child(
+                div()
+                    .text_color(color.opacity(0.75))
+                    .child(format!("+{more}")),
+            )
+        })
 }
 
 /// The "+N" pill: the links that did not fit, with a red dot when one of them has failing checks.
@@ -246,9 +265,10 @@ impl GhostexGpuiApp {
         session.work.as_ref().is_some_and(|work| work.offer_cleanup) || !row.line.is_empty()
     }
 
-    /// The badge a row's title shows with the Badge option: the number of links (the ones not
-    /// pinned), coloured by the most pressing one, or a session's quiet suggestions badge (muted
-    /// and dashed). Hidden while the row is hovered, like the row's other badges.
+    /// The badge a row's title shows with the Badge option: the pinned (or only, or most pressing)
+    /// link's ID and "+N" for the others, coloured by the most pressing link, or a session's quiet
+    /// suggestions badge (muted and dashed). Hidden while the row is hovered, like the row's other
+    /// badges.
     ///
     /// CDXC:SessionLinks 2026-10-27 DECISION:
     /// User: "i see the links tag is shown on 2nd row, this is wrong it should always be on same row as header please (so all are singly row in sidebar)". The quiet suggestions badge sits on the title's line between the title and the time, like the linked badge, and the title truncates to make room; every row stays one line high. Supersedes the 2026-10-24 decision that put it on a line under the name ("show the option to link a thread with issues/prs etc under the name of the thread instead of on the same thread title row").
@@ -263,7 +283,13 @@ impl GhostexGpuiApp {
         } else {
             session_link_tone_color(badge.tone)
         };
-        let body = session_links_badge_body(badge.count, color, badge.suggested, appearance.scale);
+        let body = session_links_badge_body(
+            &badge.label,
+            badge.more,
+            color,
+            badge.suggested,
+            appearance.scale,
+        );
         Some(if badge.suggested {
             body.id(format!(
                 "native-session-links-suggested-{}",
@@ -329,7 +355,7 @@ impl GhostexGpuiApp {
             .iter()
             .map(|link| link_chip_width(&text_system, link, 11.5))
             .collect();
-        // Under Badge the title row's badge counts the links the pinned chips leave out.
+        // Under Badge there is no line (the badge names a link and counts the rest).
         let never_shown = if row.badge.is_some() {
             0
         } else {

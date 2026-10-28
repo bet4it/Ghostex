@@ -322,6 +322,11 @@ impl GhostexGpuiApp {
                 self.web_open_chat_delayed_send(session, &row, cx);
                 return true;
             }
+            // The working card's Links pill: the page's links card, as the sidebar row opens it.
+            Some("sessionLinks") => {
+                self.open_session_links_card(row.clone(), cx);
+                return true;
+            }
             Some("sleep") => {
                 command(json!({ "type": "setSessionSleeping", "sessionId": row, "sleeping": true }))
             }

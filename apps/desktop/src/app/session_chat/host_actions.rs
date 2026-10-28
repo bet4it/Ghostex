@@ -178,6 +178,16 @@ impl GhostexGpuiApp {
         if self.handle_session_details_host_action(session_id, action, &message, window, cx) {
             return;
         }
+        // The working card's Links pill (native_chat/links_pill.rs) opens the session's links list.
+        if action == "sessionLinks" {
+            if let (Some(key), Some(anchor)) = (
+                self.workspace_terminal_session_key(session_id),
+                session_links_anchor(&message),
+            ) {
+                self.open_session_links_list(key, anchor, window, cx);
+            }
+            return;
+        }
         // Copy Report's last step: Send Bug / Feedback with its agent switch on (gx-chat-core
         // `extras/report.rs`).
         if action == "sendFeedback" {
@@ -690,4 +700,14 @@ impl GhostexGpuiApp {
             cx,
         );
     }
+}
+
+/// The anchor a `sessionLinks` host action carries, in window coordinates.
+fn session_links_anchor(message: &serde_json::Value) -> Option<gpui::Bounds<gpui::Pixels>> {
+    let anchor = &message["anchor"];
+    let number = |key: &str| anchor[key].as_f64().map(|value| gpui::px(value as f32));
+    Some(gpui::Bounds::new(
+        gpui::point(number("x")?, number("y")?),
+        gpui::size(number("width")?, number("height")?),
+    ))
 }

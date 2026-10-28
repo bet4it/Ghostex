@@ -67,6 +67,7 @@ pub fn answer_query(
             state.transcript_view.items.iter(),
             first?,
         )),
+        Query::WorkingCardRows => to_json(&crate::extras::working_card_rows::query(arguments)?),
     })
 }
 
@@ -156,6 +157,9 @@ pub enum Query {
     /// `transcriptPictures(picture)`: every picture the transcript shows, opened on this one
     /// (`{images, index}`), for the picture viewer's next and previous.
     TranscriptPictures,
+    /// `workingCardRows(memo, measured)`: one or two rows for the working card
+    /// (extras/working_card_rows.rs), the memo to pass back next time.
+    WorkingCardRows,
 }
 
 impl Query {
@@ -173,6 +177,7 @@ impl Query {
             Self::SpeakableSegments => "speakableSegments",
             Self::SpeakableMarkdown => "speakableMarkdown",
             Self::TranscriptPictures => "transcriptPictures",
+            Self::WorkingCardRows => "workingCardRows",
         }
     }
 
@@ -190,6 +195,7 @@ impl Query {
             "speakableSegments" => Self::SpeakableSegments,
             "speakableMarkdown" => Self::SpeakableMarkdown,
             "transcriptPictures" => Self::TranscriptPictures,
+            "workingCardRows" => Self::WorkingCardRows,
             _ => return None,
         })
     }

@@ -482,7 +482,16 @@ impl NativeChatView {
         let Some(height) = self.pill_menu_height(id) else {
             return;
         };
-        self.menu_side = Some(super::option_menu::MenuSide::Right);
+        // Its right edge on the pill's, as the pills sat at the card's right end; a pill too far
+        // left for that (the bottom row of a two-row card starts at its left) opens rightward
+        // instead of squeezing the menu.
+        let scale = ChatAppearance::current(&self.snapshot).scale;
+        let room_left = trigger.right() - self.bounds.get().left();
+        self.menu_side = Some(if room_left >= px((menu_width(id) + 24.0) * scale) {
+            super::option_menu::MenuSide::Right
+        } else {
+            super::option_menu::MenuSide::Left
+        });
         self.show_chat_menu(
             vec![json!({"pillMenu": {"id": id, "height": height}})],
             trigger,

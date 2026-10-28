@@ -85,6 +85,7 @@ mod tool_run;
 
 mod code_block;
 mod keyboard;
+pub(crate) mod links_pill;
 mod markdown_links;
 // The preview half of the look is used by Settings' own include of this file.
 pub(crate) mod markdown_style;
