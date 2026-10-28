@@ -58,9 +58,18 @@ impl NativeChatView {
             .flatten()
     }
 
-    /// The pill's click: the core picks the question.
-    pub(super) fn previous_question(&mut self, cx: &mut Context<Self>) {
-        self.invoke(json!({"type": "previousQuestion"}), cx);
+    /// The pill's click: the core picks the question still waiting; with none waiting (`steps` is
+    /// zero) the Chat Resources list opens instead, or shuts when it is already open.
+    pub(super) fn question_pill_clicked(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        if self.snapshot["openQuestions"]["steps"]
+            .as_u64()
+            .unwrap_or(0)
+            > 0
+        {
+            self.invoke(json!({"type": "previousQuestion"}), cx);
+            return;
+        }
+        self.open_question_list(window, cx);
     }
 
     /// Scrolls to the reply holding the question once per jump (the core bumps `revision`), then

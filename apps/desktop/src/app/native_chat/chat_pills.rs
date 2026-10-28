@@ -295,7 +295,10 @@ impl NativeChatView {
     /// User: "for questions if there's 2 or more questions i want to go between showing ? and showing the number pls (every x seconds)". With two or more unanswered questions the pill shows the ? for 2 s, then the count for 2 s, and so on (`countSwapMs` in packages/gx-chat-core/visual/scroll-bottom.json); with one it stays a ?. The swap is a plain cut, not a crossfade, because a GPUI fade redraws the whole chat for every frame of it. One timer per chat drives it (question_ping.rs), dropped when fewer than two wait, and the pill's fixed width keeps the row still. The phone does the same in ChatPills.tsx.
     ///
     /// CDXC:SessionChat 2026-10-27 DECISION:
-    /// The ? pill also holds the chat's question list (questions_list.rs; the user's words are on gx-chat-core's questions/open_questions.rs): it shows while the chat has any question form or question page, answered and For later ones included, and keeps its amber dot, ping and count only while one is unanswered. Resting the pointer on it opens the list; a click still steps to the previous unanswered question, and opens the list when none waits. Supersedes showing the pill only while a question is unanswered.
+    /// The ? pill also holds the chat's question list (questions_list.rs; the user's words are on gx-chat-core's questions/open_questions.rs): it shows while the chat has any question form or question page, answered and For later ones included, and keeps its amber dot, ping and count only while one is unanswered. Supersedes showing the pill only while a question is unanswered.
+    ///
+    /// CDXC:SessionChat 2026-10-28 DECISION:
+    /// User: "The question mark button here keeps jumping me between questions/inline html i already answered pls fix". A click steps only through the questions that still wait (the core's `steps`); with none waiting it opens the Chat Resources list, the Resources pill's own, and never scrolls to an answered form or page. Hovering does not open the list. The user's words are on gx-chat-core's questions/open_questions.rs.
     pub(super) fn previous_question_icon_pill(
         &self,
         p: &ChatAppearance,
@@ -330,9 +333,9 @@ impl NativeChatView {
                 .on_hover(cx.listener(|chat, hovered: &bool, _, cx| {
                     chat.question_pill_hovered(*hovered, cx)
                 }))
-                .on_click(cx.listener(|chat, _, _, cx| {
+                .on_click(cx.listener(|chat, _, window, cx| {
                     cx.stop_propagation();
-                    chat.previous_question(cx)
+                    chat.question_pill_clicked(window, cx)
                 }))
                 .when(waiting, |pill| {
                     pill.children(super::question_ping::attention_dot(
@@ -446,13 +449,11 @@ impl NativeChatView {
             })
             .on_click(cx.listener(move |this, _, window, cx| {
                 cx.stop_propagation();
+                if id == super::questions_list::QUESTIONS_MENU {
+                    return this.open_question_list(window, cx);
+                }
                 let anchor = this.working_card.menu_anchor(bounds.get());
                 this.toggle_pill_menu(&id, anchor, window, cx);
-                if id == super::questions_list::QUESTIONS_MENU
-                    && this.chat_menu_is_open(trigger)
-                {
-                    this.keep_question_ages_current(cx);
-                }
             }))
             .child(
                 // The pill's own border box, which its menu lines up with (right edges equal; it
@@ -465,6 +466,19 @@ impl NativeChatView {
                     .inset(px(-s)),
             )
             .into_any_element()
+    }
+
+    /// Opens the Chat Resources list against the Resources pill (the ? pill's click when no question
+    /// waits opens it too), or shuts it when it is the one on screen.
+    pub(super) fn open_question_list(&mut self, window: &mut Window, cx: &mut Context<Self>) {
+        let id = super::questions_list::QUESTIONS_MENU;
+        let anchor = self
+            .working_card
+            .menu_anchor(self.pill_bounds.cell(id).get());
+        self.toggle_pill_menu(id, anchor, window, cx);
+        if self.chat_menu_is_open(trigger_id(id)) {
+            self.keep_question_ages_current(cx);
+        }
     }
 
     /// Opens `id`'s menu against its pill, or shuts it when it is the one on screen.
