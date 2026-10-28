@@ -159,6 +159,30 @@ impl CefSurface {
                     .detach();
             }));
         }
+        {
+            // Windows: the page taking focus is the click in it that GPUI never sees, which closes
+            // the popups drawn in this window (popup_dismissal::PagePointerPress). Only Windows
+            // calls this (`receive_native_page_focus`).
+            let surface = cx.entity().downgrade();
+            let async_cx = cx.to_async();
+            let foreground = cx.foreground_executor().clone();
+            browser.on_native_page_focus(Rc::new(move || {
+                let surface = surface.clone();
+                let mut async_cx = async_cx.clone();
+                foreground
+                    .spawn(async move {
+                        let _ = surface.update_in(&mut async_cx, |surface, window, cx| {
+                            if surface.visible {
+                                crate::app::window::popup_dismissal::note_page_focus(
+                                    gpui::Window::window_handle(window).window_id(),
+                                    cx,
+                                );
+                            }
+                        });
+                    })
+                    .detach();
+            }));
+        }
         let browser_id = browser.identifier();
         site_prompt::register_site_prompt_surface(browser_id, cx.weak_entity());
         let entity_id = cx.entity_id();

@@ -180,12 +180,11 @@ fn receive_press(app: &gpui::AsyncApp, owner: X11Window, child: X11Window, time:
     let Some(host) = embed_host_for_cef_window(owner) else {
         return;
     };
-    // A click in a page never reaches GPUI's own mouse-down, so it clicks away from
-    // open popups here (popup_dismissal.rs), except from the window the page is in.
+    // A click in a page never reaches GPUI's own mouse-down, so it clicks away from open popups
+    // here (popup_dismissal.rs): the popups in other windows, and those drawn inside the window
+    // the page is in (the sidebar's menus, the titlebar's dropdowns).
     if let Some(window) = gpui_window_of_embed_host(host) {
-        app.update(|cx| {
-            crate::app::window::popup_dismissal::note_main_window_pointer_press(window, cx)
-        });
+        app.update(|cx| crate::app::window::popup_dismissal::note_page_pointer_press(window, cx));
     }
     let (connection, _) = x11_connection();
     let _ = connection.set_input_focus(InputFocus::PARENT, child, time);

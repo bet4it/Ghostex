@@ -333,6 +333,15 @@ wrap_focus_handler! {
     pub(crate) struct GhostexGpuiCefFocusHandler;
 
     impl FocusHandler {
+        fn on_got_focus(&self, browser: Option<&mut cef::Browser>) {
+            let native_view = browser
+                .and_then(|browser| browser.host())
+                .map(|host| platform::native_view_ptr(host.window_handle()));
+            if let Some(native_view) = native_view {
+                receive_native_page_focus(native_view);
+            }
+        }
+
         fn on_set_focus(
             &self,
             browser: Option<&mut cef::Browser>,

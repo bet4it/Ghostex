@@ -937,6 +937,7 @@ pub(crate) fn unregister_native_view_browser(native_view: *mut c_void) {
     }
     #[cfg(target_os = "linux")]
     remove_pointer_focus_handler(native_view);
+    remove_page_focus_handler(native_view);
 
     CEF_BROWSERS_BY_NATIVE_VIEW.with(|browsers| {
         browsers.borrow_mut().remove(&(native_view as usize));
