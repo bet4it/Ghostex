@@ -6,6 +6,7 @@
 mod answers;
 mod builtin;
 mod drafts;
+mod fit;
 mod kit;
 mod notice;
 mod prepare;

@@ -1530,7 +1530,10 @@ pictures), the Close button at the top closes it, and Android's back closes it
 only when pressed twice within two seconds. It also comes back where you left
 it scrolled, and shows Refresh when the agent changes the page's file. A page
 the agent publishes for the browser opens in the browser on desktop, and pages
-on web open in the browser. Agents do this when you ask for `$ghostex-visuals` in your
+on web open in the browser. Every page is fitted to a phone's width: side-by-side
+columns stack, small pills stay on one line, and a mockup wider than the screen
+scrolls sideways inside its own box instead of shrinking the whole page.
+Agents do this when you ask for `$ghostex-visuals` in your
 prompt; they never use it on their own. Install the skill from Settings >
 Integrations (Ghostex Visuals) or with `ghostex visual install-skill`. Pages
 open in a sandbox and can't reach your computer's files or Ghostex.
@@ -1577,7 +1580,9 @@ answers still wait for Send). Commands:
 publishes a page and prints the block that shows its card, which opens where
 Open chat pages in says, and
 `ghostex visual check <file.json>` draws a chart block to an image, or lists a
-question form's questions, so the agent can check it before replying.
+question form's questions, so the agent can check it before replying;
+`ghostex visual check <file.html>` opens a page in Chrome at a phone's width
+and a computer's, saves a screenshot of each and lists what does not fit.
 
 Use Cmd+P (Recent Sessions) to jump between chats across projects, or
 Cmd+[ and Cmd+] to go back and forward through visited sessions, the same keys

@@ -106,7 +106,7 @@ gx-page>gx-wide,gx-questions>gx-wide{display:flex}
 .gx-callout[data-tone=warn]{--gx-tone:var(--gx-warn)}.gx-callout[data-tone=good]{--gx-tone:var(--gx-good)}.gx-callout[data-tone=bad]{--gx-tone:var(--gx-bad)}
 .gx-callout :where(b,strong),.gx-card :where(b,strong){color:var(--gx-fg)}
 .gx-card{padding:18px 20px;border-radius:16px;background:var(--gx-surface)}
-.gx-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,240px),1fr))}
+.gx-grid{display:grid;gap:14px;grid-template-columns:repeat(auto-fit,minmax(min(100%,var(--gx-grid-min,240px)),1fr))}
 .gx-figure{display:flex;flex-direction:column;gap:10px}
 .gx-figure>img{display:block;max-width:100%;height:auto;border-radius:12px;border:1px solid var(--gx-line)}
 .gx-figure figcaption{font-size:13px;line-height:1.5;color:var(--gx-muted)}

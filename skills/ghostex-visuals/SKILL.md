@@ -310,6 +310,41 @@ carry the area, as in the skeleton). `ghostex show --title "…"` overrides
   which scrolls sideways on a narrow window instead of squeezing it. Put
   notes and captions above or below it, never beside it.
 
+### Phones
+
+Every page must read well on a phone, 360 to 430px wide: readers often open
+pages in the Ghostex phone app. Write for one column first:
+
+- Side by side only with a rule that stacks it on a phone: cards in a
+  `.gx-grid` (side by side when there is room, one per row on a phone; set
+  `style="--gx-grid-min:300px"` for wider cards), your own
+  `grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr))`,
+  or a `@media (max-width: 600px)` rule. Never a bare
+  `grid-template-columns: 1fr 1fr` or a row of fixed widths.
+- Pills, chips, badges, keys and IDs get `white-space: nowrap` and
+  `flex: none`, so `SPX-123` never breaks into `SPX-` over `123`.
+- Anything with a real, fixed width (a device frame, a toolbar or composer
+  mockup) goes in a `.gx-frame` with a `min-width` at its real size: it
+  scrolls sideways inside its own box, with a fade at the edge, instead of
+  being squashed or making the whole page wider.
+- Outside a `.gx-frame`: no `width` or `min-width` over 360px, no `100vw`,
+  and no `white-space: nowrap` on a sentence.
+- Images shrink to the column by themselves; on the phone a tap opens them
+  full size.
+
+Ghostex fits a page that misses one of these (it stacks the columns, keeps
+the pills whole and makes a too-wide block scroll sideways), but a page that
+needs it reads worse. Check every page before you publish it:
+
+```bash
+ghostex visual check page.html   # screenshots at 390px (phone) and 1280px, and what doesn't fit
+```
+
+Look at both screenshots and fix everything it lists. `ghostex show` runs the
+phone check again after publishing and lists anything left: fix it, run
+`ghostex show` again and reply with the new block. If `visual check` can't
+read an `.html` file, this Ghostex is older than the check: skip it.
+
 ### No page chrome of your own
 
 Ghostex injects the page's look, so a page that styles itself fights it:
@@ -433,7 +468,9 @@ A question page is the same skeleton (keep the marker) with
   while the picture is still on screen instead of scrolling back up. When one
   question compares several variants, put them side by side (or stacked)
   immediately above that question, with nothing in between, and keep them
-  compact enough to be seen together with it. Draw each variant once, in the
+  compact enough to be seen together with it. Side-by-side variants go in a
+  `.gx-grid` (inside `<gx-wide>` when they are wide), so they stack on a
+  phone. Draw each variant once, in the
   page's theme; the reader checks the other theme with the switch. Never
   collect all the mockups first and all the questions at the end.
 - Tie each variant to its choice so the reader can pick it right there: wrap

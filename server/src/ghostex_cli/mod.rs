@@ -54,6 +54,7 @@ mod team;
 mod team_slack;
 pub mod usage;
 mod visual;
+mod visual_page_check;
 mod voice;
 pub mod wait;
 pub mod web;

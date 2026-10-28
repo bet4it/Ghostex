@@ -9,6 +9,7 @@ use crate::ghostex_cli::args::parse_args;
 use crate::ghostex_cli::rpc::{
     request_gxserver_rpc, resolve_gxserver_server_target, CliError, CliResult,
 };
+use crate::ghostex_cli::visual_page_check;
 use crate::visual_pages::{
     is_current_layout, page_too_large, prepare_page, PAGE_VERSION_META_TAG,
     PUBLISH_VISUAL_PAGE_ENDPOINT, VISUAL_PAGE_MAX_BYTES,
@@ -25,14 +26,21 @@ pub fn show_command(args: &[String]) -> CliResult<()> {
         return Ok(());
     }
     let parsed = parse_args(args);
-    // `--browser` takes no value, but the shared parser reads the next word as one when the file
-    // comes after it.
-    let browser_value = parsed
-        .flags
-        .string_value("browser")
-        .filter(|value| !matches!(*value, "true" | "false"))
-        .map(str::to_string);
-    let file = parsed.rest.first().cloned().or(browser_value);
+    // `--browser` and `--no-check` take no value, but the shared parser reads the next word as one
+    // when the file comes after them.
+    let switch_value = |name: &str| {
+        parsed
+            .flags
+            .string_value(name)
+            .filter(|value| !matches!(*value, "true" | "false"))
+            .map(str::to_string)
+    };
+    let file = parsed
+        .rest
+        .first()
+        .cloned()
+        .or_else(|| switch_value("browser"))
+        .or_else(|| switch_value("no-check"));
     let popup = !parsed.flags.contains("browser");
     let Some(file) = file.as_ref() else {
         return Err(CliError::Other(
@@ -93,13 +101,23 @@ pub fn show_command(args: &[String]) -> CliResult<()> {
         page_question_tags(&source).as_deref(),
     );
     let hint = old_layout_hint(&source);
+    let phone = if parsed.flags.contains("no-check") {
+        Vec::new()
+    } else {
+        visual_page_check::phone_findings_for_show(&path)
+    };
     if parsed.flags.truthy("json") {
         let hint = hint
             .as_deref()
             .map(|hint| format!(",\"hint\":{}", json_string(hint)))
             .unwrap_or_default();
+        let phone = if phone.is_empty() {
+            String::new()
+        } else {
+            format!(",\"phone\":{}", json!(phone))
+        };
         println!(
-            "{{\"ok\":true,\"id\":{},\"title\":{},\"url\":{},\"block\":{}{hint}}}",
+            "{{\"ok\":true,\"id\":{},\"title\":{},\"url\":{},\"block\":{}{hint}{phone}}}",
             json_string(id),
             json_string(title),
             json_string(&url),
@@ -110,8 +128,29 @@ pub fn show_command(args: &[String]) -> CliResult<()> {
         println!(
             "Published \"{title}\".\n{hint}Put this block in your reply where the page should appear (the chat shows it as a card that opens the page where the reader's Open chat pages in setting says, a floating window over the chat by default):\n\n{block}"
         );
+        if !phone.is_empty() {
+            println!("\n{}", phone_note(&phone, file));
+        }
     }
     Ok(())
+}
+
+/// What the publishing agent is told when its page did not fit a phone (visual_page_check.rs): fix
+/// the page and publish it again before replying, since the reader only sees the card once the
+/// block is in the reply.
+///
+/// CDXC:SessionChat 2026-10-28 DECISION:
+/// User: fix pages for phones "for customers and all future inline htmls like we did previously for light dark etc". The kit fits any page, and the agent is told right where it reads `ghostex show`'s result when its page needed fitting, so its next page is written for a phone; `--no-check` skips the check.
+fn phone_note(findings: &[String], file: &str) -> String {
+    let mut note = format!(
+        "Phone check ({}px): the page needs work to read well on a phone. Fix it, look with `ghostex visual check {file}`, then run ghostex show again and reply with the new block.",
+        visual_page_check::PHONE_WIDTH
+    );
+    for finding in findings {
+        note.push_str("\n- ");
+        note.push_str(finding);
+    }
+    note
 }
 
 /// What the publishing agent is told when its page lacks the v2 marker (visual_pages/version.rs):

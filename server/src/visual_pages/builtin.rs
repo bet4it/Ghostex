@@ -4,6 +4,7 @@
 //! a stored page was published with for today's.
 
 use super::{
+    fit::{FIT_SCRIPT, FIT_STYLE},
     kit::{KIT_SCRIPT, KIT_STYLE},
     prepare::{read_prologue, PAGE_CONTENT_SECURITY_POLICY},
     theme::{PAGE_API, PAGE_BOOTSTRAP, PAGE_STATE_MARKER, THEME_STYLE},
@@ -23,7 +24,13 @@ const POLICY_META_START: &str = "<meta http-equiv=\"Content-Security-Policy\" co
 /// Today's built-in block, marked so it can be swapped exactly.
 pub(super) fn current_block() -> String {
     let mut block = String::with_capacity(
-        THEME_STYLE.len() + PAGE_API.len() + KIT_STYLE.len() + KIT_SCRIPT.len() + 4096,
+        THEME_STYLE.len()
+            + PAGE_API.len()
+            + KIT_STYLE.len()
+            + KIT_SCRIPT.len()
+            + FIT_STYLE.len()
+            + FIT_SCRIPT.len()
+            + 4096,
     );
     block.push_str(BUILTIN_START);
     block.push_str(POLICY_META_START);
@@ -35,6 +42,8 @@ pub(super) fn current_block() -> String {
     block.push_str(PAGE_STATE_MARKER);
     block.push_str(KIT_STYLE);
     block.push_str(KIT_SCRIPT);
+    block.push_str(FIT_STYLE);
+    block.push_str(FIT_SCRIPT);
     block.push_str(BUILTIN_END);
     block
 }

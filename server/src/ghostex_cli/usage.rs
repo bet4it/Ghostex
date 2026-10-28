@@ -241,12 +241,12 @@ pub fn usage() -> String {
             "File a Ghostex bug or feedback issue on GitHub through the Ghostex feedback relay; --dry-run prints the request instead",
         ),
         format_help_command(
-            "show <file.html> [--title text] [--json]",
-            "Publish a self-contained HTML page and print the ```visual block that shows it as a card in the chat; the card opens it where the reader's Open chat pages in setting says (a floating window over the chat by default). Questions written as <gx-questions> (or the page's own ghostex.submit(answers)) send the reader's answers back to you as a message; the block then lists the questions' tags, so the chat counts the page as unanswered until they arrive",
+            "show <file.html> [--title text] [--json] [--no-check]",
+            "Publish a self-contained HTML page and print the ```visual block that shows it as a card in the chat; the card opens it where the reader's Open chat pages in setting says (a floating window over the chat by default). Questions written as <gx-questions> (or the page's own ghostex.submit(answers)) send the reader's answers back to you as a message; the block then lists the questions' tags, so the chat counts the page as unanswered until they arrive. When Chrome is installed it then opens the page at a phone's width and says what did not fit (--no-check skips that)",
         ),
         format_help_command(
-            "visual check <file.json|-> [--width N] [--light] [--out file.png]",
-            "Draw a ```visual block's JSON to a PNG and print its path, or read a ```questions block and list its questions, so an agent can check it before replying",
+            "visual check <file.json|-|page.html> [--width N] [--light] [--out file.png]",
+            "Draw a ```visual block's JSON to a PNG and print its path, or read a ```questions block and list its questions, so an agent can check it before replying. Given a page (.html), opens it in headless Chrome at a phone's width (390px) and a computer's (1280px), saves a screenshot of each and lists what does not fit",
         ),
         format_help_command(
             "run-agent <agentId> [--allow-hidden]",
@@ -1357,6 +1357,7 @@ pub fn visuals_usage() -> String {
 Usage:
   gx visual --help
   gx visual check <file.json|-> [--width N] [--light] [--out file.png]
+  gx visual check <page.html> [--width N] [--light] [--out file.png]
   gx visual install-skill [--json]
 
 Agent skill:
@@ -1375,6 +1376,13 @@ check:
   user already answered one another way (in the chat, in another form, or by
   doing what it asked). A question the reader leaves blank arrives as
   \"skipped\", so move on and don't ask it again unless it blocks the work.
+
+  Given a page (.html), check prepares it as `ghostex show` would and opens it
+  in headless Chrome (or Chromium, Edge, Brave; GHOSTEX_CHROME picks one) at a
+  phone's width, 390px, and a computer's, 1280px (--width N for one width).
+  It saves a full-page screenshot of each and lists what reaches past the
+  screen and what Ghostex had to fit for the phone (columns stacked, pills
+  kept on one line, blocks scrolling sideways), with how to fix the page.
 "
     .to_string()
 }
