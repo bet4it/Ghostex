@@ -146,6 +146,29 @@ pub(crate) fn cached_linear_issue(fingerprint: u64, identifier: &str) -> Option<
     }
 }
 
+#[cfg(test)]
+pub(crate) fn seed_linear_team_keys(fingerprint: u64, team_keys: &[&str]) {
+    cache().lock().unwrap().team_keys.insert(
+        fingerprint,
+        Cached {
+            value: team_keys.iter().map(|key| key.to_string()).collect(),
+            fetched_at: Instant::now(),
+        },
+    );
+}
+
+/// `None` stands for an issue Linear said does not exist.
+#[cfg(test)]
+pub(crate) fn seed_linear_issue(fingerprint: u64, identifier: &str, info: Option<LinearIssueInfo>) {
+    cache().lock().unwrap().issues.insert(
+        (fingerprint, identifier.to_string()),
+        Cached {
+            value: info,
+            fetched_at: Instant::now(),
+        },
+    );
+}
+
 /// Adds PR URLs a fresher read of the issue found (the Work details) to the cached issue, so a
 /// session card linking it shows the PR without waiting for the issue's TTL. Returns whether the
 /// cached issue gained a URL; an issue not cached yet is left to the background pass.

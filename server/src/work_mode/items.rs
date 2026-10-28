@@ -882,7 +882,7 @@ pub(crate) fn build_work_list(projects: &[WorkProjectInput], plan: &WorkFeedPlan
 
 /// A GitHub issue's status: its project board's Status column when it has one (`In progress`,
 /// `In review`, `Done`), otherwise just open.
-fn github_issue_status(project: Option<&GithubListProject>) -> WorkItemStatus {
+pub(crate) fn github_issue_status(project: Option<&GithubListProject>) -> WorkItemStatus {
     let Some(name) = project.and_then(|project| project.status.clone()) else {
         return WorkItemStatus {
             group: "todo",

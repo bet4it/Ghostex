@@ -715,6 +715,11 @@ fn fetch_linear_issue_detail(api_key: &str, identifier: &str) -> Result<Value, S
         ),
         json!({ "id": identifier }),
     )?;
+    linear_issue_detail_of(identifier, &body)
+}
+
+/// The details page's Linear issue from Linear's answer to the query above.
+fn linear_issue_detail_of(identifier: &str, body: &Value) -> Result<Value, String> {
     let issue = body
         .pointer("/data/issue")
         .filter(|issue| issue.is_object())
@@ -832,6 +837,11 @@ fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value, String> {
     .ok_or_else(|| format!("gh could not read issue #{number}."))?;
     let issue: Value = serde_json::from_str(output.trim())
         .map_err(|_| format!("gh sent an unreadable answer for issue #{number}."))?;
+    Ok(github_issue_detail_of(number, &issue))
+}
+
+/// The details page's GitHub issue from `gh issue view --json`.
+fn github_issue_detail_of(number: u64, issue: &Value) -> Value {
     let comments: Vec<Value> = issue
         .get("comments")
         .and_then(Value::as_array)
@@ -851,7 +861,7 @@ fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value, String> {
                 .collect()
         })
         .unwrap_or_default();
-    Ok(json!({
+    json!({
         "number": number,
         "title": issue.get("title"),
         "url": issue.get("url"),
@@ -867,7 +877,7 @@ fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value, String> {
         "commentCount": issue.get("comments").and_then(Value::as_array).map(Vec::len).unwrap_or(0),
         "comments": comments,
         "updatedAt": issue.get("updatedAt"),
-    }))
+    })
 }
 
 fn fetch_pull_request_detail(cwd: &str, selector: &str) -> Result<Value, String> {
@@ -1107,4 +1117,380 @@ fn media_in_texts(texts: &[String]) -> Vec<Value> {
         }
     }
     media
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Linear's answer to the details query, with `attachments` as given.
+    fn linear_answer(identifier: &str, attachments: Value) -> Value {
+        json!({ "data": { "issue": {
+            "identifier": identifier,
+            "title": "Checkout fails on Safari",
+            "url": format!("https://linear.app/acme/issue/{identifier}"),
+            "description": "Steps: open checkout.",
+            "updatedAt": "2026-10-20T09:00:00.000Z",
+            "createdAt": "2026-10-01T09:00:00.000Z",
+            "branchName": "leandro/acm-1-checkout",
+            "priorityLabel": "High",
+            "state": { "name": "In Review", "type": "started" },
+            "assignee": { "name": "leandro", "displayName": "Leandro", "avatarUrl": "https://avatars/l.png", "isMe": true },
+            "creator": { "name": "ana", "displayName": "Ana" },
+            "team": { "key": "ACM", "name": "Acme" },
+            "project": { "name": "Checkout revamp", "url": "https://linear.app/acme/project/checkout" },
+            "cycle": { "name": "", "number": 12 },
+            "labels": { "nodes": [{ "name": "Bug", "color": "#f00" }] },
+            "comments": { "nodes": [
+                { "body": "Repro on 17.2", "createdAt": "2026-10-02T09:00:00.000Z", "user": { "name": "ana", "displayName": "Ana", "avatarUrl": null } },
+                { "body": "On it", "createdAt": "2026-10-03T09:00:00.000Z", "user": { "name": "leandro", "displayName": null, "avatarUrl": "https://avatars/l.png" } },
+            ] },
+            "attachments": { "nodes": attachments },
+        } } })
+    }
+
+    fn assert_published(actual: &Value, expected: Value) {
+        assert!(
+            *actual == expected,
+            "published value changed:\n{}",
+            serde_json::to_string_pretty(actual).unwrap()
+        );
+    }
+
+    #[test]
+    fn a_linear_issue_reads_into_the_details_shape() {
+        let answer = linear_answer(
+            "ACM-1",
+            json!([
+                { "title": "PR 40", "subtitle": "Open", "url": "https://github.com/acme/app/pull/40", "sourceType": "github" },
+                { "title": null, "subtitle": null, "url": "https://docs.acme.dev/spec", "sourceType": null },
+            ]),
+        );
+        assert_published(
+            &linear_issue_detail_of("ACM-1", &answer).unwrap(),
+            json!({
+              "identifier": "ACM-1",
+              "title": "Checkout fails on Safari",
+              "url": "https://linear.app/acme/issue/ACM-1",
+              "description": "Steps: open checkout.",
+              "updatedAt": "2026-10-20T09:00:00.000Z",
+              "createdAt": "2026-10-01T09:00:00.000Z",
+              "branchName": "leandro/acm-1-checkout",
+              "priority": "High",
+              "stateName": "In Review",
+              "stateType": "started",
+              "assignee": {
+                "name": "Leandro",
+                "avatarUrl": "https://avatars/l.png",
+                "isMe": true
+              },
+              "creator": "Ana",
+              "team": {
+                "key": "ACM",
+                "name": "Acme"
+              },
+              "linearProject": {
+                "name": "Checkout revamp",
+                "url": "https://linear.app/acme/project/checkout"
+              },
+              "cycle": "Cycle 12",
+              "labels": [
+                "Bug"
+              ],
+              "comments": [
+                {
+                  "author": "Ana",
+                  "avatarUrl": null,
+                  "body": "Repro on 17.2",
+                  "createdAt": "2026-10-02T09:00:00.000Z"
+                },
+                {
+                  "author": null,
+                  "avatarUrl": "https://avatars/l.png",
+                  "body": "On it",
+                  "createdAt": "2026-10-03T09:00:00.000Z"
+                }
+              ],
+              "commentCount": 2,
+              "attachments": [
+                {
+                  "title": "PR 40",
+                  "subtitle": "Open",
+                  "url": "https://github.com/acme/app/pull/40",
+                  "source": "github"
+                },
+                {
+                  "title": "https://docs.acme.dev/spec",
+                  "subtitle": null,
+                  "url": "https://docs.acme.dev/spec",
+                  "source": null
+                }
+              ],
+              "pullRequestUrls": [
+                "https://github.com/acme/app/pull/40"
+              ]
+            }),
+        );
+        assert_eq!(
+            linear_issue_detail_of("ACM-9", &json!({ "data": { "issue": null } })),
+            Err("Linear has no issue ACM-9.".to_string())
+        );
+    }
+
+    #[test]
+    fn a_github_issue_reads_into_the_details_shape_with_its_last_thirty_comments() {
+        let comments: Vec<Value> = (1..=32)
+            .map(|n| json!({ "author": { "login": format!("user{n}") }, "body": format!("comment {n}"), "createdAt": format!("2026-10-{:02}T09:00:00Z", n % 28 + 1) }))
+            .collect();
+        let issue = json!({
+            "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218",
+            "state": "OPEN", "body": "Cards overflow.", "author": { "login": "yahia" },
+            "assignees": [{ "login": "octo-me" }], "labels": [{ "name": "bug" }, { "name": "rtl" }],
+            "comments": comments, "updatedAt": "2026-10-21T09:00:00Z",
+        });
+        let mut detail = github_issue_detail_of(218, &issue);
+        let comments = detail["comments"].as_array().unwrap().clone();
+        assert_eq!(comments.len(), MAX_COMMENTS);
+        assert_eq!(
+            comments[0],
+            json!({ "author": "user3", "body": "comment 3", "createdAt": "2026-10-04T09:00:00Z" })
+        );
+        assert_eq!(comments[29]["body"], json!("comment 32"));
+        detail.as_object_mut().unwrap().remove("comments");
+        assert_published(
+            &detail,
+            json!({
+              "number": 218,
+              "title": "Arabic plan cards",
+              "url": "https://github.com/acme/web/issues/218",
+              "state": "open",
+              "body": "Cards overflow.",
+              "author": "yahia",
+              "assignees": [
+                "octo-me"
+              ],
+              "labels": [
+                "bug",
+                "rtl"
+              ],
+              "commentCount": 32,
+              "updatedAt": "2026-10-21T09:00:00Z"
+            }),
+        );
+    }
+
+    #[test]
+    fn a_ticket_missing_from_the_list_gets_a_row_from_its_details() {
+        let project = WorkProjectInput {
+            project_id: "PCharDetails".to_string(),
+            name: "Details app".to_string(),
+            path: Some("/gx-char/details".to_string()),
+            project: json!({ "projectId": "PCharDetails" }),
+            sessions: Vec::new(),
+            linear_api_key: None,
+            repo: Some("acme/app".to_string()),
+            workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
+            tracker: WorkTracker::Linear,
+        };
+        let linear = linear_issue_detail_of("ACM-1", &linear_answer("ACM-1", json!([]))).unwrap();
+        let github_issue = json!({ "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218", "state": "closed" });
+        let rows = json!({
+            "linear": synthesized_item(&WorkItemRef::Linear("ACM-1".to_string()), Some(&project), Some(&linear), None, None),
+            "linearUnread": synthesized_item(&WorkItemRef::Linear("ACM-2".to_string()), None, None, None, None),
+            "githubIssue": synthesized_item(&WorkItemRef::GithubIssue(218), Some(&project), None, Some(&github_issue), None),
+            "githubUnread": synthesized_item(&WorkItemRef::GithubIssue(219), None, None, None, None),
+        });
+        assert_published(
+            &rows,
+            json!({
+              "linear": {
+                "sessions": [],
+                "labels": [
+                  "Bug"
+                ],
+                "assignedToMe": true,
+                "noTicket": false,
+                "projectId": "PCharDetails",
+                "projectName": "Details app",
+                "key": "linear:ACM-1",
+                "kind": "linearIssue",
+                "id": "ACM-1",
+                "linearIssue": "ACM-1",
+                "title": "Checkout fails on Safari",
+                "url": "https://linear.app/acme/issue/ACM-1",
+                "status": {
+                  "group": "review",
+                  "name": "In Review"
+                },
+                "branchName": "leandro/acm-1-checkout",
+                "assignee": {
+                  "name": "Leandro",
+                  "avatarUrl": "https://avatars/l.png",
+                  "isMe": true
+                },
+                "linearProject": {
+                  "name": "Checkout revamp",
+                  "url": "https://linear.app/acme/project/checkout"
+                },
+                "cycle": "Cycle 12"
+              },
+              "linearUnread": {
+                "sessions": [],
+                "labels": [],
+                "assignedToMe": false,
+                "noTicket": false,
+                "projectId": null,
+                "projectName": null,
+                "key": "linear:ACM-2",
+                "kind": "linearIssue",
+                "id": "ACM-2",
+                "linearIssue": "ACM-2",
+                "title": "ACM-2",
+                "url": null,
+                "status": {
+                  "group": "todo",
+                  "name": "Open"
+                },
+                "branchName": null
+              },
+              "githubIssue": {
+                "sessions": [],
+                "labels": [],
+                "assignedToMe": false,
+                "noTicket": false,
+                "projectId": "PCharDetails",
+                "projectName": "Details app",
+                "key": "issue:PCharDetails#218",
+                "kind": "githubIssue",
+                "id": "#218",
+                "githubIssue": 218,
+                "title": "Arabic plan cards",
+                "url": "https://github.com/acme/web/issues/218",
+                "status": {
+                  "group": "closed",
+                  "name": "Closed"
+                }
+              },
+              "githubUnread": {
+                "sessions": [],
+                "labels": [],
+                "assignedToMe": false,
+                "noTicket": false,
+                "projectId": null,
+                "projectName": null,
+                "key": "issue:#219",
+                "kind": "githubIssue",
+                "id": "#219",
+                "githubIssue": 219,
+                "title": "Issue #219",
+                "url": null,
+                "status": {
+                  "group": "todo",
+                  "name": "Open"
+                }
+              }
+            }),
+        );
+    }
+
+    #[test]
+    fn reading_a_linear_ticket_returns_its_details_and_row() {
+        let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
+        let temp = tempfile::tempdir().expect("tempdir");
+        let paths = crate::paths::get_gxserver_paths(Some(temp.path().to_path_buf()));
+        let api_key = "lin-key-details-read";
+        let project = WorkProjectInput {
+            project_id: "PCharRead".to_string(),
+            name: "Read app".to_string(),
+            path: Some("/gx-char/details-read".to_string()),
+            project: json!({ "projectId": "PCharRead" }),
+            sessions: Vec::new(),
+            linear_api_key: Some(api_key.to_string()),
+            repo: Some("acme/app".to_string()),
+            workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
+            tracker: WorkTracker::Linear,
+        };
+        let answer = linear_answer(
+            "ACM-5",
+            json!([{ "title": "Demo", "subtitle": null, "url": "https://www.loom.com/share/abc123", "sourceType": "loom" }]),
+        );
+        let detail = linear_issue_detail_of("ACM-5", &answer).unwrap();
+        // What the page read a moment ago, so nothing asks Linear.
+        cached_detail(
+            format!("linear:{}:ACM-5", linear_key_fingerprint(api_key)),
+            true,
+            || Ok(detail),
+        )
+        .unwrap();
+        let projects = vec![project];
+        let read = read_work_item(
+            &paths,
+            &projects,
+            &WorkFeedPlan::default(),
+            Some("PCharRead"),
+            &WorkItemRef::Linear("ACM-5".to_string()),
+            false,
+        );
+        let wanted: Map<String, Value> = [
+            "item",
+            "githubIssue",
+            "pullRequest",
+            "tickets",
+            "media",
+            "links",
+            "errors",
+        ]
+        .into_iter()
+        .map(|key| (key.to_string(), read[key].clone()))
+        .collect();
+        assert_eq!(read["linear"]["identifier"], json!("ACM-5"));
+        assert_published(
+            &Value::Object(wanted),
+            json!({
+              "item": {
+                "sessions": [],
+                "labels": [
+                  "Bug"
+                ],
+                "assignedToMe": true,
+                "noTicket": false,
+                "projectId": "PCharRead",
+                "projectName": "Read app",
+                "key": "linear:ACM-5",
+                "kind": "linearIssue",
+                "id": "ACM-5",
+                "linearIssue": "ACM-5",
+                "title": "Checkout fails on Safari",
+                "url": "https://linear.app/acme/issue/ACM-5",
+                "status": {
+                  "group": "review",
+                  "name": "In Review"
+                },
+                "branchName": "leandro/acm-1-checkout",
+                "assignee": {
+                  "name": "Leandro",
+                  "avatarUrl": "https://avatars/l.png",
+                  "isMe": true
+                },
+                "linearProject": {
+                  "name": "Checkout revamp",
+                  "url": "https://linear.app/acme/project/checkout"
+                },
+                "cycle": "Cycle 12"
+              },
+              "githubIssue": null,
+              "pullRequest": null,
+              "tickets": [],
+              "media": [
+                {
+                  "kind": "loom",
+                  "url": "https://www.loom.com/share/abc123",
+                  "embedUrl": "https://www.loom.com/embed/abc123"
+                }
+              ],
+              "links": [],
+              "errors": []
+            }),
+        );
+    }
 }
