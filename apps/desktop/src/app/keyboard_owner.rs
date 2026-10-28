@@ -282,7 +282,7 @@ impl GhostexGpuiApp {
                     } else {
                         ShellKeyboardOwner::Nothing
                     }
-                } else if self.active_mode != mode {
+                } else if !self.view_page_on_screen(mode) {
                     ShellKeyboardOwner::Nothing
                 } else if self.website_home_setup_visible(mode)
                     || mode == TitlebarMode::Kanban

@@ -108,7 +108,8 @@ impl GhostexGpuiApp {
         slot_key: ProjectWorkareaCefSurfaceSlotKey,
     ) -> bool {
         let mode = slot_key.titlebar_mode();
-        self.active_mode == mode
+        // Claude's page shows in the sessions column's place (app/claude_web/takeover.rs).
+        self.view_page_on_screen(mode)
             // The Work page never sleeps as a view, like the GPUI pages beside it.
             && (self.project_editor_shell.is_mode_awake(mode)
                 || slot_key == ProjectWorkareaCefSurfaceSlotKey::Work)
@@ -470,6 +471,11 @@ impl GhostexGpuiApp {
         }
         if let TitlebarMode::Extension(id) = self.active_mode {
             slot_keys.push(ProjectWorkareaCefSurfaceSlotKey::Extension(id));
+        }
+        if self.claude_page_on_screen() {
+            slot_keys.push(ProjectWorkareaCefSurfaceSlotKey::Extension(
+                crate::app::claude_web::claude_web_view_id(),
+            ));
         }
         if self.active_mode == TitlebarMode::Work {
             slot_keys.push(ProjectWorkareaCefSurfaceSlotKey::Work);

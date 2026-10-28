@@ -25,6 +25,12 @@ impl GhostexGpuiApp {
         let cap_exempt = (!self.project_editor_auto_sleep_policy.keep_views_loaded).then(|| {
             let mut kept_awake = self.view_modes_kept_awake_by_parked_projects();
             kept_awake.extend(self.view_modes_never_auto_slept());
+            // Claude's page stays loaded while Claude is on, whatever the side panel opens.
+            if self.claude_on() {
+                kept_awake.push(TitlebarMode::Extension(
+                    crate::app::claude_web::claude_web_view_id(),
+                ));
+            }
             kept_awake
         });
         let marked = self

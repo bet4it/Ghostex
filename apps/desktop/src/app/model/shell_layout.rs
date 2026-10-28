@@ -10,6 +10,7 @@ pub(crate) struct GpuiShellLayoutState {
     pub(crate) view_strip_layout: GpuiViewStripLayout,
     pub(crate) view_panel_maximized: bool,
     pub(crate) view_panel_picker_open: bool,
+    pub(crate) claude_takeover: Option<crate::app::claude_web::ClaudeTakeover>,
     pub(crate) shell_focus: ShellFocusTarget,
     pub(crate) previous_non_command_focus: Option<ShellFocusTarget>,
     pub(crate) sidebar_usage_visible: bool,
@@ -73,6 +74,7 @@ impl GpuiShellLayoutState {
             view_strip_layout: GpuiViewStripLayout::default(),
             view_panel_maximized: false,
             view_panel_picker_open: false,
+            claude_takeover: None,
             shell_focus,
             previous_non_command_focus: Some(shell_focus),
             sidebar_usage_visible: false,
@@ -182,6 +184,16 @@ impl GpuiShellLayoutState {
             json_string_field(object, "activeMode").and_then(TitlebarMode::from_slug)?;
         let active_mode =
             fallback_availability.available_titlebar_mode_or_agents(persisted_active_mode);
+        // Claude is never a side panel view (CDXC:Extensions 2026-10-28 in
+        // app/claude_web/takeover.rs): a Claude tab saved by an older build comes back closed.
+        let active_mode = if active_mode.is_claude_web() {
+            TitlebarMode::Agents
+        } else {
+            active_mode
+        };
+        let claude_takeover = object
+            .get("claudeTakeover")
+            .and_then(crate::app::claude_web::ClaudeTakeover::from_shell_state_json);
         let agents_workspace = object
             .get("agentsWorkspace")
             .and_then(workspace_model_from_shell_state)?;
@@ -456,6 +468,7 @@ impl GpuiShellLayoutState {
             view_strip_layout,
             view_panel_maximized,
             view_panel_picker_open,
+            claude_takeover,
             shell_focus,
             previous_non_command_focus,
             sidebar_usage_visible,

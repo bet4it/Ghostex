@@ -4072,10 +4072,17 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
 - **Claude** is a built-in extension, off by default: turn it on with its switch
   in Settings > Extensions (Features) to use claude.ai inside Ghostex.
   It adds a Claude button (grey, like its neighbours) to the sidebar's top row, next to the Issues button.
-  Clicking it opens claude.ai over the whole work area with only the sidebar
-  beside it, from any project; click it again, or click a session in the
-  sidebar, to go back to what you had open. It is also listed in the side
-  panel's Open a view picker. Each saved Claude account (Settings > Accounts)
+  Clicking it turns Claude on: claude.ai takes the whole window, from any
+  project, and the sidebar, the side panel and the Commands pane are hidden.
+  Claude never gets a tab in the side panel; you can still open the side panel
+  beside it (the Browser and every other view work there as usual), and bring
+  the sidebar or the Commands pane back with their usual buttons and shortcuts.
+  To turn Claude off, show the sidebar (Toggle sidebar, Cmd+B, or point at the
+  window's left edge) and click the Claude button again, or click a session in
+  the sidebar. Turning it off puts the sidebar, side panel and Commands pane
+  back as they were, and anything you opened while Claude was on stays open.
+  Claude stays on after a restart. Picking Claude in the side panel's Open a
+  view picker turns it on too. Each saved Claude account (Settings > Accounts)
   keeps its own claude.ai sign-in, the same one its cloud sessions use, and the
   bar above the page shows the account you are on (a green dot once it is
   signed in): click it to switch accounts, sign the current one out of

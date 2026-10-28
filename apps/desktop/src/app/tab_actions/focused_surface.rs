@@ -87,7 +87,8 @@ impl GhostexGpuiApp {
         window: &mut Window,
         cx: &mut gpui::Context<Self>,
     ) {
-        if self.active_mode == mode {
+        // Claude's page is on screen in the sessions column's place (app/claude_web/takeover.rs).
+        if self.view_page_on_screen(mode) {
             if mode == TitlebarMode::Terminal {
                 if self.seed_terminal_view_for_open(cx) {
                     self.focus_command_pane(cx);
@@ -135,7 +136,7 @@ impl GhostexGpuiApp {
         window: &mut Window,
         cx: &mut gpui::Context<Self>,
     ) -> bool {
-        if self.active_mode != mode {
+        if !self.view_page_on_screen(mode) {
             return false;
         }
 

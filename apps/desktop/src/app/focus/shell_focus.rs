@@ -158,7 +158,7 @@ impl GhostexGpuiApp {
             }
             FirstResponderTarget::CefSurface(FirstResponderCefSurface::ProjectWorkarea(
                 slot_key,
-            )) if self.active_mode == slot_key.titlebar_mode() => {
+            )) if self.view_page_on_screen(slot_key.titlebar_mode()) => {
                 self.set_shell_focus(ShellFocusTarget::ProjectEditorSurface(
                     slot_key.titlebar_mode(),
                 ));
@@ -775,6 +775,20 @@ impl GhostexGpuiApp {
     }
 
     pub(crate) fn focus_default_surface_for_active_mode(&mut self, cx: &mut gpui::Context<Self>) {
+        // With the side panel closed, Claude's page is what is on screen in place of the sessions
+        // (app/claude_web/takeover.rs).
+        if self.active_mode == TitlebarMode::Agents
+            && !self.view_panel_picker_open
+            && self.claude_page_on_screen()
+        {
+            self.focus_shell_target(
+                ShellFocusTarget::ProjectEditorSurface(TitlebarMode::Extension(
+                    crate::app::claude_web::claude_web_view_id(),
+                )),
+                cx,
+            );
+            return;
+        }
         self.focus_shell_target(
             default_shell_focus_for_mode(
                 self.active_mode,

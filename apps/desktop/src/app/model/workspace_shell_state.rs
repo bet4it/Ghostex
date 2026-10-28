@@ -168,6 +168,9 @@ pub(crate) fn gpui_workspace_shell_state_json(app: &GhostexGpuiApp) -> serde_jso
         "viewStrip": app.view_strip_layout.to_shell_state_json(),
         "viewPanelMaximized": app.view_panel_maximized,
         "viewPanelPickerOpen": app.view_panel_picker_open,
+        "claudeTakeover": app
+            .claude_takeover
+            .map(crate::app::claude_web::ClaudeTakeover::to_shell_state_json),
         "lastOpenViewMode": app.last_open_view_mode.map(TitlebarMode::element_slug),
         "viewPaneLayouts": app.view_pane_layouts_with_live_values().to_shell_state_json(),
     })

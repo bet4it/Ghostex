@@ -359,6 +359,9 @@ pub struct GhostexGpuiApp {
     /// every view it could show, instead of guessing one. The panel is open and `active_mode` is
     /// still `Agents`, which is the one state where those two disagree.
     pub(crate) view_panel_picker_open: bool,
+    /// Claude is on in this window, with the layout to put back when it goes off
+    /// (`app/claude_web/takeover.rs`).
+    pub(crate) claude_takeover: Option<crate::app::claude_web::ClaudeTakeover>,
     /// The picker's scroll position, so a long list is reachable in a short panel.
     pub(crate) view_picker_scroll: ScrollHandle,
     /// Where a tab being dragged along the view panel's strip would land, as an index into the

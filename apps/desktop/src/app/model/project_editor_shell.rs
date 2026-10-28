@@ -562,7 +562,14 @@ pub(crate) fn project_view_state_from_shell_state(
     let active_mode = object
         .get("activeMode")
         .and_then(serde_json::Value::as_str)
-        .and_then(TitlebarMode::from_slug)?;
+        .and_then(TitlebarMode::from_slug)
+        .map(|mode| {
+            if mode.is_claude_web() {
+                TitlebarMode::Agents
+            } else {
+                mode
+            }
+        })?;
     Some(GpuiProjectViewState {
         active_mode,
         open_views: open_view_modes_from_shell_state(object.get("openViews"), active_mode),
@@ -594,12 +601,17 @@ pub(crate) fn open_view_modes_from_shell_state(
         let Some(mode) = entry.as_str().and_then(TitlebarMode::from_slug) else {
             continue;
         };
-        if mode == TitlebarMode::Agents || modes.contains(&mode) {
+        // Claude is never a side panel tab (CDXC:Extensions 2026-10-28 in
+        // app/claude_web/takeover.rs), so one saved by an older build is dropped.
+        if mode == TitlebarMode::Agents || mode.is_claude_web() || modes.contains(&mode) {
             continue;
         }
         modes.push(mode);
     }
-    if active_mode != TitlebarMode::Agents && !modes.contains(&active_mode) {
+    if active_mode != TitlebarMode::Agents
+        && !active_mode.is_claude_web()
+        && !modes.contains(&active_mode)
+    {
         modes.push(active_mode);
     }
     modes
