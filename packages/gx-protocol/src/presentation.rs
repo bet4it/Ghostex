@@ -545,11 +545,14 @@ pub struct PresentationSessionWork {
     pub branch: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pull_request: Option<PresentationWorkPullRequest>,
-    /// Every ticket the session is linked to, from whichever source its workspace uses, in the
-    /// session links' shape (`key` `linear:GHX-142` / `issue:owner/repo#12`, `state_group`).
+    /// The tickets of `linear_issues` and `github_issues` (from the branch, or set by hand) as one
+    /// list in the session links' shape (`key` `linear:GHX-142` / `issue:owner/repo#12`,
+    /// `state_group`). It is not the Links panel's list: removals made there are not applied and
+    /// stored links are not added.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub tickets: Vec<PresentationSessionLink>,
-    /// CDXC:WorkMode 2026-10-27 WHY: The phone app (ghostex-mobile) still reads `linearIssues` and `githubIssues` for a session's work chip, its Link to rows and its Copy rows, so they stay next to the source-generic `tickets` until the phone reads `tickets`; then they go.
+    /// CDXC:WorkMode 2026-10-27 WHY:
+    /// The phone app (ghostex-mobile) still reads `linearIssues` and `githubIssues` for a session's work chip, its Link to rows and its Copy rows, so they stay next to the source-generic `tickets` until the phone reads `tickets`; then they go.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub linear_issues: Vec<PresentationWorkLinearIssue>,
     #[serde(default, skip_serializing_if = "Vec::is_empty")]

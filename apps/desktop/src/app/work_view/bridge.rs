@@ -158,14 +158,15 @@ impl GhostexGpuiApp {
                                     params.insert(key.to_string(), value.clone());
                                 }
                             }
-                        } else if let Some(ticket) =
-                            request.get("ticketId").filter(|value| !value.is_null())
+                        } else if request
+                            .get("ticketId")
+                            .is_some_and(|value| !value.is_null())
                         {
-                            let add = match text(&request, "source").as_deref() {
-                                Some("github") => "addGithubIssues",
-                                _ => "addLinearIssues",
-                            };
-                            params.insert(add.to_string(), json!([ticket]));
+                            for key in ["source", "ticketId"] {
+                                if let Some(value) = request.get(key) {
+                                    params.insert(key.to_string(), value.clone());
+                                }
+                            }
                         } else if let Some(pr) =
                             request.get("pullRequest").filter(|value| !value.is_null())
                         {

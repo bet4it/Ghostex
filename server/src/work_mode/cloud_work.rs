@@ -283,7 +283,7 @@ fn task_with_branch(task: &str, plan: &CloudTicketPlan) -> String {
     }
 }
 
-/// `{ projectId | path, linearIssue | githubIssue | pullRequest }` → `{ prompt, branch,
+/// `{ projectId | path, source + ticketId | pullRequest }` → `{ prompt, branch,
 /// branchOnRemote, ticket, label, team, maxChars, warnings }`. Blocking.
 pub(crate) fn draft_cloud_work(
     state: &AppState,
@@ -303,7 +303,7 @@ pub(crate) fn draft_cloud_work(
     }))
 }
 
-/// `{ projectId | path, linearIssue | githubIssue | pullRequest, provider, prompt? }` → `{
+/// `{ projectId | path, source + ticketId | pullRequest, provider, prompt? }` → `{
 /// sessionUrl, provider, runner, branch, onBranch, ticket, teamRecorded, warnings }`. Blocking:
 /// the cloud start takes 5 to 30 seconds (up to the runner's own limit).
 pub(crate) fn start_cloud_work(

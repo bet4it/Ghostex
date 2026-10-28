@@ -3,6 +3,7 @@
 //! from recorded tracker answers seeded into the caches, never the network. They assert the JSON
 //! clients read, so a change to any Linear or GitHub field fails here.
 mod fixtures;
+mod link_add;
 mod matching;
 mod session_work;
 mod tracker_default;

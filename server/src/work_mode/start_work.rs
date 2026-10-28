@@ -44,7 +44,7 @@ impl WorkTicket {
             WorkItemRef::Ticket(ticket) => match ticket.source {
                 WorkSourceId::Linear => Self::Linear(ticket.id),
                 WorkSourceId::Github => Self::Github(ticket.id.parse().map_err(|_| {
-                    DomainStateError::bad_request("githubIssue must be an issue number.")
+                    DomainStateError::bad_request("ticketId must be a GitHub issue number.")
                 })?),
             },
             WorkItemRef::PullRequest(selector) => Self::PullRequest(selector),

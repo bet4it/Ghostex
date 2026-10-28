@@ -10,6 +10,7 @@ import {
 } from '@tabler/icons-react';
 import { useEffect, useState, type ReactNode } from 'react';
 import { Button, Dropdown, MenuItem, Spinner, cx } from './components';
+import { sourceText } from './format';
 import type {
   CloudDraft,
   CloudProvider,
@@ -45,12 +46,19 @@ export function linkOffer(item: WorkItem, current: CurrentSession | null): LinkO
     };
   const links = current.links;
   const prNumber = item.pullRequest?.number;
-  const linked =
-    item.kind === 'ticket'
-      ? item.source === 'github'
-        ? links.githubIssues.some((number) => String(number) === item.ticketId)
-        : links.linearIssues.some((id) => id.toUpperCase() === item.ticketId?.toUpperCase())
-      : prNumber != null && links.pullRequest?.number === prNumber;
+  let linked: boolean;
+  if (item.kind === 'pullRequest') {
+    linked = prNumber != null && links.pullRequest?.number === prNumber;
+  } else if (item.source === 'github') {
+    linked = links.githubIssues.some((number) => String(number) === item.ticketId);
+  } else if (item.source === 'linear') {
+    linked = links.linearIssues.some((id) => id.toUpperCase() === item.ticketId?.toUpperCase());
+  } else {
+    return {
+      session: current,
+      disabledReason: `${sourceText(item.source).app} tickets can’t be linked to a session yet.`,
+    };
+  }
   if (linked) return null;
   if (current.remote)
     return {

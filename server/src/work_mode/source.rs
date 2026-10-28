@@ -4,9 +4,8 @@
 //! checks and the Clean up offer are not a source's business: they belong to the code host
 //! (GitHub) whatever the tracker is.
 //!
-//! CDXC:WorkMode 2026-10-27 SEE-ALSO: `source_linear.rs` and `source_github.rs` (the sources); `PresentationSessionWork.tickets`
-//! and `PresentationSessionLink.state_group` in packages/gx-protocol/src/presentation.rs; the Work
-//! page's `WorkItem.source` in apps/desktop/views/work/types.ts.
+//! CDXC:WorkMode 2026-10-27 SEE-ALSO:
+//! `source_linear.rs` and `source_github.rs` (the sources); `PresentationSessionWork.tickets` and `PresentationSessionLink.state_group` in packages/gx-protocol/src/presentation.rs; the Work page's `WorkItem.source` in apps/desktop/views/work/types.ts.
 
 use serde_json::{json, Map, Value};
 
@@ -113,7 +112,7 @@ impl TicketRef {
                     WorkSourceId::Linear => {
                         format!("\"{text}\" is not a Linear issue ID like SPX-1245.")
                     }
-                    WorkSourceId::Github => "githubIssue must be an issue number.".to_string(),
+                    WorkSourceId::Github => "ticketId must be a GitHub issue number.".to_string(),
                 }),
         )
     }

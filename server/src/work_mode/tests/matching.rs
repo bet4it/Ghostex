@@ -92,7 +92,7 @@ fn a_request_names_a_ticket_of_a_source_or_a_pr() {
         ),
         (
             json!({ "source": "github", "ticketId": 0 }),
-            Err("githubIssue must be an issue number.".to_string()),
+            Err("ticketId must be a GitHub issue number.".to_string()),
         ),
         (
             json!({ "pullRequest": "abc" }),

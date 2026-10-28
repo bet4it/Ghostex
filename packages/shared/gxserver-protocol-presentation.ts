@@ -264,7 +264,11 @@ export interface GxserverPresentationSessionWork {
     url?: string;
     checks?: 'passing' | 'failing' | 'pending';
   };
-  /** Every linked ticket, whatever its source, in the session links' shape. */
+  /**
+   * The tickets of `linearIssues` and `githubIssues` (from the branch, or set by hand) as one list
+   * in the session links' shape. It is not the Links panel's list: removals made there are not
+   * applied and stored links are not added.
+   */
   tickets?: GxserverPresentationSessionLink[];
   /** Kept while the phone app still reads it (CDXC:WorkMode 2026-10-27 on `PresentationSessionWork.linear_issues`). */
   linearIssues?: Array<{
