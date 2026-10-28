@@ -578,19 +578,16 @@ fn render_extensions_group(
     let foreground = p.foreground;
     let selected = holds_active && !open;
     let count = pages.len();
-    let label = if count == 1 {
-        "1 extension page".to_string()
-    } else {
-        format!("{count} extension pages")
-    };
+    // CDXC:Settings 2026-10-29 DECISION: User: make the "3 extension pages" row "just say 'Installed'".
+    let label = "Installed".to_string();
     let toggle = (count > 0).then(|| {
         h_flex()
             .id("rail-extensions-group")
             .role(gpui::Role::Button)
             .aria_label(if open {
-                "Hide extension pages"
+                "Hide installed extensions"
             } else {
-                "Show extension pages"
+                "Show installed extensions"
             })
             .aria_expanded(open)
             .aria_selected(selected)
