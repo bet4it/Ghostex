@@ -4,7 +4,7 @@
 //! Builds `packages/gx-chat-wasm` for wasm32-unknown-unknown, shrinks it with binaryen's
 //! `wasm-opt -O3`, and writes `apps/mobile/app/assets/chat-core/chat-core.html` from
 //! `packages/gx-chat-wasm/page/chat-core.html` with the wasm as base64. The output is a gitignored
-//! build product, like the native core `packages/gx-chat-mobile/build.sh` stages.
+//! build product that Metro bundles into the app and its over-the-air updates.
 
 use std::fs;
 use std::process::Command;

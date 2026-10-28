@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  bundledMainChanges,
   fetchServed,
   nativeChanges,
   parseManifestResponse,
@@ -185,5 +186,22 @@ describe('parsePlatforms and nativeChanges', () => {
       'apps/mobile/app/package.json',
     ];
     expect(nativeChanges(changed, inputs)).toEqual(changed.slice(1));
+  });
+});
+
+describe('bundledMainChanges', () => {
+  it('counts the chat core page inputs and the agents list as phone changes', () => {
+    const changed = [
+      'packages/gx-chat-core/src/lib.rs',
+      'packages/gx-protocol/src/wire.rs',
+      'packages/gx-chat-wasm/page/chat-core.html',
+      'packages/shared/session-chat-agents.ts',
+      'tooling/release-mobile/chat-core-page.sh',
+      'apps/desktop/src/main.rs',
+      'packages/gx-core/src/lib.rs',
+      'packages/gx-chat-corex/src/lib.rs',
+      'packages/gx-chat-wasm/README.md',
+    ];
+    expect(bundledMainChanges(changed)).toEqual(changed.slice(0, 5));
   });
 });

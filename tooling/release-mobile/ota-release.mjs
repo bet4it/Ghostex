@@ -24,6 +24,7 @@ import path from 'node:path';
 import {
   MOBILE_APP,
   REPO_ROOT,
+  bundledMainChanges,
   changesSince,
   checkoutRuntimes,
   fetchServed,
@@ -39,8 +40,6 @@ import {
 
 const REPO = 'maddada/Ghostex';
 const WORKFLOW = 'release-mobile-ota.yml';
-/** Main-repo files the phone bundle is generated from (ota-export.sh runs generate-chat-agents.mjs). */
-const BUNDLED_MAIN_FILES = ['packages/shared/session-chat-agents.ts'];
 const SECRETS = ['GHOSTEX_OTA_SIGNING_KEY', 'GHOSTEX_OTA_UPLOAD_TOKEN', 'GHOSTEX_MOBILE_DEPLOY_KEY'];
 
 function fail(message) {
@@ -121,11 +120,14 @@ function printChanges(changes, label) {
     return;
   }
   const phoneFiles = changes.files.filter((file) => file.startsWith(`${MOBILE_APP}/`));
-  const bundled = changes.files.filter((file) => BUNDLED_MAIN_FILES.includes(file));
+  const bundled = bundledMainChanges(changes.files);
   console.log(`Changes in ${MOBILE_APP} since ${label} (${changes.from.slice(0, 12)}..${changes.to.slice(0, 12)}):`);
   if (changes.commits.length === 0) console.log('  (no phone commits)');
   for (const commit of changes.commits) console.log(`  ${commit}`);
-  console.log(`  ${phoneFiles.length} phone files changed${bundled.length ? `, plus ${bundled.join(', ')}` : ''}`);
+  // The chat core is many files; name a few.
+  const named =
+    bundled.length > 3 ? `${bundled.slice(0, 3).join(', ')} and ${bundled.length - 3} more` : bundled.join(', ');
+  console.log(`  ${phoneFiles.length} phone files changed${bundled.length ? `, plus ${named}` : ''}`);
   return phoneFiles.length + bundled.length;
 }
 

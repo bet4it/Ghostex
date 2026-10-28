@@ -111,7 +111,7 @@ export function planOtaRelease({ platforms, runtimes, served, latestRelease }) {
     } else if (record === undefined || record.kind === 'none') {
       refusals.push(
         `${platform}: no installed app runs runtime ${runtime}. The phone's native side changed since the last app build ` +
-          '(Kotlin, Swift, config plugins, native dependencies, the Rust chat core or the tailcat bridge), and an ' +
+          '(Kotlin, Swift, config plugins, native dependencies or the tailcat bridge), and an ' +
           'over-the-air update cannot carry native code. Ship it with a full release (bun run release:actions).'
       );
     } else if (record.kind === 'rollBackToEmbedded') {
@@ -163,6 +163,38 @@ export function verifyExport(plan, exported) {
       problems.push(`${platform}: exported version ${info.version}, expected ${plan.version}`);
   }
   return problems;
+}
+
+/**
+ * Main-repo files the phone's update is built from: the chat agents list ota-export.sh generates
+ * the phone's copy from, and every input of the chat core's WebAssembly page, the same list the
+ * release workflows cache the page on (tooling/release-mobile/chat-core-page.sh). A path ending in
+ * `/` is a folder.
+ *
+ * CDXC:Release 2026-10-28 WHY: the chat core travels in the update since the native core left the
+ * app (apps/mobile/app/scripts/ota-runtime-version.js), so a change to it alone is a phone change;
+ * without it here, release:ota refused a core-only change as "nothing changed in the phone app".
+ */
+export const BUNDLED_MAIN_INPUTS = [
+  'packages/shared/session-chat-agents.ts',
+  'packages/gx-chat-wasm/src/',
+  'packages/gx-chat-wasm/page/',
+  'packages/gx-chat-wasm/Cargo.toml',
+  'packages/gx-chat-wasm/Cargo.lock',
+  'packages/gx-chat-wasm/rust-toolchain.toml',
+  'packages/gx-chat-json/',
+  'packages/gx-chat-core/',
+  'packages/gx-protocol/',
+  'packages/gx-visual/',
+  'tooling/xtask/src/mobile_chat_wasm.rs',
+  'tooling/release-mobile/chat-core-page.sh',
+];
+
+/** The files of a changed-file list that the phone's update is built from (`BUNDLED_MAIN_INPUTS`). */
+export function bundledMainChanges(changedFiles) {
+  return changedFiles.filter((file) =>
+    BUNDLED_MAIN_INPUTS.some((input) => (input.endsWith('/') ? file.startsWith(input) : file === input))
+  );
 }
 
 /** Keeps the runtime-input files (from ota-runtime-version.js) out of a changed-file list. */
