@@ -1,13 +1,16 @@
 //! The panel's cards, one per section of the core's `sessionDetails`, in its order. Every label is
 //! the core's; a row that does something sends the action the core put on it.
 
-use super::super::{appearance::ChatAppearance, cursor::ChatCursor as _, state::NativeChatView};
+use super::super::{
+    appearance::ChatAppearance, cursor::ChatCursor as _, disclosure_motion::FoldFrame,
+    state::NativeChatView,
+};
 use crate::app::helpers::ThrottledAnimationExt;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, Context, FontWeight, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, div, px, rgb,
-    svg,
+    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, Window, div,
+    px, rgb, svg,
 };
 use serde_json::Value;
 use std::time::Duration;
@@ -21,6 +24,15 @@ const SUBTITLE_HEIGHT: f32 = 20.0;
 const BAR_HEIGHT: f32 = 14.0;
 const SUMMARY_HEIGHT: f32 = 24.0;
 const NOTE_HEIGHT: f32 = 20.0;
+
+/// The disclosure keys of the panel's folds (`disclosure_motion.rs`).
+const MESSAGES_KEY: &str = "session-details:context:messages";
+const SKILLS_ALL_KEY: &str = "session-details:skills:all";
+const BACKGROUND_FINISHED_KEY: &str = "session-details:background:finished";
+
+fn card_key(id: &str) -> String {
+    format!("session-details:{id}")
+}
 
 fn str_of(value: &Value, key: &str) -> String {
     value[key].as_str().unwrap_or_default().to_string()
@@ -49,8 +61,10 @@ fn swatch(key: &str, p: &ChatAppearance) -> Hsla {
     }
 }
 
-/// The floating card's content height for `details`, in unscaled pixels.
-pub(super) fn panel_height(details: &Value) -> f32 {
+/// The floating card's content height for `details`, in unscaled pixels. `open` says how far a
+/// fold is open (0 shut, 1 open) given its key and whether it is open now, so the card's window
+/// follows a fold that is still easing instead of clipping it.
+pub(super) fn panel_height(details: &Value, open: &mut dyn FnMut(&str, bool) -> f32) -> f32 {
     let mut total = 0.0;
     let sections = details["sections"]
         .as_array()
@@ -60,69 +74,84 @@ pub(super) fn panel_height(details: &Value) -> f32 {
             total += CARD_GAP;
         }
         total += CARD_PADDING_Y * 2.0 + HEADER_HEIGHT;
-        if section["collapsed"] == true {
+        let id = section["id"].as_str().unwrap_or_default();
+        let fold = open(&card_key(id), section["collapsed"] != true);
+        if fold <= 0.0 {
             continue;
         }
         let sketched = section["skeletonRows"].as_u64().unwrap_or(0) as f32 * ROW_HEIGHT;
         if section["loading"] == true {
-            total += sketched;
+            total += sketched * fold;
             continue;
         }
-        total += sketched;
-        total += match section["id"].as_str().unwrap_or_default() {
-            "context" => {
-                let messages = if section["messagesOpen"] == true {
-                    len(section, "messages")
-                } else {
-                    0
-                };
-                let status = if section["refresh"].is_object() {
-                    NOTE_HEIGHT
-                } else {
-                    0.0
-                };
-                SUMMARY_HEIGHT
-                    + BAR_HEIGHT
-                    + (len(section, "rows") + len(section, "deferred") + messages) as f32
-                        * ROW_HEIGHT
-                    + status
-            }
-            "connectors" => section["groups"]
-                .as_array()
-                .into_iter()
-                .flatten()
-                .map(|group| SUBTITLE_HEIGHT + len(group, "rows").max(1) as f32 * ROW_HEIGHT)
-                .sum(),
-            "skills" => {
-                let used = if section["usedEmpty"].is_string() {
-                    len(section, "used").max(1)
-                } else {
-                    len(section, "used")
-                };
-                let all = if section["allOpen"] == true {
-                    len(section, "all")
-                } else {
-                    0
-                };
-                (used + 1 + all) as f32 * ROW_HEIGHT
-            }
-            "background" => {
-                let finished = if section["finishedOpen"] == true {
-                    len(section, "finished")
-                } else {
-                    0
-                };
-                let toggle = usize::from(len(section, "finished") > 0);
-                (len(section, "running") + toggle + finished) as f32 * ROW_HEIGHT
-            }
-            "changes" => ROW_HEIGHT,
-            _ => len(section, "rows") as f32 * ROW_HEIGHT,
-        };
+        let body = sketched
+            + match id {
+                "context" => {
+                    let messages = len(section, "messages") as f32
+                        * open(MESSAGES_KEY, section["messagesOpen"] == true);
+                    let status = if section["refresh"].is_object() {
+                        NOTE_HEIGHT
+                    } else {
+                        0.0
+                    };
+                    SUMMARY_HEIGHT
+                        + BAR_HEIGHT
+                        + (len(section, "rows") + len(section, "deferred")) as f32 * ROW_HEIGHT
+                        + messages * ROW_HEIGHT
+                        + status
+                }
+                "connectors" => section["groups"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .map(|group| SUBTITLE_HEIGHT + len(group, "rows").max(1) as f32 * ROW_HEIGHT)
+                    .sum(),
+                "skills" => {
+                    let used = if section["usedEmpty"].is_string() {
+                        len(section, "used").max(1)
+                    } else {
+                        len(section, "used")
+                    };
+                    let all = len(section, "all") as f32
+                        * open(SKILLS_ALL_KEY, section["allOpen"] == true);
+                    (used + 1) as f32 * ROW_HEIGHT + all * ROW_HEIGHT
+                }
+                "background" => {
+                    let finished = len(section, "finished") as f32
+                        * open(BACKGROUND_FINISHED_KEY, section["finishedOpen"] == true);
+                    let toggle = usize::from(len(section, "finished") > 0);
+                    (len(section, "running") + toggle) as f32 * ROW_HEIGHT + finished * ROW_HEIGHT
+                }
+                "changes" => ROW_HEIGHT,
+                _ => len(section, "rows") as f32 * ROW_HEIGHT,
+            };
+        total += body * fold;
     }
     if sections.is_empty() {
         total = NOTE_HEIGHT * 2.0;
     }
     total + 4.0
+}
+
+/// The chevron of a fold: at rest the right or down glyph, while the fold moves the right chevron
+/// turned a quarter in step with the body (`frame.log`, 0 shut to 1 open).
+fn fold_chevron(open: bool, motion: Option<FoldFrame>, size: f32, color: Hsla) -> AnyElement {
+    let glyph = svg().size(px(size)).flex_shrink_0().text_color(color);
+    match motion {
+        Some(frame) => glyph
+            .path("titlebar/chevron-right.svg")
+            .with_transformation(gpui::Transformation::rotate(gpui::radians(
+                std::f32::consts::FRAC_PI_2 * frame.log.clamp(0.0, 1.0),
+            )))
+            .into_any_element(),
+        None => glyph
+            .path(if open {
+                "titlebar/chevron-down.svg"
+            } else {
+                "titlebar/chevron-right.svg"
+            })
+            .into_any_element(),
+    }
 }
 
 /// One skeleton text bar, `width` of its row.
@@ -189,9 +218,11 @@ impl NativeChatView {
     pub(super) fn session_details_cards(
         &mut self,
         p: &ChatAppearance,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let s = p.scale;
+        self.session_details.drew = true;
         let details = self.snapshot["sessionDetails"].clone();
         let mut column = div().flex().flex_col().gap(px(CARD_GAP * s)).min_w_0();
         if let Some(error) = details["error"].as_str() {
@@ -204,6 +235,10 @@ impl NativeChatView {
         }
         for section in details["sections"].as_array().into_iter().flatten() {
             column = column.child(self.session_details_card(section, &details, p, cx));
+        }
+        // A fold that is opening or closing needs the next frame, in whichever window draws it.
+        if self.disclosure_motion.borrow().running() {
+            window.request_animation_frame();
         }
         column.into_any_element()
     }
@@ -218,17 +253,23 @@ impl NativeChatView {
         let s = p.scale;
         let id = str_of(section, "id");
         let collapsed = section["collapsed"] == true;
-        let header = self.card_header(section, p, cx);
+        let key = card_key(&id);
+        let motion = self.disclosure_frame(&key, !collapsed, cx);
+        let header = self.card_header(section, !collapsed, motion, p, cx);
         let loading = section["loading"] == true;
-        let body = (!collapsed).then(|| match id.as_str() {
-            _ if loading => skeleton_rows(&id, section, p),
-            "context" => self.context_body(section, details, p, cx),
-            "tasks" => tasks_body(section, p),
-            "connectors" => self.connectors_body(section, p, cx),
-            "skills" => self.skills_body(section, p, cx),
-            "changes" => self.changes_body(section, p, cx),
-            "background" => self.background_body(section, p, cx),
-            _ => self.plain_rows(&id, section, p, cx),
+        // The core keeps a folded card's rows, so a closing card has its body to ease away.
+        let body = (!collapsed || motion.is_some()).then(|| {
+            let body = match id.as_str() {
+                _ if loading => skeleton_rows(&id, section, p),
+                "context" => self.context_body(section, details, p, cx),
+                "tasks" => tasks_body(section, p),
+                "connectors" => self.connectors_body(section, p, cx),
+                "skills" => self.skills_body(section, p, cx),
+                "changes" => self.changes_body(section, p, cx),
+                "background" => self.background_body(section, p, cx),
+                _ => self.plain_rows(&id, section, p, cx),
+            };
+            self.disclosure_body_motion(&key, motion, 0.0, body)
         });
         div()
             .id(SharedString::from(format!("session-details-card-{id}")))
@@ -253,12 +294,13 @@ impl NativeChatView {
     fn card_header(
         &mut self,
         section: &Value,
+        open: bool,
+        motion: Option<FoldFrame>,
         p: &ChatAppearance,
         cx: &mut Context<Self>,
     ) -> AnyElement {
         let s = p.scale;
         let id = str_of(section, "id");
-        let collapsed = section["collapsed"] == true;
         let toggle = serde_json::json!({"type": "sessionDetailsSection", "section": id});
         let trailing: Option<AnyElement> = match id.as_str() {
             "context" => section["refresh"]
@@ -289,7 +331,7 @@ impl NativeChatView {
                     .role(gpui::Role::Button)
                     .aria_label(format!(
                         "{} {}",
-                        if collapsed { "Show" } else { "Hide" },
+                        if open { "Hide" } else { "Show" },
                         str_of(section, "title")
                     ))
                     .flex()
@@ -306,16 +348,7 @@ impl NativeChatView {
                             .text_color(p.muted)
                             .child(str_of(section, "title")),
                     )
-                    .child(
-                        svg()
-                            .path(if collapsed {
-                                "titlebar/chevron-right.svg"
-                            } else {
-                                "titlebar/chevron-down.svg"
-                            })
-                            .size(px(12.0 * s))
-                            .text_color(p.card_muted),
-                    )
+                    .child(fold_chevron(open, motion, 12.0 * s, p.card_muted))
                     .on_click(cx.listener(move |this, _, _, cx| {
                         cx.stop_propagation();
                         this.session_details_action(&toggle, cx);
@@ -435,6 +468,27 @@ impl NativeChatView {
         p: &ChatAppearance,
         cx: &mut Context<Self>,
     ) -> AnyElement {
+        self.detail_row_folding(
+            key, leading, text, detail, tooltip, action, dim, link, None, p, cx,
+        )
+    }
+
+    /// [`Self::detail_row`] with a fold's chevron right after the text (the Messages row).
+    #[allow(clippy::too_many_arguments)]
+    fn detail_row_folding(
+        &mut self,
+        key: String,
+        leading: Option<AnyElement>,
+        text: String,
+        detail: Option<String>,
+        tooltip: Option<String>,
+        action: Option<Value>,
+        dim: bool,
+        link: bool,
+        chevron: Option<AnyElement>,
+        p: &ChatAppearance,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
         let s = p.scale;
         let color = if dim { p.card_muted } else { p.foreground };
         let mut row = div()
@@ -447,15 +501,30 @@ impl NativeChatView {
             .px(px(2.0 * s))
             .rounded(px(5.0 * s))
             .children(leading)
-            .child(
-                div()
+            .child(match chevron {
+                None => div()
                     .flex_1()
                     .min_w_0()
                     .truncate()
                     .text_color(color)
                     .when(link, |text| text.underline())
                     .child(text.clone()),
-            )
+                Some(chevron) => div()
+                    .flex_1()
+                    .min_w_0()
+                    .flex()
+                    .items_center()
+                    .gap(px(4.0 * s))
+                    .text_color(color)
+                    .child(
+                        div()
+                            .min_w_0()
+                            .truncate()
+                            .when(link, |text| text.underline())
+                            .child(text.clone()),
+                    )
+                    .child(chevron),
+            })
             .when_some(detail, |row, detail| {
                 row.child(
                     div()
@@ -600,6 +669,10 @@ impl NativeChatView {
             column = column.child(skeleton_rows("context", section, p));
         }
         let messages_open = section["messagesOpen"] == true;
+        let messages_key = MESSAGES_KEY;
+        let messages_motion = (len(section, "messages") > 0)
+            .then(|| self.disclosure_frame(messages_key, messages_open, cx))
+            .flatten();
         for (index, row) in section["rows"].as_array().into_iter().flatten().enumerate() {
             let id = str_of(row, "id");
             let color = swatch(row["color"].as_str().unwrap_or_default(), p);
@@ -616,35 +689,31 @@ impl NativeChatView {
             // Messages unfolds into what they are made of.
             let action = (id == "messages" && len(section, "messages") > 0)
                 .then(|| serde_json::json!({"type": "sessionDetailsList", "list": "messages"}));
-            let label = if action.is_some() {
-                format!(
-                    "{} {}",
-                    str_of(row, "label"),
-                    if messages_open { "▾" } else { "▸" }
-                )
-            } else {
-                str_of(row, "label")
-            };
-            column = column.child(self.detail_row(
+            let chevron = action
+                .is_some()
+                .then(|| fold_chevron(messages_open, messages_motion, 12.0 * s, p.card_muted));
+            column = column.child(self.detail_row_folding(
                 format!("context-{index}"),
                 Some(leading),
-                label,
+                str_of(row, "label"),
                 Some(detail),
                 None,
                 action,
                 row["dim"] == true,
                 false,
+                chevron,
                 p,
                 cx,
             ));
-            if id == "messages" && messages_open {
+            if id == "messages" && (messages_open || messages_motion.is_some()) {
+                let mut lines = div().flex().flex_col().min_w_0();
                 for (part, line) in section["messages"]
                     .as_array()
                     .into_iter()
                     .flatten()
                     .enumerate()
                 {
-                    column = column.child(
+                    lines = lines.child(
                         div()
                             .flex()
                             .items_center()
@@ -666,6 +735,12 @@ impl NativeChatView {
                             .child(div().flex_shrink_0().child(str_of(line, "tokens"))),
                     );
                 }
+                column = column.child(self.disclosure_body_motion(
+                    messages_key,
+                    messages_motion,
+                    0.0,
+                    lines.into_any_element(),
+                ));
             }
         }
         for (index, row) in section["deferred"]
@@ -829,36 +904,26 @@ impl NativeChatView {
             ));
         }
         let open = section["allOpen"] == true;
+        let all_key = SKILLS_ALL_KEY;
+        let motion = self.disclosure_frame(all_key, open, cx);
         let toggle = section["allToggle"].clone();
-        column = column.child(
-            self.detail_row(
-                "skills-all".to_string(),
-                Some(
-                    svg()
-                        .path(if open {
-                            "titlebar/chevron-down.svg"
-                        } else {
-                            "titlebar/chevron-right.svg"
-                        })
-                        .size(px(12.0 * s))
-                        .flex_shrink_0()
-                        .text_color(p.card_muted)
-                        .into_any_element(),
-                ),
-                str_of(section, "allLabel"),
-                None,
-                None,
-                Some(toggle),
-                true,
-                false,
-                p,
-                cx,
-            ),
-        );
-        if open {
+        column = column.child(self.detail_row(
+            "skills-all".to_string(),
+            Some(fold_chevron(open, motion, 12.0 * s, p.card_muted)),
+            str_of(section, "allLabel"),
+            None,
+            None,
+            Some(toggle),
+            true,
+            false,
+            p,
+            cx,
+        ));
+        if open || motion.is_some() {
+            let mut rows = div().flex().flex_col().min_w_0();
             for (index, row) in section["all"].as_array().into_iter().flatten().enumerate() {
                 let action = row["action"].is_object().then(|| row["action"].clone());
-                column = column.child(self.detail_row(
+                rows = rows.child(self.detail_row(
                     format!("skill-all-{index}"),
                     Some(icon(p)),
                     str_of(row, "text"),
@@ -871,6 +936,12 @@ impl NativeChatView {
                     cx,
                 ));
             }
+            column = column.child(self.disclosure_body_motion(
+                all_key,
+                motion,
+                0.0,
+                rows.into_any_element(),
+            ));
         }
         column.into_any_element()
     }
@@ -1074,33 +1145,23 @@ impl NativeChatView {
         }
         if let Some(label) = section["finishedLabel"].as_str() {
             let open = section["finishedOpen"] == true;
+            let finished_key = BACKGROUND_FINISHED_KEY;
+            let motion = self.disclosure_frame(finished_key, open, cx);
             let toggle = section["finishedToggle"].clone();
-            column = column.child(
-                self.detail_row(
-                    "background-finished".to_string(),
-                    Some(
-                        svg()
-                            .path(if open {
-                                "titlebar/chevron-down.svg"
-                            } else {
-                                "titlebar/chevron-right.svg"
-                            })
-                            .size(px(12.0 * s))
-                            .flex_shrink_0()
-                            .text_color(p.card_muted)
-                            .into_any_element(),
-                    ),
-                    label.to_string(),
-                    None,
-                    None,
-                    Some(toggle),
-                    true,
-                    false,
-                    p,
-                    cx,
-                ),
-            );
-            if open {
+            column = column.child(self.detail_row(
+                "background-finished".to_string(),
+                Some(fold_chevron(open, motion, 12.0 * s, p.card_muted)),
+                label.to_string(),
+                None,
+                None,
+                Some(toggle),
+                true,
+                false,
+                p,
+                cx,
+            ));
+            if open || motion.is_some() {
+                let mut rows = div().flex().flex_col().min_w_0();
                 for (index, row) in section["finished"]
                     .as_array()
                     .into_iter()
@@ -1113,7 +1174,7 @@ impl NativeChatView {
                         "failed" => "titlebar/circle-x.svg",
                         _ => "titlebar/player-stop.svg",
                     };
-                    column = column.child(
+                    rows = rows.child(
                         self.detail_row(
                             format!("background-finished-{index}"),
                             Some(
@@ -1135,6 +1196,12 @@ impl NativeChatView {
                         ),
                     );
                 }
+                column = column.child(self.disclosure_body_motion(
+                    finished_key,
+                    motion,
+                    0.0,
+                    rows.into_any_element(),
+                ));
             }
         }
         column.into_any_element()
@@ -1190,4 +1257,35 @@ fn tasks_body(section: &Value, p: &ChatAppearance) -> AnyElement {
         );
     }
     column.into_any_element()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn details() -> Value {
+        json!({"sections": [
+            {"id": "environment", "collapsed": false, "rows": [{}, {}]},
+            {"id": "tasks", "collapsed": true, "rows": [{}, {}, {}]},
+        ]})
+    }
+
+    #[test]
+    fn a_folding_card_counts_the_part_of_its_body_still_showing() {
+        let height = |tasks: f32| {
+            panel_height(&details(), &mut |key, open| {
+                if key == "session-details:tasks" {
+                    tasks
+                } else if open {
+                    1.0
+                } else {
+                    0.0
+                }
+            })
+        };
+        let shut = height(0.0);
+        assert_eq!(height(1.0) - shut, 3.0 * ROW_HEIGHT);
+        assert_eq!(height(0.5) - shut, 1.5 * ROW_HEIGHT);
+    }
 }

@@ -64,6 +64,9 @@ pub(crate) struct SessionDetailsView {
     reported_visible: bool,
     /// The docked column's scroll.
     pub(super) scroll: ScrollHandle,
+    /// The cards were drawn since the panel was last off screen: their fold motions are watching
+    /// the states they were drawn in (`DisclosureMotions::forget`).
+    pub(super) drew: bool,
 }
 
 impl NativeChatView {
@@ -152,6 +155,13 @@ impl NativeChatView {
             self.close_pill_menu(cx);
         }
         let visible = docked || (floating && (menu_open || self.session_details.opening));
+        // CDXC:SessionDetails 2026-10-29 DECISION:
+        // User: "please make expand/collapse here animate nicely like we did for other expand/collapse". Each card and the inner folds (Messages, all skills, finished tasks) ease like the chat's disclosures (`disclosure_motion.rs`), docked or floating. The panel opens still in the state it opens in, so the states the folds were last drawn in are forgotten once the panel is off screen and its slide has finished.
+        if !visible && !frame.animating && std::mem::take(&mut self.session_details.drew) {
+            self.disclosure_motion
+                .borrow_mut()
+                .forget("session-details:");
+        }
         if visible != self.session_details.reported_visible {
             self.session_details.reported_visible = visible;
             self.invoke(
@@ -218,7 +228,10 @@ impl NativeChatView {
         }
         let scale = ChatAppearance::current(&self.snapshot).scale;
         let pane = f32::from(self.bounds.get().size.height) / scale;
-        let content = cards::panel_height(&self.snapshot["sessionDetails"]);
+        let mut motions = self.disclosure_motion.borrow_mut();
+        let content = cards::panel_height(&self.snapshot["sessionDetails"], &mut |key, open| {
+            motions.open_factor(key, open)
+        });
         Some(content.min((pane - 56.0).max(200.0)))
     }
 
@@ -226,6 +239,7 @@ impl NativeChatView {
     pub(super) fn session_details_menu_body(
         &mut self,
         p: &ChatAppearance,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         if !self.session_details_available() {
@@ -234,7 +248,7 @@ impl NativeChatView {
         // The cards sit on the popup's menu tone, not on the chat: they take the light washes they
         // take over window glass, since the chat's own solid fill draws them as black slabs.
         let p = p.clone().on_window_glass(true);
-        let body = self.session_details_cards(&p, cx);
+        let body = self.session_details_cards(&p, window, cx);
         Some(
             div()
                 .id("chat-session-details-menu")
@@ -252,6 +266,7 @@ impl NativeChatView {
     pub(super) fn render_session_details_dock(
         &mut self,
         p: &ChatAppearance,
+        window: &mut Window,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         // A closing slide keeps drawing the column until its frame has shut.
@@ -260,7 +275,7 @@ impl NativeChatView {
             return None;
         }
         let s = p.scale;
-        let body = self.session_details_cards(p, cx);
+        let body = self.session_details_cards(p, window, cx);
         let column = div()
             .id("chat-session-details-dock")
             .role(gpui::Role::Group)

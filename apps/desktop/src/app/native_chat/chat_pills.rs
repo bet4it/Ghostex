@@ -533,7 +533,9 @@ impl NativeChatView {
             "subagents" => self.fleet_menu_body(p, cx),
             "background" => self.background_menu_body(p),
             super::questions_list::QUESTIONS_MENU => self.questions_menu_body(p, window, cx),
-            super::session_details::SESSION_DETAILS_MENU => self.session_details_menu_body(p, cx),
+            super::session_details::SESSION_DETAILS_MENU => {
+                self.session_details_menu_body(p, window, cx)
+            }
             _ => None,
         }
     }

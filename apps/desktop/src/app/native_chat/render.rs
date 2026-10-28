@@ -196,7 +196,7 @@ impl Render for NativeChatView {
         }
         let subagent_viewer = self.render_subagent_viewer(&p, window, cx);
         let edit_menu = self.edit_menu(window, cx);
-        let session_details_dock = self.render_session_details_dock(&p, cx);
+        let session_details_dock = self.render_session_details_dock(&p, window, cx);
         let pane_bounds = self.session_details_pane_bounds();
         let chat = div()
             .id("native-session-chat")
