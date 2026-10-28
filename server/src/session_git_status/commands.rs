@@ -63,6 +63,10 @@ fn gh_availability_cache() -> &'static Mutex<Option<(Instant, bool)>> {
 /// spawn. `false` until something has asked [`gh_cli_is_available`] once (the background passes do
 /// within a minute of start).
 pub(crate) fn cached_gh_cli_available() -> bool {
+    #[cfg(test)]
+    if GH_ASSUMED_AVAILABLE.with(|assumed| assumed.get()) {
+        return true;
+    }
     gh_availability_cache()
         .lock()
         .ok()
@@ -70,13 +74,23 @@ pub(crate) fn cached_gh_cli_available() -> bool {
         .unwrap_or(false)
 }
 
-/// Makes [`gh_cli_is_available`] answer yes without running `gh`; there is deliberately no way back, because every test in the process shares the answer and tests run in parallel.
+#[cfg(test)]
+thread_local! {
+    static GH_ASSUMED_AVAILABLE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// CDXC:SessionLinks 2026-10-28 WHY:
+/// A test that needs `gh` signed in says so for its own thread only. The process-wide answer is shared by every test and tests run in parallel, so on a computer without `gh` another test's `gh auth status` probe could start before a seeded `true` and store `false` after it.
 #[cfg(test)]
 pub(crate) fn assume_gh_cli_available_for_test() {
-    *gh_availability_cache().lock().unwrap() = Some((Instant::now(), true));
+    GH_ASSUMED_AVAILABLE.with(|assumed| assumed.set(true));
 }
 
 pub(crate) fn gh_cli_is_available() -> bool {
+    #[cfg(test)]
+    if GH_ASSUMED_AVAILABLE.with(|assumed| assumed.get()) {
+        return true;
+    }
     let cache = gh_availability_cache();
     if let Ok(cache) = cache.lock() {
         if let Some((probed_at, is_available)) = *cache {
