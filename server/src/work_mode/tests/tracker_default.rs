@@ -50,6 +50,8 @@ fn a_team_choice_wins_then_this_computers_then_linear_when_a_key_applies() {
 
 #[test]
 fn trackers_read_and_write_their_wire_names() {
+    assert_eq!(WorkTracker::Linear.as_wire(), "linear");
+    assert_eq!(WorkTracker::Github.as_wire(), "github");
     for tracker in [WorkTracker::Linear, WorkTracker::Github] {
         assert_eq!(
             WorkTracker::from_wire(Some(&json!(tracker.as_wire()))),

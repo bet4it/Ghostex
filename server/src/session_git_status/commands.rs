@@ -70,6 +70,12 @@ pub(crate) fn cached_gh_cli_available() -> bool {
         .unwrap_or(false)
 }
 
+/// Makes [`gh_cli_is_available`] answer yes without running `gh`; there is deliberately no way back, because every test in the process shares the answer and tests run in parallel.
+#[cfg(test)]
+pub(crate) fn assume_gh_cli_available_for_test() {
+    *gh_availability_cache().lock().unwrap() = Some((Instant::now(), true));
+}
+
 pub(crate) fn gh_cli_is_available() -> bool {
     let cache = gh_availability_cache();
     if let Ok(cache) = cache.lock() {

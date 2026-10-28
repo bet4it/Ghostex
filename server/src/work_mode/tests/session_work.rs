@@ -244,3 +244,37 @@ fn a_github_branch_links_its_issue_and_no_linear_project() {
         }),
     );
 }
+
+#[test]
+fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loading_link() {
+    let cwd = "/gx-char/session/github-unread";
+    let project_id = "PCharGhUnread";
+    remember_project_work_tracker(project_id, WorkTracker::Github);
+    set_branch(cwd, "main");
+    // The repo is known, but the issue was never read.
+    seed_work_github(cwd, Some("acme/web"), Vec::new(), Vec::new());
+    crate::session_git_status::assume_gh_cli_available_for_test();
+    let project = project(project_id, cwd);
+    let session = session(project_id, "S9", json!({ "githubIssues": [9] }));
+    assert_published(
+        &presentation_session_work(&project, &session).unwrap(),
+        json!({ "handSet": true, "githubIssues": [{ "number": 9 }] }),
+    );
+    assert_published(
+        &presentation_session_links(&project, &session).unwrap(),
+        json!({
+          "items": [
+            {
+              "key": "issue:acme/web#9",
+              "kind": "issue",
+              "label": "#9",
+              "source": "user",
+              "sourceLabel": "You added",
+              "number": 9,
+              "url": "https://github.com/acme/web/issues/9",
+              "loading": true
+            }
+          ]
+        }),
+    );
+}
