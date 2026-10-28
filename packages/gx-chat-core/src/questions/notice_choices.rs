@@ -1,9 +1,34 @@
 //! How a notice's picker rows read before the user expands the card.
 //!
-//! Port of `packages/shared/session-chat-presentation/notice-choices.ts`.
+//! Port of `packages/shared/session-chat-presentation/notice-choices.ts` (since removed).
+
+use crate::questions::model::TerminalNotice;
 
 /// Options a collapsed picker shows before the user expands it.
 pub const COLLAPSED_CHOICE_COUNT: u32 = 2;
+
+/// The visible rows a folded picker shows, as positions into its visible rows, in the agent's own
+/// order: the row Cmd+Enter answers and the row Escape answers.
+///
+/// CDXC:SessionChat 2026-10-28 DECISION: User picked "Yes, always show No" (Q706): a folded
+/// approval card shows the first Yes and the No. A permission prompt's rows are Yes, then "Yes, and
+/// don't ask again" style rows, then No, so the first two rows hid No until the card was expanded.
+/// The folded card now shows the Cmd+Enter row and the Escape row; a card without an Escape row,
+/// or whose two rows are already within the first two, keeps its first `COLLAPSED_CHOICE_COUNT`.
+pub fn collapsed_choice_positions(notice: &TerminalNotice) -> Vec<usize> {
+    let visible = notice.visible_choices().len();
+    let first: Vec<usize> = (0..visible.min(COLLAPSED_CHOICE_COUNT as usize)).collect();
+    let (Some(primary), Some(secondary)) = (
+        notice.primary_choice_position(),
+        notice.secondary_choice_position(),
+    ) else {
+        return first;
+    };
+    if primary == secondary || (first.contains(&primary) && first.contains(&secondary)) {
+        return first;
+    }
+    vec![primary.min(secondary), primary.max(secondary)]
+}
 
 /// The long form a rate-limit continuation row opens with, shortened in the collapsed layout.
 const CONTINUE_PREFIX: &str = "Wait here, then continue automatically";
@@ -105,5 +130,76 @@ pub fn without_key_hint(label: &str) -> &str {
         body[..open].trim_end()
     } else {
         label
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use serde_json::json;
+
+    fn folded(kind: &str, labels: &[&str]) -> Vec<usize> {
+        let choices: Vec<_> = labels
+            .iter()
+            .enumerate()
+            .map(|(index, label)| json!({"index": index, "label": label}))
+            .collect();
+        let notice = TerminalNotice::parse(Some(&json!({
+            "kind": kind,
+            "title": "t",
+            "choices": choices,
+        })))
+        .expect("notice");
+        collapsed_choice_positions(&notice)
+    }
+
+    #[test]
+    fn a_claude_permission_prompt_folds_to_yes_and_no() {
+        let rows = ["Yes", "Yes, and don't ask again for this command", "No"];
+        assert_eq!(folded("permissionPrompt", &rows), vec![0, 2]);
+    }
+
+    #[test]
+    fn a_codex_approval_folds_to_yes_and_no() {
+        let rows = [
+            "Yes, proceed (y)",
+            "Yes, and don't ask again for commands that start with `touch x` (p)",
+            "No, and tell Codex what to do differently (esc)",
+        ];
+        assert_eq!(folded("permissionPrompt", &rows), vec![0, 2]);
+    }
+
+    #[test]
+    fn a_two_row_card_is_unchanged() {
+        assert_eq!(folded("permissionPrompt", &["Yes", "No"]), vec![0, 1]);
+        assert_eq!(
+            folded("switchConfirmPrompt", &["Switch", "Keep"]),
+            vec![0, 1]
+        );
+    }
+
+    #[test]
+    fn a_question_picker_without_no_keeps_its_first_two() {
+        let rows = ["Red", "Green", "Blue", "Type something"];
+        assert_eq!(folded("questionPrompt", &rows), vec![0, 1]);
+    }
+
+    #[test]
+    fn the_folder_trust_card_folds_to_trust_and_no() {
+        assert_eq!(
+            folded("trustPrompt", &["No, exit", "Yes, I trust this folder"]),
+            vec![0, 1]
+        );
+        assert_eq!(
+            folded(
+                "trustPrompt",
+                &[
+                    "No, exit",
+                    "Read the folder first",
+                    "Yes, I trust this folder"
+                ]
+            ),
+            vec![0, 2]
+        );
     }
 }

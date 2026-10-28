@@ -12,7 +12,9 @@ use crate::questions::async_controller;
 use crate::questions::gates;
 use crate::questions::interactive::question_answer_controls;
 use crate::questions::model::{InteractivePrompt, TerminalNotice};
-use crate::questions::notice_choices::{collapsed_choice_label, COLLAPSED_CHOICE_COUNT};
+use crate::questions::notice_choices::{
+    collapsed_choice_label, collapsed_choice_positions, COLLAPSED_CHOICE_COUNT,
+};
 use crate::questions::notice_tone;
 use crate::questions::terminal_prompts::{
     terminal_dialog_presentation, terminal_notice_action_answer, terminal_notice_choice_answer,
@@ -128,6 +130,11 @@ fn decorate_notice(raw: &Value, notice: &TerminalNotice) -> Value {
     object.insert(
         "collapsedChoiceCount".to_string(),
         json!(COLLAPSED_CHOICE_COUNT),
+    );
+    // The exact rows a folded card shows (positions into `choices`), so every renderer folds the same way.
+    object.insert(
+        "collapsedChoices".to_string(),
+        json!(collapsed_choice_positions(notice)),
     );
     // The visible rows Cmd+Enter and Escape answer, so the card puts each hint on its row.
     object.insert(

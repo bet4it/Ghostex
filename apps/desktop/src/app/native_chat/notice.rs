@@ -182,14 +182,21 @@ impl NativeChatView {
             if !collapsed {
                 rows = rows.flex_col();
             }
-            let count = if collapsed {
-                notice["collapsedChoiceCount"].as_u64().unwrap_or(2) as usize
+            // CDXC:SessionChat 2026-10-28 DECISION: a folded card shows the rows the chat core names in `collapsedChoices` (the Cmd+Enter row and the No, Q706), so a permission prompt folds to Yes and No; each row keeps its own answer.
+            // SEE-ALSO: packages/gx-chat-core/src/questions/notice_choices.rs (collapsed_choice_positions).
+            let shown: Vec<&serde_json::Value> = if collapsed {
+                notice["collapsedChoices"]
+                    .as_array()
+                    .into_iter()
+                    .flatten()
+                    .filter_map(|position| choices.get(position.as_u64()? as usize))
+                    .collect()
             } else {
-                choices.len()
+                choices.iter().collect()
             };
             // CDXC:SessionChat 2026-10-27 DECISION: the number badge is a row's only hint (Q680, "numbers only"): no ⌘Enter or Esc keycap on any row. Both keys keep answering their rows (keyboard.rs).
             // SEE-ALSO: packages/gx-chat-core/src/questions/terminal_prompts.rs (CDXC:SessionChat 2026-10-27).
-            let shortcuts: Vec<Option<String>> = vec![None; count.min(choices.len())];
+            let shortcuts: Vec<Option<String>> = vec![None; shown.len()];
             /*
             CDXC:SessionChat 2026-09-27 DECISION:
             User: when a notice card's choices do not fit side by side, "make buttons appear full width and on top of each other", for every card like the model switch confirmation.
@@ -197,9 +204,8 @@ impl NativeChatView {
             SEE-ALSO: apps/mobile/app/src/chat/native/cards/NoticeCard.tsx
             */
             let basis = collapsed.then(|| {
-                choices
+                shown
                     .iter()
-                    .take(count)
                     .zip(&shortcuts)
                     .map(|(choice, shortcut)| {
                         Self::choice_row_width(
@@ -216,7 +222,7 @@ impl NativeChatView {
             }
             let more_key = format!("{key}:more");
             let more_open = self.expanded.contains(&more_key);
-            for (choice, shortcut) in choices.iter().take(count).zip(shortcuts.clone()) {
+            for (choice, shortcut) in shown.iter().copied().zip(shortcuts.clone()) {
                 if numbered {
                     if choice["folded"] == true && !more_open {
                         continue;
