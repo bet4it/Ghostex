@@ -80,14 +80,6 @@ Ghostex is built for developers who keep many agents alive at once. A chat view 
 
 <br/>
 
-<h3 align="center">🔎 Find any&nbsp;past&nbsp;session</h3>
-
-<p align="center">Fuzzy search every prompt you ever sent, across all your agents, and press <kbd>Enter</kbd> to resume the conversation. Star favourites and filter by agent or project. Also available as <code>gx f</code> for&nbsp;command‑line&nbsp;fans.</p>
-
-<p align="center"><img src="media/readme/gx-search.png" alt="Searching every past prompt" width="70%" /></p>
-
-<br/>
-
 <h3 align="center">🤖 Agents that&nbsp;run&nbsp;agents</h3>
 
 <p align="center">Agents can open sessions, send prompts, and read replies from other agents through the <code>ghostex</code> command. Ask Claude Code to spin up Codex sub-agents and steer them, or hand the work to a coordinator that keeps track of them&nbsp;for&nbsp;you.</p>
@@ -112,16 +104,15 @@ Ghostex is built for developers who keep many agents alive at once. A chat view 
 
 <br/>
 
-<h3 align="center">✅ Answer your agents in&nbsp;one&nbsp;click</h3>
+<h3 align="center">🔎 Find any&nbsp;past&nbsp;session</h3>
 
-<p align="center">When an agent needs your decisions, it asks them as a form right in the chat: every question at once, choices you click, a note box for each, and one Send. It works the same on desktop, web, and&nbsp;your&nbsp;phone.</p>
+<p align="center">Fuzzy search every prompt you ever sent, across all your agents, and press <kbd>Enter</kbd> to resume the conversation. Star favourites and filter by agent or project. Also available as <code>gx f</code> for&nbsp;command‑line&nbsp;fans.</p>
 
-<p align="center"><img src="media/readme/gx-questions.png" alt="A question form in the chat with clickable choices, Recommended badges and a Send answers button" width="70%" /></p>
+<p align="center"><img src="media/readme/gx-search.png" alt="Searching every past prompt" width="70%" /></p>
 
 ### Also in the box
 
-- **Rich prompt editor**: press Ctrl+G to edit any prompt in a full editor.
-- **Built-in IDE**: a VS Code editor that loads on demand and sleeps when you are not using it.
+- **Built-in IDE**: an optional VS Code editor that loads on demand and sleeps when you are not using it.
 - **Remote machines**: connect another computer with an Easy Connect code or SSH and it shows up in the sidebar.
 - **Usage and accounts**: Claude and Codex limits at a glance, with automatic account switching.
 - **Worktrees, splits, and spaces**: a worktree per task, split panes, Arc-style spaces.
