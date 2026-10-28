@@ -2,6 +2,9 @@
 
 use serde_json::{json, Value};
 
+use crate::session_git_status::{
+    set_cached_session_git_status_for_test, SessionGitStatus, SessionPullRequest,
+};
 use crate::session_links::presentation_session_links;
 
 use super::*;
@@ -352,6 +355,116 @@ fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loadin
               "number": 9,
               "url": "https://github.com/acme/web/issues/9",
               "loading": true
+            }
+          ]
+        }),
+    );
+}
+
+#[test]
+fn a_branch_with_a_pr_shows_the_pr_in_the_sessions_work_and_links() {
+    let cwd = "/gx-char/session/github-pr";
+    let project_id = "PCharGhPr";
+    let pull_request_url = "https://github.com/acme/web/pull/12";
+    // A remembered Linear key turns Issues Workflow on without asking whether `gh` is signed in.
+    remember_project_linear_key(project_id, Some(linear_key_fingerprint("lin-key-gh-pr")));
+    remember_project_work_tracker(project_id, WorkSourceId::Github);
+    set_cached_session_git_status_for_test(
+        cwd,
+        Some(SessionGitStatus {
+            branch: Some("leandro/7-dark-mode".to_string()),
+            additions: 0,
+            deletions: 0,
+            pull_request: Some(SessionPullRequest {
+                number: 12,
+                state: PullRequestState::Open,
+                url: Some(pull_request_url.to_string()),
+            }),
+            updated_at: "2026-10-27T10:00:00.000Z".to_string(),
+        }),
+    );
+    seed_work_github(
+        cwd,
+        Some("acme/web"),
+        vec![WorkGithubIssueInfo {
+            number: 7,
+            title: Some("Dark mode".to_string()),
+            state: Some("open".to_string()),
+            url: Some("https://github.com/acme/web/issues/7".to_string()),
+        }],
+        vec![WorkPullRequestInfo {
+            number: 12,
+            state: PullRequestState::Open,
+            url: Some(pull_request_url.to_string()),
+            checks: Some("passing"),
+            title: Some("Dark mode".to_string()),
+            review: None,
+            closing_issues: vec!["https://github.com/acme/web/issues/7".to_string()],
+            head_ref: Some("leandro/7-dark-mode".to_string()),
+        }],
+    );
+    let project = project(project_id, cwd);
+    let session = session(project_id, "S12", json!({}));
+    assert_published(
+        &presentation_session_work(&project, &session).unwrap(),
+        json!({
+          "branch": "leandro/7-dark-mode",
+          "pullRequest": {
+            "number": 12,
+            "state": "open",
+            "url": "https://github.com/acme/web/pull/12",
+            "checks": "passing"
+          },
+          "githubIssues": [
+            {
+              "number": 7,
+              "title": "Dark mode",
+              "state": "open",
+              "url": "https://github.com/acme/web/issues/7"
+            }
+          ],
+          "tickets": [
+            {
+              "key": "issue:acme/web#7",
+              "kind": "issue",
+              "label": "#7",
+              "title": "Dark mode",
+              "state": "open",
+              "stateName": "Open",
+              "stateGroup": "todo",
+              "url": "https://github.com/acme/web/issues/7",
+              "source": "branch"
+            }
+          ]
+        }),
+    );
+    assert_published(
+        &presentation_session_links(&project, &session).unwrap(),
+        json!({
+          "items": [
+            {
+              "key": "pr:acme/web#12",
+              "kind": "pullRequest",
+              "label": "#12",
+              "source": "branch",
+              "sourceLabel": "From branch",
+              "number": 12,
+              "state": "open",
+              "checks": "passing",
+              "title": "Dark mode",
+              "branch": "leandro/7-dark-mode",
+              "url": "https://github.com/acme/web/pull/12"
+            },
+            {
+              "key": "issue:acme/web#7",
+              "kind": "issue",
+              "label": "#7",
+              "source": "branch",
+              "sourceLabel": "From branch",
+              "number": 7,
+              "state": "open",
+              "title": "Dark mode",
+              "url": "https://github.com/acme/web/issues/7"
             }
           ]
         }),

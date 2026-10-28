@@ -1593,4 +1593,117 @@ mod tests {
             }),
         );
     }
+
+    #[test]
+    fn reading_a_github_issue_returns_its_details_and_row() {
+        let temp = tempfile::tempdir().expect("tempdir");
+        let paths = crate::paths::get_gxserver_paths(Some(temp.path().to_path_buf()));
+        let cwd = "/gx-char/details-read-github";
+        let project = WorkProjectInput {
+            project_id: "PCharReadGh".to_string(),
+            name: "Read web".to_string(),
+            path: Some(cwd.to_string()),
+            project: json!({ "projectId": "PCharReadGh" }),
+            sessions: Vec::new(),
+            linear_api_key: None,
+            repo: Some("acme/web".to_string()),
+            workspace_id: crate::workspaces::DEFAULT_WORKSPACE_ID.to_string(),
+            tracker: WorkSourceId::Github,
+        };
+        let issue = github_issue_detail_of(
+            218,
+            &json!({
+                "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218",
+                "state": "OPEN", "body": "Cards overflow. Demo: https://www.loom.com/share/abc123",
+                "author": { "login": "yahia" }, "assignees": [{ "login": "octo-me" }],
+                "labels": [{ "name": "bug" }],
+                "comments": [{ "author": { "login": "ana" }, "body": "Repro on 17.2", "createdAt": "2026-10-02T09:00:00Z" }],
+                "updatedAt": "2026-10-21T09:00:00Z",
+            }),
+        );
+        // What the page read a moment ago, so nothing asks GitHub.
+        cached_detail(format!("issue:{cwd}#218"), true, || Ok(issue)).unwrap();
+        // `gh` is signed in, without asking it.
+        let _gh = crate::session_git_status::assume_gh_cli_available_for_test();
+        let projects = vec![project];
+        let read = read_work_item(
+            &paths,
+            &projects,
+            &WorkFeedPlan::default(),
+            Some("PCharReadGh"),
+            &WorkItemRef::Ticket(TicketRef::new(WorkSourceId::Github, "218")),
+            false,
+        );
+        let wanted: Map<String, Value> = [
+            "item",
+            "ticket",
+            "pullRequest",
+            "tickets",
+            "media",
+            "links",
+            "errors",
+        ]
+        .into_iter()
+        .map(|key| (key.to_string(), read[key].clone()))
+        .collect();
+        assert_published(
+            &Value::Object(wanted),
+            json!({
+              "item": {
+                "sessions": [],
+                "labels": [],
+                "assignedToMe": false,
+                "noTicket": false,
+                "projectId": "PCharReadGh",
+                "projectName": "Read web",
+                // The key is `issue:<projectId>#218`, not the repo form `issue:acme/web#218`; a fix is expected to change this assertion.
+                "key": "issue:PCharReadGh#218",
+                "kind": "ticket",
+                "source": "github",
+                "ticketId": "218",
+                "id": "#218",
+                "title": "Arabic plan cards",
+                "url": "https://github.com/acme/web/issues/218",
+                "status": {
+                  "group": "todo",
+                  "name": "Open"
+                }
+              },
+              "ticket": {
+                "author": "yahia",
+                "updatedAt": "2026-10-21T09:00:00Z",
+                "source": "github",
+                "id": "218",
+                "label": "#218",
+                "title": "Arabic plan cards",
+                "url": "https://github.com/acme/web/issues/218",
+                "description": "Cards overflow. Demo: https://www.loom.com/share/abc123",
+                "state": {
+                  "group": "todo",
+                  "name": "Open",
+                  "type": "open"
+                },
+                "comments": [
+                  {
+                    "author": "ana",
+                    "body": "Repro on 17.2",
+                    "createdAt": "2026-10-02T09:00:00Z"
+                  }
+                ],
+                "commentCount": 1
+              },
+              "pullRequest": null,
+              "tickets": [],
+              "media": [
+                {
+                  "kind": "loom",
+                  "url": "https://www.loom.com/share/abc123",
+                  "embedUrl": "https://www.loom.com/embed/abc123"
+                }
+              ],
+              "links": [],
+              "errors": []
+            }),
+        );
+    }
 }
