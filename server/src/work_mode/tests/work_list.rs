@@ -371,6 +371,7 @@ fn a_github_workspace_lists_its_issues_with_their_prs_folded_in() {
               "title": "Issue 5",
               "url": "https://github.com/acme/web/issues/5",
               "updatedAt": "2026-10-20T09:00:00.000Z",
+              // The Roadmap status is "In progress", but folding PR 8 in replaces it with "Open"; a fix is expected to change this assertion.
               "status": {
                 "group": "progress",
                 "name": "Open"
