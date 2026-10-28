@@ -33,6 +33,7 @@ use serde_json::{Value, json};
 use super::host::now_ms;
 use super::records_storage::{RecordStore, write_record};
 use crate::GhostexGpuiApp;
+use crate::app::claude_web::OpenedSession;
 use crate::app::model::{
     GpuiPendingProjectSwitchPayload, GpuiPreferredAgentInterface, GpuiProjectSwitchRequestKind,
     GpuiSidebarWorkspaceTerminalFocusMessage,
@@ -67,6 +68,25 @@ pub(crate) struct RowFocusOptions {
     pub(crate) preferred_interface: Option<GpuiPreferredAgentInterface>,
 }
 
+impl RowFocusOptions {
+    /// The options a `focusSession` message carries.
+    fn from_focus_message(message: &Value) -> Self {
+        Self {
+            keep_view: message.get("keepView") == Some(&Value::Bool(true)),
+            keep_sleeping: message.get("keepSleeping") == Some(&Value::Bool(true)),
+            ..Self::default()
+        }
+    }
+
+    /// What this focus is to Claude, which an opened session turns off
+    /// (CDXC:Extensions 2026-10-28 in app/claude_web/takeover.rs).
+    pub(crate) fn opened_session(self) -> OpenedSession {
+        OpenedSession::Focused {
+            keeps_view: self.keep_view,
+        }
+    }
+}
+
 /// What this app run focused. Memory only.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct FocusPerformCounters {
@@ -92,11 +112,7 @@ impl GhostexGpuiApp {
         match message.get("type").and_then(Value::as_str) {
             Some("focusSession") => {
                 if let Some(session_id) = message.get("sessionId").and_then(Value::as_str) {
-                    let options = RowFocusOptions {
-                        keep_view: message.get("keepView") == Some(&Value::Bool(true)),
-                        keep_sleeping: message.get("keepSleeping") == Some(&Value::Bool(true)),
-                        ..RowFocusOptions::default()
-                    };
+                    let options = RowFocusOptions::from_focus_message(message);
                     self.gx_store_focus_session_row(session_id, options, cx);
                 }
                 true
@@ -169,6 +185,7 @@ impl GhostexGpuiApp {
         cx: &mut gpui::Context<Self>,
     ) {
         self.gx_store.focus_perform.sessions += 1;
+        self.note_opened_session(options.opened_session(), cx);
         let project = session.project_key();
         // `focusChangesActiveProject`, judged before the focus below moves the project.
         let changes_project = self.gx_store.core.focus().active_project.as_ref() != Some(&project)
@@ -254,6 +271,7 @@ impl GhostexGpuiApp {
             self.gx_store.focus_perform.refused += 1;
             return false;
         };
+        self.note_opened_session(options.opened_session(), cx);
         // A caller that names the view (a project opened from the menu bar) overrides the agent's
         // Default Agent View, as `options.preferredInterface ?? ...` did.
         if let Some(interface) = options.preferred_interface {
@@ -543,4 +561,84 @@ fn parse_iso_ms(value: &str) -> Option<i64> {
     chrono::DateTime::parse_from_rfc3339(value)
         .ok()
         .map(|time| time.timestamp_millis())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn turns_claude_off(options: RowFocusOptions) -> bool {
+        options.opened_session().turns_claude_off()
+    }
+
+    fn message_turns_claude_off(message: Value) -> bool {
+        turns_claude_off(RowFocusOptions::from_focus_message(&message))
+    }
+
+    #[test]
+    fn a_notification_quick_access_the_menu_bar_or_ghostex_focus_turns_claude_off() {
+        // `gx_store_focus_activated_session`: notifications, Quick Access and the palette, menu bar
+        // rows, Ghostex Capture, the Work view, and `ghostex focus` from the CLI or the phone
+        // (`dispatch_gpui_status_activation`).
+        assert!(turns_claude_off(RowFocusOptions::default()));
+    }
+
+    #[test]
+    fn a_session_hotkey_or_back_and_forward_turns_claude_off() {
+        // The held previous/next session key's landing row (burst.rs) and Back/Forward post a plain
+        // focusSession.
+        assert!(turns_claude_off(RowFocusOptions::default()));
+        assert!(message_turns_claude_off(
+            json!({ "type": "focusSession", "sessionId": "P1:G1" })
+        ));
+    }
+
+    #[test]
+    fn opening_a_project_turns_claude_off() {
+        // project_activation.rs: the menu bar's project rows, `ghostex switch-project`, `ghostex open`.
+        assert!(turns_claude_off(RowFocusOptions {
+            keep_view: false,
+            keep_sleeping: true,
+            preferred_interface: Some(GpuiPreferredAgentInterface::Chat),
+        }));
+    }
+
+    #[test]
+    fn a_sidebar_click_in_the_active_project_turns_claude_off() {
+        // sidebar_focus_route.rs; a click into another project keeps the view here and is turned off
+        // by the click itself (native_sidebar/sessions.rs).
+        assert!(turns_claude_off(RowFocusOptions {
+            keep_view: false,
+            ..RowFocusOptions::default()
+        }));
+    }
+
+    #[test]
+    fn a_space_or_workspace_window_switch_restoring_its_session_keeps_claude_on() {
+        // space_switch.rs and workspace_windows/window_workspace.rs.
+        assert!(!message_turns_claude_off(json!({
+            "type": "focusSession",
+            "sessionId": "P1:G1",
+            "keepView": true,
+            "keepSleeping": true,
+        })));
+    }
+
+    #[test]
+    fn a_machine_switch_restoring_its_session_keeps_claude_on() {
+        // machine_switch.rs.
+        assert!(!message_turns_claude_off(json!({
+            "type": "focusSession",
+            "sessionId": "P1:G1",
+            "keepView": true,
+        })));
+    }
+
+    #[test]
+    fn closing_a_project_turns_claude_off_for_the_session_it_moves_to() {
+        // create/projects.rs focuses the successor with a plain focusSession.
+        assert!(message_turns_claude_off(
+            json!({ "type": "focusSession", "sessionId": "P2:G4" })
+        ));
+    }
 }

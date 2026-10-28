@@ -4078,8 +4078,9 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   beside it (the Browser and every other view work there as usual), and bring
   the sidebar or the Commands pane back with their usual buttons and shortcuts.
   To turn Claude off, show the sidebar (Toggle sidebar, Cmd+B, or point at the
-  window's left edge) and click the Claude button again, or click a session in
-  the sidebar. Turning it off puts the sidebar, side panel and Commands pane
+  window's left edge) and click the Claude button again. Opening any session
+  also turns it off: a sidebar click, Quick Access, a notification, a new agent,
+  a session shortcut, or switching to it from the phone or `ghostex focus`. Turning it off puts the sidebar, side panel and Commands pane
   back as they were, and anything you opened while Claude was on stays open.
   Claude stays on after a restart. Picking Claude in the side panel's Open a
   view picker turns it on too. Each saved Claude account (Settings > Accounts)

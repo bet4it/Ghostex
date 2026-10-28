@@ -3,7 +3,8 @@
 //!
 //! CDXC:Extensions 2026-10-28 DECISION:
 //! User: "when i toggle claude on then please make it take over the whole area (so the sidebar is hidden basically in this case). no need to show a tab for it on the right sidepanel. i should still be able to open stuff on the right sidebar like browser etc while claude is open (but by default it hides right sidepanel and left sidebar and bottom commands pane when i toggle it on pls". Claude is never a side panel tab: its page is drawn where the sessions column is (claude_web/column.rs), turning it on hides the sidebar, the side panel and the Commands pane, and the side panel, the sidebar and the Commands pane still open beside it with their usual toggles and shortcuts. Opening the Claude view any other way (the Open a view picker, a saved tab from an older build) turns Claude on. This supersedes the 2026-10-25 rule that Claude's page kept the sidebar shown and opened as an expanded side panel view (claude_web/sidebar_button.rs, packages/settings-catalog/src/data/official_extensions.rs).
-//! SEE-ALSO: render/workarea_split.rs and render/command_pane_structure.rs (the column), workarea/runtime_surfaces.rs, keyboard_owner.rs, focus/shell_focus.rs and tab_actions/focused_surface.rs (`view_page_on_screen`), workspace_reconcile/active_mode.rs (opening the view turns Claude on).
+//! User (Q727): the Commands pane is hidden to its thin collapsed strip, as built. User (Q728): "Yes, any opened session turns Claude off": opening a session any way while Claude is on (Quick Access, a notification, a new agent, a hotkey, a link, the phone or the CLI switching to it) turns Claude off the way a sidebar click does, with the layout put back by `ClaudeLayout::after_claude` (`OpenedSession`).
+//! SEE-ALSO: render/workarea_split.rs and render/command_pane_structure.rs (the column), workarea/runtime_surfaces.rs, keyboard_owner.rs, focus/shell_focus.rs and tab_actions/focused_surface.rs (`view_page_on_screen`), workspace_reconcile/active_mode.rs (opening the view turns Claude on), gx_store/focus_perform.rs and gx_store/create/focus_created.rs (opened sessions).
 
 use gpui::Window;
 use serde_json::{Value, json};
@@ -110,7 +111,46 @@ impl ClaudeTakeover {
     }
 }
 
+/// How a session came to the front of this window, for whether it turns Claude off.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum OpenedSession {
+    /// The store focused an existing session (`gx_store_focus_session_row`): a sidebar click, a
+    /// notification, Quick Access or the palette, the menu bar, a session hotkey, Back and
+    /// Forward, `ghostex focus` from the CLI or the phone, the voice agent, a project activation.
+    /// `keeps_view` is set by the Space, workspace window and machine switches that put back the
+    /// session they had, and by a sidebar click into another project, which turns Claude off
+    /// itself (native_sidebar/sessions.rs).
+    Focused { keeps_view: bool },
+    /// This window created a session and opened it (`gx_store_focus_created_session`): a new agent
+    /// or terminal, a `ghostex://terminal` link, Find's resume and fork, a board start, a Linear
+    /// ticket or feedback agent.
+    Created,
+}
+
+impl OpenedSession {
+    /// CDXC:Extensions 2026-10-28 WHY:
+    /// A switch of Space, workspace window or machine reselects the session it had in the background so the place comes back as it was; it is not the user opening a session, so Claude stays on through it.
+    pub(crate) fn turns_claude_off(self) -> bool {
+        match self {
+            Self::Focused { keeps_view } => !keeps_view,
+            Self::Created => true,
+        }
+    }
+}
+
 impl GhostexGpuiApp {
+    /// A session came to the front: Claude goes off when this kind of opening turns it off
+    /// (Q728 above), before the session is shown, so it lands in the layout Claude put back.
+    pub(crate) fn note_opened_session(
+        &mut self,
+        opened: OpenedSession,
+        cx: &mut gpui::Context<Self>,
+    ) {
+        if opened.turns_claude_off() {
+            self.turn_claude_off(cx);
+        }
+    }
+
     pub(crate) fn claude_on(&self) -> bool {
         self.claude_takeover.is_some()
     }
@@ -343,6 +383,19 @@ mod tests {
         assert_eq!(shown, ClaudeLayout::CLAUDE_ALONE);
         assert_eq!(takeover.turn_off(shown), after_first);
         assert_eq!(after_first.side_panel, Some(BROWSER));
+    }
+
+    #[test]
+    fn a_session_this_window_creates_turns_claude_off() {
+        // A new agent or terminal, a ghostex://terminal link, Find's resume and fork, a board start.
+        assert!(OpenedSession::Created.turns_claude_off());
+    }
+
+    #[test]
+    fn a_session_opened_while_claude_is_on_lands_in_the_layout_from_before() {
+        let (takeover, shown) = ClaudeTakeover::turn_on(EVERYTHING);
+        assert!(OpenedSession::Focused { keeps_view: false }.turns_claude_off());
+        assert_eq!(takeover.turn_off(shown), EVERYTHING);
     }
 
     #[test]
