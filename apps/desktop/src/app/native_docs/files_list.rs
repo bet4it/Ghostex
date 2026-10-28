@@ -1,4 +1,4 @@
-//! The files list: its header buttons, Search, Open Files and the Project Docs tree, drawn
+//! The files list: its header buttons, Search, Open Files and the project tree, drawn
 //! natively with the former React Docs page's metrics.
 
 use std::cell::Cell;
@@ -113,19 +113,6 @@ pub(crate) fn header_icon(path: &'static str, disabled: bool, p: &DocsPalette) -
     .into_any_element()
 }
 
-fn section_label(label: &'static str, p: &DocsPalette) -> impl IntoElement {
-    div()
-        .flex_none()
-        .pt(px(8.0))
-        .px(px(14.0))
-        .pb(px(3.0))
-        .text_size(px(11.0))
-        .line_height(px(14.0))
-        .font_weight(FontWeight::MEDIUM)
-        .text_color(p.subtle)
-        .child(label)
-}
-
 impl GhostexGpuiApp {
     /// The files list, docked or floating.
     ///
@@ -158,7 +145,7 @@ impl GhostexGpuiApp {
             [header, search]
                 .into_iter()
                 .chain(open_files)
-                .chain([section_label("Project Docs", p).into_any_element(), tree])
+                .chain([tree])
                 .collect()
         };
         div()
@@ -508,6 +495,9 @@ impl GhostexGpuiApp {
     ///
     /// CDXC:Docs 2026-09-16 DECISION:
     /// User: label the list under Search "Open Files" and the tree below it "Project Docs" so the two lists read as different things.
+    ///
+    /// CDXC:Docs 2026-10-28 DECISION:
+    /// User: "remove this in the sidebar of the files", pointing at the "Project Docs" label, so the tree has no label above it.
     fn render_native_docs_open_files(
         &mut self,
         p: &DocsPalette,
