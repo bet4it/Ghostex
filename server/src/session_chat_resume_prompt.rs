@@ -404,6 +404,56 @@ pub(crate) fn parse_picker_row(line: &str) -> Option<(bool, u32, String)> {
     Some((selected, number, label.to_string()))
 }
 
+/// The screen without the side panel Claude Code draws down the right of a wide terminal.
+///
+/// CDXC:AgentScreenDetection 2026-10-28 WHY: Claude Code 2.1.311 shows a "files changed" panel to
+/// the right of the conversation once the terminal is wide enough, behind a `│` in the same column
+/// on every line, so each line of a permission prompt ended in the panel's text. The rows still
+/// read, but the card's detail came out as the panel's rules and file names run into the command
+/// ("────│notes/long.py (untracked) rm notes/keep2.txt ────│New file not yet staged"), and the
+/// tool, command and reason were not read at all (seen on Omarchy at 200 columns; any wide window
+/// does it). A `│` in one column on most lines of the screen, well right of the left edge, is that
+/// divider: lines that have it are cut there; lines without it are kept whole.
+pub(crate) fn strip_claude_side_panel(text: &str) -> String {
+    const DIVIDER: char = '\u{2502}';
+    const MIN_COLUMN: usize = 40;
+    let lines: Vec<Vec<char>> = text
+        .lines()
+        .map(|raw| normalize_spaces(&strip_ansi_sgr(raw)).chars().collect())
+        .collect();
+    let mut counts: std::collections::HashMap<usize, usize> = std::collections::HashMap::new();
+    for line in &lines {
+        for (column, character) in line.iter().enumerate().skip(MIN_COLUMN) {
+            if *character == DIVIDER {
+                *counts.entry(column).or_default() += 1;
+            }
+        }
+    }
+    let non_blank = lines
+        .iter()
+        .filter(|line| line.iter().any(|character| !character.is_whitespace()))
+        .count();
+    let Some((column, count)) = counts.into_iter().max_by_key(|(column, count)| (*count, *column))
+    else {
+        return text.to_string();
+    };
+    if count < 6 || count * 5 < non_blank * 3 {
+        return text.to_string();
+    }
+    lines
+        .iter()
+        .map(|line| {
+            let cut = if line.get(column) == Some(&DIVIDER) {
+                &line[..column]
+            } else {
+                &line[..]
+            };
+            cut.iter().collect::<String>().trim_end().to_string()
+        })
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 /// The last `SESSION_CHAT_RESUME_PROMPT_SCAN_LINES` non-blank lines, oldest
 /// first, with colours stripped and exotic whitespace folded to spaces (the
 /// TUI paints with non-breaking spaces).
@@ -646,7 +696,7 @@ pub(crate) fn is_permission_prompt_heading(heading: &str) -> bool {
 /// `Some` only when a known Claude picker is live on screen and its highlight
 /// is proven, so every row is reachable with a derived key count.
 pub fn detect_session_chat_terminal_picker(text: &str) -> Option<SessionChatTerminalPicker> {
-    let window = scan_window(text);
+    let window = scan_window(&strip_claude_side_panel(text));
     for run in picker_runs(&window).into_iter().rev() {
         let Some(kind) = resume_run_kind(&window, &run)
             .or_else(|| switch_confirm_run_kind(&window, &run))
@@ -687,4 +737,35 @@ pub fn detect_session_chat_terminal_picker(text: &str) -> Option<SessionChatTerm
         });
     }
     None
+}
+
+#[cfg(test)]
+mod side_panel_tests {
+    use super::*;
+
+    /// A real Claude Code 2.1.311 screen at 200 columns: a Bash permission prompt with the
+    /// "files changed" panel down the right.
+    const SCREEN: &str = include_str!("../tests/fixtures/claude-permission-side-panel.txt");
+
+    #[test]
+    fn a_permission_prompt_beside_the_side_panel_reads_without_the_panel() {
+        let picker = detect_session_chat_terminal_picker(SCREEN).expect("prompt detected");
+        assert_eq!(picker.kind, SessionChatTerminalPickerKind::PermissionPrompt);
+        assert_eq!(picker.rows.len(), 4);
+        assert_eq!(picker.rows[3].label, "No");
+        let detail = picker.detail.unwrap_or_default();
+        assert!(!detail.contains('\u{2502}'), "{detail}");
+        assert!(!detail.contains("untracked"), "{detail}");
+        let request =
+            crate::session_chat_claude_permission::detect_claude_permission_request(SCREEN)
+                .expect("request read");
+        assert_eq!(request.source, "Bash command");
+        assert_eq!(request.content.as_deref(), Some("rm notes/keep2.txt"));
+    }
+
+    #[test]
+    fn a_screen_without_a_side_panel_is_left_alone() {
+        let text = "one │ two\nplain line\n❯ 1. Yes\n  2. No";
+        assert_eq!(strip_claude_side_panel(text), text);
+    }
 }
