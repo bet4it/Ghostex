@@ -59,7 +59,7 @@ impl GhostexGpuiApp {
         let config = ExportTranscriptModalConfig {
             agents: self.gpui_export_transcript_prompt_agents(),
             default_agent_id,
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
             prefs_path: Some(gpui_export_transcript_modal_prefs_path()),
             // A handover from the chat model picker opens on Handoff without rewriting the remembered mode.
             initial_mode: handoff_target

@@ -32,7 +32,7 @@ impl GhostexGpuiApp {
                 .unwrap_or_default()
                 .to_string(),
             session_title: text("sessionTitle"),
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
         };
         let host = self.native_app_modal_host(cx, move |app, command, cx| {
             app.handle_gpui_session_note_modal_command(

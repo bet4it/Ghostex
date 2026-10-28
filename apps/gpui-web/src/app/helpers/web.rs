@@ -167,6 +167,11 @@ pub(crate) fn frosted_modal_fill(color: gpui::Hsla) -> gpui::Hsla {
     color
 }
 
+/// A page has no window glass, so a form dialog keeps its solid fill.
+pub(crate) fn frosted_dialog_fill(color: gpui::Hsla) -> gpui::Hsla {
+    color
+}
+
 /// The desktop's blocking typed-operation call, which only its quit path still makes synchronously (a client document's last push). A page cannot block on `fetch` and has no quit path, so the answer is a refusal.
 pub(crate) fn gpui_gxserver_rpc_result(
     _endpoint: &str,

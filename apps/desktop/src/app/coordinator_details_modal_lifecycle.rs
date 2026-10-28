@@ -45,7 +45,7 @@ impl GhostexGpuiApp {
                         .collect()
                 })
                 .unwrap_or_default(),
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
         };
         // The editor stays open while the save runs and closes only when gxserver accepted it
         // (CDXC:Coordinators 2026-10-14 in window/coordinator_details_modal.rs).

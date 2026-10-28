@@ -21,7 +21,7 @@ impl GhostexGpuiApp {
             project_id: session.project_id.clone(),
             session_id: session.session_id.clone(),
             remote,
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
         };
         let host = self.native_app_modal_host(cx, move |app, _command, cx| {
             app.release_native_app_modal_window(GpuiAppModalKind::AddSessionLink, cx);

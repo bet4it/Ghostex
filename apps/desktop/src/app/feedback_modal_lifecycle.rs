@@ -23,7 +23,7 @@ impl GhostexGpuiApp {
             } else {
                 "desktop"
             },
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
             github_username: read_preference_value(FEEDBACK_GITHUB_USERNAME_STORAGE_KEY)
                 .ok()
                 .flatten()

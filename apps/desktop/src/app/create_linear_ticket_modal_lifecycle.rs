@@ -56,7 +56,7 @@ impl GhostexGpuiApp {
             projects,
             agents,
             selected_agent,
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
         };
         let host = self.native_app_modal_host(cx, move |app, command, cx| {
             if !matches!(command, CreateLinearTicketModalCommand::Cancel) {

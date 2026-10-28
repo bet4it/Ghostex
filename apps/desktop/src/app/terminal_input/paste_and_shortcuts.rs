@@ -326,7 +326,7 @@ impl GhostexGpuiApp {
     /// Asks before a paste that could run commands, in a native app-modal window
     /// (window/terminal_paste_confirm_modal.rs) so CEF views cannot cover it.
     fn open_terminal_paste_confirmation_modal(&mut self, cx: &mut gpui::Context<Self>) {
-        let palette = self.gpui_native_modal_palette();
+        let palette = self.gpui_native_dialog_palette();
         let host = self.native_app_modal_host(cx, |app, command, cx| {
             app.handle_terminal_paste_confirmation_modal_command(command, cx);
         });

@@ -786,7 +786,7 @@ pub(crate) fn popup_window_surface(color: Hsla) -> Hsla {
 /// A Linux window only asks the compositor for blur (`_KDE_NET_WM_BLUR_BEHIND_REGION` on X11, the blur protocol on Wayland); many compositors ignore the request or ship with blur off (Hyprland on Omarchy does both), so any see-through dialog showed the desktop and the windows behind it unblurred and its text could not be read.
 ///
 /// CDXC:AppModal 2026-09-30 DECISION:
-/// User: "Please make the settings modal and find with search and other modals that appear on the app in the middle less transparent (darker bg), they're too transparent now." On macOS and Windows the dialogs no longer share the menus' coverage: they cover most of what is behind them (`FROSTED_MODAL_ALPHA_DARK` / `_LIGHT`) and are not lifted toward white in dark mode (`frosted_modal_fill`). Supersedes "macOS and Windows keep the menus' coverage" above; menus and tooltips are unchanged.
+/// User: "Please make the settings modal and find with search and other modals that appear on the app in the middle less transparent (darker bg), they're too transparent now." On macOS and Windows the dialogs no longer share the menus' coverage: they cover most of what is behind them (`FROSTED_MODAL_ALPHA_DARK` / `_LIGHT`) and are not lifted toward white in dark mode (`frosted_modal_fill`). Supersedes "macOS and Windows keep the menus' coverage" above; menus and tooltips are unchanged. The small form dialogs left this fill on 2026-10-29 (CDXC:AppModal on `frosted_dialog_fill`).
 pub(crate) fn frosted_modal_alpha() -> f32 {
     if cfg!(target_os = "linux") {
         FROSTED_ALPHA_LINUX
@@ -816,6 +816,12 @@ pub(crate) fn popup_window_modal_surface(color: Hsla) -> Hsla {
     } else {
         color
     }
+}
+
+/// CDXC:AppModal 2026-10-29 DECISION:
+/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark, 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`) so they stay clear on the thinner glass. Supersedes the 2026-09-30 darker fill (`frosted_modal_fill`) for these dialogs; Settings, Search by Prompt, the Agents Hub, Quick Access and the New Thread picker keep it. Glass off, nothing changes.
+pub(crate) fn frosted_dialog_fill(color: Hsla) -> Hsla {
+    frosted_menu_fill(color)
 }
 
 /// The window's outermost fill. Under glass it is left clear: the sidebar and the work area each
@@ -930,4 +936,24 @@ pub(crate) fn sidebar_chrome_fill(glass: bool, angle: f32) -> gpui::Background {
 /// through instead; cells with an explicit background colour still paint it in full.
 pub(crate) fn terminal_default_background_alpha() -> f32 {
     if window_glass_active() { 0.0 } else { 1.0 }
+}
+
+#[cfg(test)]
+mod frosted_dialog_tests {
+    use super::*;
+
+    /// The form dialogs take the Accounts & limits popover's fill (CDXC:AppModal 2026-10-29):
+    /// thinner than the large panels' frost on macOS and Windows, opaque on Linux.
+    #[test]
+    fn frosted_dialog_fill_is_the_popover_fill() {
+        let chrome: Hsla = gpui::rgb(0x0e0e0e).into();
+        assert_eq!(frosted_dialog_fill(chrome), frosted_menu_fill(chrome));
+        let dialog = frosted_dialog_fill(chrome).a;
+        let panel = frosted_modal_fill(chrome).a;
+        if cfg!(target_os = "macos") {
+            assert!(dialog < panel);
+        } else {
+            assert!(dialog <= panel);
+        }
+    }
 }

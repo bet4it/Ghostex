@@ -26,7 +26,7 @@ impl GhostexGpuiApp {
             initial_machine_id,
             active_project_cwd: None,
             client_platform: gpui_add_project_dialog_local_platform().to_string(),
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
             clone_job_poll_interval: AddProjectModalConfig::CLONE_JOB_POLL_INTERVAL,
             slow_operation_notice: AddProjectModalConfig::SLOW_OPERATION_NOTICE,
             // Handoff to Remote's clone of the session's repository (gx_store/git/export_handoff_remote.rs).

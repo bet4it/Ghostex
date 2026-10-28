@@ -39,7 +39,7 @@ impl GhostexGpuiApp {
                 .unwrap_or_default()
                 .to_string(),
             portable: message.get("portable").and_then(serde_json::Value::as_bool) == Some(true),
-            palette: self.gpui_native_modal_palette(),
+            palette: self.gpui_native_dialog_palette(),
         };
         let host = self.native_app_modal_host(cx, |app, command, cx| {
             app.handle_gpui_update_available_modal_command(command, cx);
