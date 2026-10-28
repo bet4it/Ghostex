@@ -227,7 +227,8 @@ impl GhostexGpuiApp {
                 Ok(json!({ "accepted": true, "action": action, "moved": moved, "ok": true }))
             }
             RendererVerb::ToggleSidebarCollapsed => {
-                self.toggle_gpui_sidebar_collapsed(cx);
+                // With Claude on, showing the sidebar leaves Claude (app/claude_web/takeover.rs).
+                self.toggle_sidebar_from_user(cx);
                 Ok(json!({
                     "accepted": true,
                     "action": action,

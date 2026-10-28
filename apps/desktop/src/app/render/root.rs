@@ -581,7 +581,8 @@ impl Render for GhostexGpuiApp {
                     if this.propagate_source_workarea_cef_hotkey_passthrough(cx) {
                         return;
                     }
-                    this.toggle_gpui_sidebar_collapsed(cx);
+                    // With Claude on, showing the sidebar leaves Claude (app/claude_web/takeover.rs).
+                    this.toggle_sidebar_from_user(cx);
                 }),
             )
             .on_action(cx.listener(|this, _: &ToggleViewPanel, window, cx| {

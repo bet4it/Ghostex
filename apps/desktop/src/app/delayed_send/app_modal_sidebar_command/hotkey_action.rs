@@ -173,7 +173,8 @@ impl GhostexGpuiApp {
                     return;
                 }
                 if action_id == "toggleSidebarCollapsed" {
-                    self.toggle_gpui_sidebar_collapsed(cx);
+                    // With Claude on, showing the sidebar leaves Claude (app/claude_web/takeover.rs).
+                    self.toggle_sidebar_from_user(cx);
                     return;
                 }
                 if action_id == "toggleViewPanel" {

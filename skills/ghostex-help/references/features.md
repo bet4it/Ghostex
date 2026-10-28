@@ -4077,12 +4077,17 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   project, and the sidebar, the side panel and the Commands pane are hidden.
   Claude never gets a tab in the side panel; you can still open the side panel
   beside it (the Browser and every other view work there as usual), and bring
-  the sidebar or the Commands pane back with their usual buttons and shortcuts.
-  To turn Claude off, show the sidebar (Toggle sidebar, Cmd+B, or point at the
-  window's left edge) and click the Claude button again. Opening any session
-  also turns it off: a sidebar click, Quick Access, a notification, a new agent,
-  a session shortcut, or switching to it from the phone or `ghostex focus`. Turning it off puts the sidebar, side panel and Commands pane
-  back as they were, and anything you opened while Claude was on stays open.
+  the Commands pane back with its usual button and shortcut. Showing the
+  sidebar (Toggle sidebar or Cmd+B) turns Claude off and takes you back to
+  where you were before it, like switching back to a Space and project: the
+  same Space, project and session, with the sidebar, side panel and Commands
+  pane as they were. Pointing at the window's left edge only peeks at the
+  sidebar and leaves Claude on; clicking the Claude button there turns it off.
+  Opening any session also turns it off: a sidebar click, Quick Access, a
+  notification, a new agent, a session shortcut, or switching to it from the
+  phone or `ghostex focus`. Turned off with the Claude button or by opening a
+  session, the panels come back as they were and anything you opened while
+  Claude was on stays open.
   Claude stays on after a restart. Picking Claude in the side panel's Open a
   view picker turns it on too. Each saved Claude account (Settings > Accounts)
   keeps its own claude.ai sign-in, the same one its cloud sessions use, and the
