@@ -202,28 +202,26 @@ impl GhostexGpuiApp {
             end.
             */
             .flex_shrink_0()
-            .text_color(titlebar_active_text_color().opacity(0.52))
+            .text_color(appearance.chrome_icon)
             /*
             CDXC:Sidebar 2026-09-23 DECISION:
             User: the Toggle sidebar and Agents Panel buttons at the top of the sidebar have the
             same color as the notification bell there, so this row draws their icons in the
-            sidebar's muted color rather than the header's bright one.
+            sidebar's icon grey rather than the header's bright one (since 2026-10-29 that grey is the header's own icon colour, see `SidebarAppearance::chrome_icon`).
             */
             .when(owns_window_corner, |row| {
                 // The row's unscaled leading padding puts the button on the header's x. The spacer
                 // keeps it left of the row's other buttons, which align right.
                 row.child(
-                    div()
-                        .flex_shrink_0()
-                        .child(self.render_sidebar_collapse_button(Some(appearance.muted), cx)),
+                    div().flex_shrink_0().child(
+                        self.render_sidebar_collapse_button(Some(appearance.chrome_icon), cx),
+                    ),
                 )
                 // Right of Toggle sidebar, as in the collapsed header (workarea_header/breadcrumb.rs),
                 // which puts it 4pt after that button: the margin tops the scaled row gap up to it.
-                .child(
-                    div().flex_shrink_0().ml(px(4.0 - 4.0 * scale)).child(
-                        self.render_workarea_header_agents_toggle(Some(appearance.muted), cx),
-                    ),
-                )
+                .child(div().flex_shrink_0().ml(px(4.0 - 4.0 * scale)).child(
+                    self.render_workarea_header_agents_toggle(Some(appearance.chrome_icon), cx),
+                ))
                 // The negative margin cancels the row gap this zero-width spacer adds, so the
                 // buttons right of it keep their even 38px slots.
                 .child(div().flex_1().mr(px(-4.0 * scale)))
@@ -235,8 +233,8 @@ impl GhostexGpuiApp {
             CDXC:Extensions 2026-10-28 DECISION:
             User: "move the Claude button here up to where 'Issues' button is and make this button
             match this color #7C828C (shouldn't be orange)". Claude's button sits in the top row,
-            left of Search, and is drawn in the row's muted grey (#7C828C dark, #6B7280 light) like
-            its neighbours; selected is a hover fill with a bright icon. The bottom bar keeps
+            left of Search, and is drawn in the row's icon colour like its neighbours (first #7C828C,
+            since 2026-10-29 the header's icon grey, see `SidebarAppearance::chrome_icon`); selected is a hover fill with a bright icon. The bottom bar keeps
             Commands. This supersedes the 2026-10-25 bottom-bar placement
             (app/claude_web/sidebar_button.rs). Issues' briefcase left this row afterwards (see
             CDXC:WorkMode 2026-10-29 in app/work_view/host.rs), so Claude is the row's first
@@ -278,7 +276,7 @@ impl GhostexGpuiApp {
                     .child(titlebar_svg_icon(
                         icon_path,
                         15.0 * scale,
-                        titlebar_active_text_color().opacity(0.52),
+                        appearance.chrome_icon,
                     ))
                     .on_click(cx.listener(move |app, _, _, cx| {
                         cx.stop_propagation();
@@ -331,7 +329,7 @@ impl GhostexGpuiApp {
                         .child(titlebar_svg_icon(
                             "titlebar/menu-2.svg",
                             15.0 * scale,
-                            appearance.muted,
+                            appearance.chrome_icon,
                         ))
                         .on_prepaint({
                             let bounds = self.native_sidebar.more_button_bounds.clone();
@@ -391,7 +389,7 @@ impl GhostexGpuiApp {
                         .child(titlebar_svg_icon(
                             TITLEBAR_ICON_SETTINGS,
                             15.0 * scale,
-                            appearance.muted,
+                            appearance.chrome_icon,
                         ))
                         .on_click(cx.listener(move |app, _, _, cx| {
                             cx.stop_propagation();
@@ -416,7 +414,7 @@ impl GhostexGpuiApp {
             .into_any_element()
     }
 
-    /// The top row's extension buttons: the extension's own mark in the row's muted grey, its
+    /// The top row's extension buttons: the extension's own mark in the row's icon colour, its
     /// title in the tooltip; while its view is on screen it is drawn like the Issues button.
     /// They give way first: none shows while the row could not fit them and its other
     /// `other_buttons` at their minimum width (the view picker still lists the view).
@@ -474,7 +472,7 @@ impl GhostexGpuiApp {
                         if showing {
                             titlebar_active_text_color()
                         } else {
-                            appearance.muted
+                            appearance.chrome_icon
                         },
                     ))
                     .on_click(cx.listener(move |app, _, window, cx| {

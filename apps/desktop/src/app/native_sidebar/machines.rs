@@ -43,9 +43,9 @@ impl GhostexGpuiApp {
                     let icon = gpui::svg().path(if update.busy { "titlebar/loader2.svg" } else { "titlebar/download.svg" }).size(px(12.0 * scale)).flex_shrink_0().text_color(appearance.foreground);
                     if update.busy { icon.with_throttled_animation(format!("native-machine-update-{id}"), std::time::Duration::from_millis(900), |icon, progress| icon.with_transformation(gpui::Transformation::rotate(gpui::percentage(progress)))).into_any_element() } else { icon.into_any_element() }
                 });
-                let icon = gpui::svg().path(if id == "local" { "titlebar/device-desktop.svg" } else if busy { "titlebar/loader2.svg" } else { "titlebar/cloud.svg" }).size(px(14.0 * scale)).text_color(if failed { rgb(0xff9494).into() } else { appearance.muted });
+                let icon = gpui::svg().path(if id == "local" { "titlebar/device-desktop.svg" } else if busy { "titlebar/loader2.svg" } else { "titlebar/cloud.svg" }).size(px(14.0 * scale)).text_color(if failed { rgb(0xff9494).into() } else { appearance.chrome_icon });
                 let glyph = if busy { icon.with_throttled_animation(format!("native-machine-busy-{id}"), std::time::Duration::from_millis(900), |icon, progress| icon.with_transformation(gpui::Transformation::rotate(gpui::percentage(progress)))).into_any_element() } else { icon.into_any_element() };
-                h_flex().id(format!("native-sidebar-machine-{id}")).relative().group(dot_group.clone()).role(gpui::Role::Tab).aria_label(machine.label.clone()).aria_selected(selected).flex_1().min_w_0().h_full().px(px(6.0 * scale)).justify_center().gap(px(4.0 * scale)).text_size(px(12.0 * scale))
+                h_flex().id(format!("native-sidebar-machine-{id}")).relative().group(dot_group.clone()).role(gpui::Role::Tab).aria_label(machine.label.clone()).aria_selected(selected).flex_1().min_w_0().h_full().px(px(6.0 * scale)).justify_center().gap(px(4.0 * scale)).text_size(px(12.0 * scale)).text_color(appearance.chrome_label)
                     .on_prepaint(super::menus::record_menu_owner(&owner))
                     .when(index > 0, |row| row.border_l_1().border_color(appearance.foreground.opacity(0.12)))
                     .when(selected, |row| row.bg(appearance.selected)).hover(|row| row.bg(appearance.hover))

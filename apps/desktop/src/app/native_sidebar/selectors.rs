@@ -94,11 +94,11 @@ impl GhostexGpuiApp {
             // CDXC:Spaces 2026-10-11 DECISION: User: Create a space fits its content, and the Spaces row stays centred with no background behind it (a left-aligned row in a rounded track was tried and removed the same day). The workspace tile left the row for the sidebar's bottom bar (workspace_tile.rs).
             .when(snapshot.spaces_enabled, |column| column.child(h_flex().id("native-sidebar-space-track").sidebar_drop_target("space-row", String::new(), None, cx).w_full().h(px(40.0 * scale)).pb(px(12.0 * scale)).px(px(6.5 * scale)).justify_center().gap(px(4.0 * scale))
                 .when(user_spaces.is_empty(), |row| row.child(h_flex().id("native-sidebar-create-space").role(gpui::Role::Button).aria_label("Create space").flex_shrink_0().h(px(28.0 * scale)).px(px(10.0 * scale)).gap(px(6.0 * scale)).rounded(px(6.0 * scale)).border_1().border_color(appearance.muted.opacity(0.25)).text_size(px(12.0 * scale))
-                    .child(titlebar_svg_icon("titlebar/plus.svg", 14.0 * scale, appearance.muted)).child("Create space")
+                    .text_color(appearance.chrome_label).child(titlebar_svg_icon("titlebar/plus.svg", 14.0 * scale, appearance.chrome_icon)).child("Create space")
                     .on_click(cx.listener(|app, _, _, cx| { cx.stop_propagation(); app.dispatch_native_sidebar_ui(json!({"type": "editSpace"}), cx); }))))
                 .children(visible.into_iter().chain(snapshot.spaces.iter().filter(|space| space.id == "other")).map(|space| self.render_native_sidebar_space(space, &visible_ids, appearance, cx)))
                 .when(overflow, |row| row.child(div().id("native-sidebar-more-spaces").on_prepaint(super::menus::record_menu_owner(&more_owner)).role(gpui::Role::Button).aria_label("More spaces").size(px(28.0 * scale)).flex().items_center().justify_center().rounded(px(6.0 * scale)).hover(|row| row.bg(appearance.hover))
-                    .child(titlebar_svg_icon("titlebar/dots.svg", 16.0 * scale, appearance.muted))
+                    .child(titlebar_svg_icon("titlebar/dots.svg", 16.0 * scale, appearance.chrome_icon))
                     .on_click(cx.listener(move |_, event: &gpui::ClickEvent, window, cx| {
                         // CDXC:Spaces 2026-09-20 DECISION: User: the More menu lists the overflowing Spaces first and puts New Space last, under a separator.
                         let mut items: Vec<_> = hidden.iter().map(|space| json!({"label": space.name, "icon": space.icon, "iconColor": crate::app::window::space_editor_modal::space_display_color(&space.color, light), "checked": space.selected, "command": {"type": "selectSpace", "spaceId": space.id}})).collect();
@@ -128,10 +128,15 @@ impl GhostexGpuiApp {
             &space.color,
             appearance.light,
         );
-        let color = u32::from_str_radix(display_color.trim_start_matches('#'), 16)
-            .map(rgb)
-            .map(gpui::Hsla::from)
-            .unwrap_or(appearance.foreground);
+        // The single Gray Space takes the header's icon grey; the other colours stay their own.
+        let color = if crate::app::window::space_editor_modal::is_space_gray(&space.color) {
+            appearance.chrome_icon
+        } else {
+            u32::from_str_radix(display_color.trim_start_matches('#'), 16)
+                .map(rgb)
+                .map(gpui::Hsla::from)
+                .unwrap_or(appearance.foreground)
+        };
         let (selected_background, selected_outline) = space_tile_selected_colors(appearance);
         // The tile's own fill behind its status dots, for their rings (a selected tile is `selected_background`, the one holding the active session `appearance.selected`).
         let dot_group = format!("native-space-dots-{id}");
