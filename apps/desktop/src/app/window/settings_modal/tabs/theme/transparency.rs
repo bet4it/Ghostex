@@ -637,7 +637,7 @@ impl ThemeTab {
                 t.spec(
                     "windowGlassMenuBlurRadius",
                     "Menu blur",
-                    "How soft what shows behind menus and tooltips looks, in points. 0 shows it sharp. Applies to menus opened after the change.",
+                    "How soft what shows behind menus, panels, dialogs and tooltips looks, in points. Menus, panels and dialogs blur a quarter more than this number; tooltips use it as is. 0 shows it sharp. Applies to menus opened after the change.",
                 ),
                 Some(reset_key::<Self>("windowGlassMenuBlurRadius")),
                 SliderBinding {

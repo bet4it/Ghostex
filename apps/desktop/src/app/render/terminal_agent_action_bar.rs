@@ -17,6 +17,7 @@
 
 mod account_flyout;
 mod dictation;
+mod flyout_host;
 pub(crate) use dictation::TerminalDictation;
 mod menu_width;
 mod model_pill;
@@ -761,55 +762,17 @@ impl GhostexGpuiApp {
                 }
             }
         }
-        if self.agents_terminal_action_bar_account_submenu_open {
-            let opens_left = |flyout_width: f32| {
-                painted_menu.size.width > px(0.0)
-                    && painted_menu.right()
-                        + px(TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_GAP + flyout_width)
-                        > window_width - px(TERMINAL_AGENT_BAR_FLYOUT_WINDOW_MARGIN)
-            };
-            if accounts_target.is_some() {
-                if let Some((_, rows)) = self.agents_terminal_action_bar_account_page.clone() {
-                    menu = menu.child(self.render_terminal_agent_bar_account_page(
-                        menu_width,
-                        opens_left(account_flyout::ACCOUNT_PAGE_WIDTH),
-                        &rows,
-                        suffix,
-                        flyout_bounds,
-                        cx,
-                    ));
-                }
-            } else if !switchable_agents.is_empty() {
-                menu = menu.child(self.render_terminal_agent_bar_account_submenu(
-                    session_id,
-                    menu_width,
-                    opens_left(TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_WIDTH),
-                    &switchable_agents,
-                    suffix,
-                    flyout_bounds,
-                    cx,
-                ));
-            }
-        }
-
-        if let Some(rows) = self.agents_terminal_action_bar_skills.as_deref() {
-            let (painted_menu, window_width) = menu_bounds.get();
-            let opens_left = painted_menu.size.width > px(0.0)
-                && painted_menu.right()
-                    + px(
-                        TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_GAP + skills_flyout::SKILLS_FLYOUT_WIDTH
-                    )
-                    > window_width - px(TERMINAL_AGENT_BAR_FLYOUT_WINDOW_MARGIN);
-            menu = menu.child(self.render_terminal_agent_bar_skills_flyout(
-                surface,
-                session_id,
-                menu_width,
-                opens_left,
-                rows,
-                suffix,
-                flyout_bounds,
-                cx,
-            ));
+        if let Some(flyout) = self.render_terminal_agent_bar_inline_flyout(
+            surface,
+            session_id,
+            menu_width,
+            painted_menu,
+            window_width,
+            flyout_bounds,
+            suffix,
+            cx,
+        ) {
+            menu = menu.child(flyout);
         }
         menu.into_any_element()
     }
@@ -850,6 +813,7 @@ impl GhostexGpuiApp {
         self.agents_terminal_action_bar_account_submenu_open = false;
         self.agents_terminal_action_bar_account_page = None;
         self.agents_terminal_action_bar_skills = None;
+        flyout_host::hide_terminal_bar_flyout_host(cx);
         cx.notify();
     }
 
@@ -857,6 +821,7 @@ impl GhostexGpuiApp {
         self.agents_terminal_action_bar_account_submenu_open = false;
         self.agents_terminal_action_bar_account_page = None;
         self.agents_terminal_action_bar_skills = None;
+        flyout_host::hide_terminal_bar_flyout_host(cx);
         if self
             .agents_terminal_action_bar_menu_session
             .take()
@@ -873,46 +838,16 @@ impl GhostexGpuiApp {
     fn render_terminal_agent_bar_account_submenu(
         &self,
         session_id: TerminalSessionId,
-        menu_width: f32,
-        opens_left: bool,
         switchable_agents: &[GpuiSwitchableSessionAgent],
+        place: &flyout_host::FlyoutPlace,
         suffix: &str,
-        flyout_bounds: &TerminalBarPopupBounds,
         cx: &mut gpui::Context<Self>,
     ) -> AnyElement {
-        let offset = px(menu_width + TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_GAP);
-        let mut submenu = div()
-            .id(format!(
-                "ghostex-gpui-terminal-agent-bar-account-submenu-{suffix}"
-            ))
-            .absolute()
-            .when(opens_left, |this| this.right(offset))
-            .when(!opens_left, |this| this.left(offset))
-            .bottom_0()
-            .w(px(TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_WIDTH))
-            .flex()
-            .flex_col()
-            .p(px(5.0))
-            .rounded(px(10.0))
-            .border_1()
-            .border_color(terminal_agent_bar_menu_border())
-            .bg(terminal_agent_bar_menu_background())
-            .shadow(vec![
-                BoxShadow::new(
-                    px(0.0),
-                    px(10.0),
-                    Rgba {
-                        r: 0.0,
-                        g: 0.0,
-                        b: 0.0,
-                        a: 0.45,
-                    }
-                    .into(),
-                )
-                .blur_radius(px(22.0)),
-            ])
-            .occlude()
-            .child(terminal_agent_bar_popup_bounds_probe(flyout_bounds));
+        let hover = place.hover();
+        let mut submenu = place.frame(
+            format!("ghostex-gpui-terminal-agent-bar-account-submenu-{suffix}"),
+            TERMINAL_AGENT_BAR_ACCOUNT_SUBMENU_WIDTH,
+        );
         for (index, agent) in switchable_agents.iter().enumerate() {
             let agent_id = agent.agent_id.clone();
             let icon = agent
@@ -949,7 +884,7 @@ impl GhostexGpuiApp {
                     .cursor_default()
                     .text_size(px(13.0))
                     .text_color(terminal_agent_bar_menu_text_color())
-                    .hover(|this| this.bg(terminal_agent_bar_hover_background()))
+                    .hover(move |this| this.bg(hover))
                     .on_mouse_down(
                         MouseButton::Left,
                         cx.listener(move |this, _event: &MouseDownEvent, window, cx| {

@@ -4400,8 +4400,10 @@ frost, so Strength can go fully clear; it takes more work to draw) or Off (what 
 sharp; the fastest) (`windowGlassWindowsBlur`). The Blur slider shows on Windows once Behind the
 glass is Wallpaper only, Custom image or Live, where it softens the wallpaper, picture
 and video (`windowGlassBlurRadius`).
-On macOS, Menu blur under More transparency options does the same for menus and tooltips
-(default 20; menus opened after the change use it; macOS only) (`windowGlassMenuBlurRadius`). Behind the glass sits in
+On macOS, Menu blur under More transparency options does the same for menus, panels, dialogs
+and tooltips: menus, panels and dialogs blur a quarter more than the number (25 at the default
+20) and tooltips use it as is (default 20; menus opened after the change use it; macOS only)
+(`windowGlassMenuBlurRadius`). Behind the glass sits in
 the Transparency card, with the pictures or the Live choices right under the
 picked card; More transparency options holds the picture position, the Live
 speed and brightness, Play only when plugged in, Fine-tune the tints and Menu
