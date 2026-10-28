@@ -362,7 +362,8 @@ fn cli_send(shell: &ShellCommand, at: usize, script: &Script<'_>) -> Option<Sent
             "--server" | "--project-id" | "--request-id" => {
                 words.next();
             }
-            "--agent" | "--model" | "--effort" | "--base-branch" | "--coordinator" | "--orchestrator"
+            "--agent" | "--model" | "--effort" | "--base-branch" | "--coordinator"
+            | "--orchestrator"
                 if start_thread =>
             {
                 words.next();
@@ -1255,9 +1256,14 @@ mod session_pill_tests {
         assert_eq!(pill["prefix"], "Message to");
         assert_eq!(pill["label"], "+Fix login");
         assert_eq!(pill["agentIcon"], "codex");
+        // The card's tile already shows the logo, so the pill beside it draws none (user: "let's
+        // not show the icon of the agent here twice").
+        assert_eq!(pill["logo"], false);
         assert_eq!(pill["session"]["sessionId"], "G2ab");
         assert_eq!(pill["missing"], false);
         let mention = &rows[0]["markdownReferences"][0];
+        // A mention in the text has no tile beside it and keeps its logo.
+        assert!(mention.get("logo").is_none());
         assert_eq!(
             (mention["kind"].as_str(), mention["label"].as_str()),
             (Some("session"), Some("+Other thread"))
@@ -1268,6 +1274,7 @@ mod session_pill_tests {
             (pill["prefix"].as_str(), pill["label"].as_str()),
             (Some("Message from"), Some("+Fix login"))
         );
+        assert_eq!(pill["logo"], false);
         let gone = &rows[1]["markdownReferences"][0];
         assert_eq!(
             (gone["label"].as_str(), gone["missing"].as_bool()),

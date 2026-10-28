@@ -73,6 +73,9 @@ pub fn dress_session_reference(
 
 /// The pill a card of a message between agents draws for the other session after `prefix`
 /// (`Message from`, `Message to`). `session` is the card's jump target (`projectId`, `sessionId`).
+///
+/// CDXC:SessionChat 2026-10-28 DECISION:
+/// User, on a "Message from +<title>" card whose tile and pill both drew the Claude logo: "let's not show the icon of the agent here twice pls". Every card pill sits right beside the card's own agent tile (the row's, or a listed recipient's), so it is `logo: false` and draws only its frame and `+<title>`; a mention pill in a message's text has no tile next to it and keeps its logo.
 pub fn card_pill(
     prefix: &str,
     title: &str,
@@ -84,6 +87,8 @@ pub fn card_pill(
     json!({
         "prefix": prefix,
         "label": pill_label(title),
+        // The card's tile beside it already shows the agent's logo.
+        "logo": false,
         "agentIcon": agent_icon,
         "coordinator": coordinator,
         "missing": missing,

@@ -386,8 +386,10 @@ impl NativeChatView {
     /// The other session's agent pill (gx-chat-core `transcript/session_mentions.rs`, where the
     /// user's decision lives): the working card's pill shape (chat_pills.rs) around the agent's logo
     /// and `+<title>`, the same look as a mention in a message (`session_pill_link`,
-    /// markdown_links.rs). A click switches to the session; a session that is gone draws muted and
-    /// opens nothing. Its own click never opens or closes the card.
+    /// markdown_links.rs). A pill the core marks `logo: false` sits beside the card's own agent
+    /// tile and leaves the logo to it (CDXC:SessionChat 2026-10-28 on `card_pill`). A click switches
+    /// to the session; a session that is gone draws muted and opens nothing. Its own click never
+    /// opens or closes the card.
     pub(super) fn session_pill(
         &self,
         key: &str,
@@ -397,6 +399,7 @@ impl NativeChatView {
     ) -> AnyElement {
         let s = p.scale;
         let missing = pill["missing"] == true;
+        let shows_logo = pill["logo"] != false;
         let (logo, logo_color) = super::markdown_links::session_pill_icon(
             pill["agentIcon"].as_str().unwrap_or_default(),
             pill["coordinator"] == true,
@@ -418,7 +421,7 @@ impl NativeChatView {
             .items_center()
             .min_w_0()
             .gap(px(4.0 * s))
-            .px(px(6.0 * s))
+            .px(px(if shows_logo { 6.0 } else { 8.0 } * s))
             .h(px(20.0 * s))
             .rounded_full()
             .border(px(1.0))
@@ -437,17 +440,19 @@ impl NativeChatView {
             .tooltip(move |window, cx| {
                 gpui_component::tooltip::Tooltip::new(hint.clone()).build(window, cx)
             })
-            .child(
-                gpui::svg()
-                    .path(logo)
-                    .size(px(12.0 * s))
-                    .flex_shrink_0()
-                    .text_color(if missing {
-                        logo_color.opacity(0.45)
-                    } else {
-                        logo_color
-                    }),
-            )
+            .when(shows_logo, |pill| {
+                pill.child(
+                    gpui::svg()
+                        .path(logo)
+                        .size(px(12.0 * s))
+                        .flex_shrink_0()
+                        .text_color(if missing {
+                            logo_color.opacity(0.45)
+                        } else {
+                            logo_color
+                        }),
+                )
+            })
             .child(div().min_w_0().truncate().child(text(pill, "label")))
             .when_some(command, |pill, command| {
                 pill.chat_cursor_pointer()

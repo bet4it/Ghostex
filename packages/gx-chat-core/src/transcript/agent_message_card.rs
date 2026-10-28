@@ -446,3 +446,39 @@ pub fn dress_sent(sent: &mut Value) {
         coordinator,
     );
 }
+
+#[cfg(test)]
+mod pill_logo_tests {
+    use super::*;
+
+    /// One message sent to two sessions: the row has no pill (it names a count), and each listed
+    /// recipient's pill sits beside that recipient's own tile, so none draws the logo again.
+    #[test]
+    fn card_pills_leave_the_logo_to_the_tile_beside_them() {
+        let recipient = |id: &str, title: &str| {
+            json!({
+                "name": title,
+                "titled": true,
+                "agentId": "codex",
+                "globalRef": format!("S90:P3lv0:{id}"),
+                "status": "delivered",
+            })
+        };
+        let mut sent = json!({
+            "recipients": [recipient("G1", "Fix login"), recipient("G2", "Sidebar")],
+        });
+        dress_sent(&mut sent);
+        let card = &sent["card"];
+        assert!(card["pill"].is_null());
+        for listed in card["recipients"].as_array().unwrap() {
+            assert_eq!(listed["agentIcon"], "codex");
+            assert_eq!(listed["pill"]["logo"], false);
+            assert!(listed["pill"]["label"].as_str().unwrap().starts_with('+'));
+        }
+
+        let mut single = json!({ "recipients": [recipient("G1", "Fix login")] });
+        dress_sent(&mut single);
+        assert_eq!(single["card"]["agentIcon"], "codex");
+        assert_eq!(single["card"]["pill"]["logo"], false);
+    }
+}
