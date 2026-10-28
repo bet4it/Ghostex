@@ -4071,7 +4071,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   install <id>`, `ghostex extensions state <id> --set pinned=true`.
 - **Claude** is a built-in extension, off by default: turn it on with its switch
   in Settings > Extensions (Features) to use claude.ai inside Ghostex.
-  It adds a Claude button to the sidebar's bottom bar, just left of Commands.
+  It adds a Claude button (grey, like its neighbours) to the sidebar's top row, next to the Issues button.
   Clicking it opens claude.ai over the whole work area with only the sidebar
   beside it, from any project; click it again, or click a session in the
   sidebar, to go back to what you had open. It is also listed in the side

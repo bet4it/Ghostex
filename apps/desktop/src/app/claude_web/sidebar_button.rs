@@ -1,13 +1,12 @@
-//! The Claude button in the sidebar's bottom bar (drawn by native_sidebar/navigation.rs): it
+//! The Claude button in the sidebar's top row (drawn by native_sidebar/navigation.rs): it
 //! opens the Claude view over the whole work area and takes you back where you were.
 //!
-//! CDXC:Extensions 2026-10-25 DECISION:
-//! User: the built-in Claude extension, when enabled, "adds a button to the bottom right of the sidebar", and clicking it "just switches to a global page that just keeps just my sidebar shown". The button sits left of Commands, opens the view expanded (the sessions column folded away, the sidebar left docked), and the same button goes back to the view and layout that were there before; clicking a session in the sidebar while the page is up closes it and shows the session (the user's answer to "what happens when you click a session", 2026-10-25). A view tab the button added leaves the tab strip again on the way back; its page stays loaded until the view's ordinary sleep closes it, so the next click shows it at once.
+//! CDXC:Extensions 2026-10-28 DECISION:
+//! User: the built-in Claude extension, when enabled, "adds a button to the bottom right of the sidebar" (2026-10-25), and clicking it "just switches to a global page that just keeps just my sidebar shown". Then: "move the Claude button here up to where 'Issues' button is and make this button match this color #7C828C (shouldn't be orange)". The button now sits in the sidebar's top row beside Issues (whether or not Issues shows), drawn in the row's muted grey (#7C828C in the dark theme, #6B7280 in the light one, the same as its neighbours), and it opens the view expanded (the sessions column folded away, the sidebar left docked), and the same button goes back to the view and layout that were there before; clicking a session in the sidebar while the page is up closes it and shows the session (the user's answer to "what happens when you click a session", 2026-10-25). A view tab the button added leaves the tab strip again on the way back; its page stays loaded until the view's ordinary sleep closes it, so the next click shows it at once.
 //! SEE-ALSO: native_sidebar/sessions.rs (the session click).
 
 use std::cell::RefCell;
 
-use crate::app::helpers::*;
 use crate::app::native_sidebar::navigation::SidebarExtensionButton;
 use crate::*;
 
@@ -27,7 +26,7 @@ thread_local! {
 }
 
 impl GhostexGpuiApp {
-    /// The sidebar's bottom-bar buttons: Claude's, while Claude is on and its view can open here.
+    /// The sidebar's top-row buttons: Claude's, while Claude is on and its view can open here.
     pub(crate) fn sidebar_extension_buttons(&self) -> Vec<SidebarExtensionButton> {
         let mode = TitlebarMode::Extension(super::claude_web_view_id());
         let showing = self.active_mode == mode;
@@ -44,7 +43,6 @@ impl GhostexGpuiApp {
             id: CLAUDE_WEB_VIEW_ID.to_string(),
             title: "Claude".to_string(),
             icon: "agent-icons/claude.svg",
-            icon_color: rgb(workspace_tab_agent_icon_accent_color("claude")).into(),
             showing,
         }]
     }

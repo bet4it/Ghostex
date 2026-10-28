@@ -493,7 +493,7 @@ pub(crate) const SUPPLEMENTAL_ROWS: &[Supplemental] = &[
         section: "official",
         section_title: "Built-in",
         title: "Turn off Claude",
-        subtitle: "Turn off Claude: the Claude button in the sidebar's bottom bar and the Claude view, which shows claude.ai with a bar to switch between your saved Claude accounts. Off by default; each account's claude.ai sign-in is kept.",
+        subtitle: "Turn off Claude: the Claude button in the sidebar's top row and the Claude view, which shows claude.ai with a bar to switch between your saved Claude accounts. Off by default; each account's claude.ai sign-in is kept.",
         options: &[],
         user_only: false,
     },
