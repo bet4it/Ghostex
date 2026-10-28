@@ -54,6 +54,12 @@ struct AgentCard<'a> {
     references: &'a Value,
 }
 
+/// How far a card's session name's hover fill reaches past the name on each side; the name's
+/// negative margin takes the same back, so it adds no space at rest.
+const CARD_PILL_PAD: f32 = 3.0;
+/// The width of a word space in the chat font, in ems.
+const WORD_SPACE_EM: f32 = 0.27;
+
 impl NativeChatView {
     /// A message another agent sent this session.
     ///
@@ -226,7 +232,8 @@ impl NativeChatView {
                 let pill = &card["pill"];
                 shape
                     .title(div().flex_1().min_w_0().flex().items_center(), p)
-                    .gap(px(6.0 * s))
+                    // An ordinary word space between `Message to` and the session's name.
+                    .gap(px(shape.title_size * WORD_SPACE_EM * s))
                     .text_color(p.foreground)
                     .child(
                         div()
@@ -334,9 +341,11 @@ impl NativeChatView {
                     let row_key = format!("{key}:recipient:{index}");
                     let session = &recipient["session"];
                     let name = if recipient["pill"].is_object() {
+                        // The row's own colour, the same as a recipient drawn without a pill.
                         div()
                             .min_w_0()
                             .flex()
+                            .text_color(p.foreground)
                             .child(self.session_pill(
                                 &format!("{row_key}:pill"),
                                 &recipient["pill"],
@@ -383,13 +392,12 @@ impl NativeChatView {
         )
     }
 
-    /// The other session's agent pill (gx-chat-core `transcript/session_mentions.rs`, where the
-    /// user's decision lives): the working card's pill shape (chat_pills.rs) around the agent's logo
-    /// and `+<title>`, the same look as a mention in a message (`session_pill_link`,
-    /// markdown_links.rs). A pill the core marks `logo: false` sits beside the card's own agent
-    /// tile and leaves the logo to it (CDXC:SessionChat 2026-10-28 on `card_pill`). A click switches
-    /// to the session; a session that is gone draws muted and opens nothing. Its own click never
-    /// opens or closes the card.
+    /// The other session's name on a message card (gx-chat-core `transcript/session_mentions.rs`):
+    /// the session's title in the line's own type, a faint fill under the pointer (the decision
+    /// below). A pill the core marks `logo: false` sits beside the card's own agent tile and leaves
+    /// the logo to it (CDXC:SessionChat 2026-10-28 on `card_pill`). A click switches to the
+    /// session; a session that is gone draws muted and opens nothing. Its own click never opens or
+    /// closes the card.
     pub(super) fn session_pill(
         &self,
         key: &str,
@@ -415,20 +423,17 @@ impl NativeChatView {
         });
         let hint = SharedString::from(text(pill, "title"));
         let hover = p.foreground.opacity(0.06);
-        // CDXC:SessionChat 2026-10-28 DECISION: User, of the "Message from" card's pill: "make this pill look like [the chat box's session pill] after removing the +". The card's pill is drawn as a session reference is in the chat box: no frame, the session's title in the reference colour (`composer_color("session")`), a faint fill only under the pointer. The title's `+` went in gx-chat-core `pill_label`.
-        let color = super::markdown_links::composer_color("session", p).unwrap_or(p.foreground);
+        // CDXC:SessionChat 2026-10-29 DECISION: User, of the "Message from" card's pill (2026-10-28): "make this pill look like [the chat box's session pill] after removing the +", then of "Message to" followed by a wide gap and a smaller grey title: "make font size equal and let's not have this extra space there please. also no need to change the color of text of the session name like that". The card's session name (the header's, and each recipient row's on a "Message to N sessions" card) has no frame and takes the line's own size, weight and colour, so it reads as one title with the words before it, a word space away; it is still a pill: a faint fill under the pointer and a click switches to the session. The fill reaches past the name through a negative margin, so at rest it adds no space. Pills in a message's text and in the chat box keep their own look. The title's `+` went in gx-chat-core `pill_label`. Supersedes the reference colour of the 2026-10-28 decision.
         div()
             .id(SharedString::from(key.to_string()))
             .flex()
             .items_center()
             .min_w_0()
             .gap(px(4.0 * s))
-            .px(px(4.0 * s))
-            .h(px(20.0 * s))
+            .px(px(CARD_PILL_PAD * s))
+            .mx(px(-CARD_PILL_PAD * s))
             .rounded(px(5.0 * s))
-            .text_size(px(13.0 * s))
-            .font_weight(gpui::FontWeight::MEDIUM)
-            .text_color(if missing { p.card_muted } else { color })
+            .when(missing, |pill| pill.text_color(p.card_muted))
             .whitespace_nowrap()
             .role(gpui::Role::Button)
             .aria_label(SharedString::from(format!(
