@@ -70,6 +70,9 @@
 /// The kit's look. It comes before the page's own styles, and its heading and paragraph defaults
 /// have no specificity (`:where`), so a page's own CSS always wins.
 ///
+/// CDXC:SessionChat 2026-10-29 DECISION:
+/// User, after typing a long note under a picked variant made its box (and the variant's whole section) grow sideways to the width of the wide band: "i dont like how writing a lot here makes this text area expand in width even tho there's spaces for it to be able to wrap the text. please let's not do this, we should just wrap when text in a line gets long (this is in inline htmls)". Every kit text box keeps the width it has when empty, wraps, and grows only in height. The boxes are `width:0;min-width:100%` instead of `width:100%`: a percentage width inside a content-sized parent (the variant section under `<gx-wide>` is `fit-content`) counts as the text's own width when the parent is measured, so `field-sizing:content` made the parent as wide as the text, while a zero width with a percentage minimum adds nothing to that measure and then fills the parent.
+///
 /// CDXC:SessionChat 2026-10-11 SEE-ALSO:
 /// The question card's `--gx-card`, `--gx-footer`, `--gx-option`, `--gx-card-border`, `--gx-option-border`, `--gx-card-muted`, `--gx-control` and `--gx-fg` tokens (theme.rs `THEME_STYLE`, per theme since 2026-10-27) are the chat card's palette (apps/desktop/src/app/native_chat/appearance.rs: `foreground`, `card_muted`, `control_primary`, `card_panel`, `card_row`, `card_footer`, `input_border`, `control_border`), worked out from the default page background by the same rule the chat uses on its own (dark mode lifts the card 3.5%, its rows 1.5% and the footer 2.5% toward white) and written out per theme, so a page that redefines `--background` no longer moves them. The phone's copy is apps/mobile/app/src/chat/native/transcript/theme.ts. Change them together.
 pub(super) const KIT_STYLE: &str = r#"<style id="ghostex-kit">
@@ -163,7 +166,7 @@ gx-question.gx-answered .gx-choice[aria-checked=true] .gx-mark{border-color:var(
 .gx-other[aria-checked=true] .gx-choice-body{color:inherit}
 .gx-rec{display:inline-block;margin-left:6px;padding:0 6px;border:1px solid color-mix(in srgb,var(--gx-control) 60%,transparent);border-radius:999px;color:var(--gx-control);font-size:10.5px;font-weight:600;line-height:16px;vertical-align:1px}
 .gx-choice-body small{display:block;color:var(--gx-muted);font-size:13px;font-weight:400;line-height:19px;margin-top:1px}
-.gx-note,.gx-text{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:13.5px;line-height:20px;color:var(--gx-fg);background:var(--gx-option);border:1px solid var(--gx-card-border);border-radius:9px;padding:6px 10px}
+.gx-note,.gx-text{display:block;width:0;min-width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:13.5px;line-height:20px;color:var(--gx-fg);background:var(--gx-option);border:1px solid var(--gx-card-border);border-radius:9px;padding:6px 10px}
 .gx-text{min-height:64px}
 .gx-note:focus,.gx-text:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 20%,transparent)}
 .gx-note::placeholder,.gx-text::placeholder{color:var(--gx-muted)}
@@ -181,7 +184,7 @@ gx-question.gx-answered .gx-choice[aria-checked=true] .gx-mark{border-color:var(
 [data-question][data-choice]:not(h1,h2,h3,h4,h5,h6){box-sizing:content-box;padding:14px;border:2px solid transparent;border-radius:16px}
 :where([data-question][data-choice]:not(h1,h2,h3,h4,h5,h6)){max-width:calc(100% - 32px)}
 [data-question][data-choice].gx-picked:not(h1,h2,h3,h4,h5,h6){border-color:color-mix(in srgb,var(--warning) 40%,transparent)}
-.gx-option-note{display:block;width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:12.5px;color:var(--gx-text);background:transparent;border:1px solid var(--gx-line-strong);border-radius:var(--radius);padding:7px 9px}
+.gx-option-note{display:block;width:0;min-width:100%;box-sizing:border-box;margin:8px 0 0;min-height:34px;resize:vertical;field-sizing:content;font:inherit;font-size:12.5px;color:var(--gx-text);background:transparent;border:1px solid var(--gx-line-strong);border-radius:var(--radius);padding:7px 9px}
 .gx-option-note:focus{outline:none;border-color:var(--ring);box-shadow:0 0 0 3px color-mix(in srgb,var(--ring) 20%,transparent)}
 .gx-option-note::placeholder{color:var(--gx-muted)}
 .gx-option-note[readonly]{resize:none}
