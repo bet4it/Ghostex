@@ -8,6 +8,7 @@ pub(crate) mod endpoint;
 pub(crate) mod flight;
 pub(crate) mod homebrew;
 pub(crate) mod jobs;
+pub(crate) mod mise;
 pub(crate) mod node;
 pub(crate) mod paths;
 pub(crate) mod platform;
@@ -19,5 +20,7 @@ pub(crate) mod system_tools;
 pub(crate) mod tools;
 pub(crate) mod uv;
 
-pub(crate) use endpoint::{ensure_homebrew, ensure_npm, ensure_system_tools, ensure_uv};
+pub(crate) use endpoint::{
+    ensure_homebrew, ensure_mise, ensure_npm, ensure_system_tools, ensure_uv,
+};
 pub(crate) use jobs::{Log, INSTALL_LOCK};

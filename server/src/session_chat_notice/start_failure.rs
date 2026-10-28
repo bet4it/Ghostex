@@ -96,6 +96,83 @@ pub fn agent_start_failure_notice(screen_text: &str) -> Option<SessionChatTermin
     )
 }
 
+/// The id of Install on the card of an agent whose command is not on this computer. It rides the
+/// `restartAgent` answer every client already sends (session_chat_agent_restart.rs).
+pub const SESSION_CHAT_NOTICE_ACTION_INSTALL_AGENT: &str = "installAgentCli";
+
+/// The program a shell said it could not find, from the lines a failed start printed: `env`'s
+/// "No such file or directory", zsh's and bash's "command not found", fish's "Unknown command" and
+/// PowerShell's "is not recognized". A path keeps only its last part.
+pub fn missing_start_command(error_lines: &str) -> Option<String> {
+    let name = |text: &str| -> Option<String> {
+        let text = text.trim().trim_matches(['\'', '"', '`']);
+        let name = text.rsplit(['/', '\\']).next().unwrap_or(text);
+        (!name.is_empty() && !name.contains(char::is_whitespace)).then(|| name.to_string())
+    };
+    error_lines.lines().rev().find_map(|line| {
+        let line = line.trim();
+        if let Some(rest) = line.strip_prefix("env: ") {
+            return name(rest.strip_suffix(": No such file or directory")?);
+        }
+        if let Some(rest) = line.strip_prefix("zsh: command not found: ") {
+            return name(rest);
+        }
+        if let Some(rest) = line.strip_prefix("zsh: no such file or directory: ") {
+            return name(rest);
+        }
+        if let Some(rest) = line.strip_prefix("fish: Unknown command: ") {
+            return name(rest);
+        }
+        if let Some(rest) = line.strip_suffix(": command not found") {
+            // `bash: dsh-tui: command not found`, `sh: 1: dsh-tui: command not found`
+            return name(rest.rsplit(": ").next()?);
+        }
+        let start = line.find("The term '")? + "The term '".len();
+        let end = start + line[start..].find('\'')?;
+        line[end..]
+            .contains("is not recognized")
+            .then(|| name(&line[start..end]))
+            .flatten()
+    })
+}
+
+/// CDXC:SessionChat 2026-10-28 WHY:
+/// A DeepSeek Harness session's card read only `env: dsh-tui: No such file or directory`, and the person who hit it had to ask another agent what it meant. When a failed start says the agent's own command is missing, the card says so in words and offers Install (the method Settings > Agents would use, then a restart), or, when Ghostex does find the command somewhere this terminal does not look, says where it is.
+/// `installed_at` is where gxserver finds the command, if anywhere.
+pub fn agent_command_missing_notice(
+    mut notice: SessionChatTerminalNotice,
+    agent_name: &str,
+    command: &str,
+    installed_at: Option<&str>,
+) -> SessionChatTerminalNotice {
+    let send_note =
+        "A message you send meanwhile waits in the chat and goes out once the agent is up.";
+    match installed_at {
+        None => {
+            notice.title = format!("{agent_name} isn't installed on this computer");
+            notice.detail = Some(format!(
+                "Its command, {command}, wasn't found. Install installs it the way Settings > Agents does and then starts {agent_name}. {send_note}"
+            ));
+            notice.actions = vec![
+                SessionChatTerminalNoticeAction {
+                    id: SESSION_CHAT_NOTICE_ACTION_INSTALL_AGENT.to_string(),
+                    label: format!("Install {agent_name}"),
+                    kind: SessionChatTerminalNoticeActionKind::RestartAgent,
+                    send: None,
+                },
+                SessionChatTerminalNoticeAction::switch_to_terminal(OPEN_TERMINAL.label),
+            ];
+        }
+        Some(path) => {
+            notice.title = format!("This terminal can't find {command}");
+            notice.detail = Some(format!(
+                "{agent_name} is installed at {path}, but the terminal's PATH doesn't include that folder. Add it with Add to PATH in Settings > Agents, then try again. {send_note}"
+            ));
+        }
+    }
+    notice
+}
+
 /// Lines the card shows for a failed start.
 const START_FAILURE_ERROR_LINES: usize = 4;
 
@@ -240,5 +317,73 @@ mod tests {
         .expect("the failed start is classified");
         assert!(missing.missing_login());
         assert!(!missing.sign_in_error());
+    }
+}
+
+#[cfg(test)]
+mod missing_command_tests {
+    use super::*;
+
+    #[test]
+    fn every_shell_names_the_command_it_could_not_find() {
+        for (lines, expected) in [
+            ("env: dsh-tui: No such file or directory", "dsh-tui"),
+            ("zsh: command not found: dsh-tui", "dsh-tui"),
+            ("bash: dsh-tui: command not found", "dsh-tui"),
+            ("sh: 1: gemini: command not found", "gemini"),
+            ("fish: Unknown command: grok", "grok"),
+            (
+                "zsh: no such file or directory: /Users/u/.local/share/mise/shims/dsh-tui",
+                "dsh-tui",
+            ),
+            (
+                "dsh-tui : The term 'dsh-tui' is not recognized as a name of a cmdlet, function, script file, or executable program.",
+                "dsh-tui",
+            ),
+        ] {
+            assert_eq!(
+                missing_start_command(lines).as_deref(),
+                Some(expected),
+                "{lines}"
+            );
+        }
+        assert_eq!(missing_start_command("Error: invalid flag --yolo"), None);
+    }
+
+    #[test]
+    fn a_missing_agent_card_offers_install_or_says_where_it_is() {
+        let base = agent_start_failure_notice(
+            "$ env DSH_TUI_NO_LAUNCHPAD=1 dsh-tui\nenv: dsh-tui: No such file or directory\nuser@mac ~ % ",
+        )
+        .expect("a failed start");
+        let missing =
+            agent_command_missing_notice(base.clone(), "DeepSeek Harness", "dsh-tui", None);
+        assert_eq!(
+            missing.title,
+            "DeepSeek Harness isn't installed on this computer"
+        );
+        assert_eq!(
+            missing.actions[0].id,
+            SESSION_CHAT_NOTICE_ACTION_INSTALL_AGENT
+        );
+        assert_eq!(
+            missing.actions[0].kind,
+            SessionChatTerminalNoticeActionKind::RestartAgent
+        );
+        let elsewhere = agent_command_missing_notice(
+            base,
+            "DeepSeek Harness",
+            "dsh-tui",
+            Some("/opt/tools/dsh-tui"),
+        );
+        assert_eq!(elsewhere.title, "This terminal can't find dsh-tui");
+        assert!(elsewhere
+            .detail
+            .unwrap()
+            .contains("installed at /opt/tools/dsh-tui"));
+        assert!(elsewhere
+            .actions
+            .iter()
+            .any(|action| action.id == SESSION_CHAT_NOTICE_ACTION_RETRY_START));
     }
 }

@@ -875,6 +875,8 @@ pub(crate) fn resolve_agent_launch_command(
     let command = with_codex_no_daemon(agent_id, icon, &command);
     let command = with_marked_handovers(agent_id, icon, &command);
     let command = crate::connectors::with_connector_tools(agent_id, icon, &command);
+    // Last, so the steps above still read the program's own name (agent_cli/launch_path.rs).
+    let command = crate::agent_cli::launch_path::with_reachable_program(&command);
     #[cfg(windows)]
     let command = native_cli_command(&command);
     command

@@ -367,6 +367,29 @@ pub(crate) async fn ensure_uv(home: &Path, log: &Log) -> Result<PathBuf, String>
     .map_err(|error| error.to_string())?
 }
 
+/// mise to run: the user's own when installed, otherwise Ghostex's (installed now if needed). Returns
+/// the folder to put first on the job's PATH.
+pub(crate) async fn ensure_mise(home: &Path, log: &Log) -> Result<Vec<PathBuf>, String> {
+    let owned_home = home.to_path_buf();
+    let log = log.clone();
+    tokio::task::spawn_blocking(move || {
+        let path = match tools::locate("mise", &owned_home)
+            .map(|(path, _)| path)
+            .or_else(super::mise::managed_executable)
+        {
+            Some(path) => path,
+            None => {
+                log.line("mise isn't installed, so Ghostex installs it first.");
+                clean_scratch();
+                super::mise::install(&log)?
+            }
+        };
+        Ok(path.parent().map(Path::to_path_buf).into_iter().collect())
+    })
+    .await
+    .map_err(|error| error.to_string())?
+}
+
 pub(crate) async fn ensure_homebrew(home: &Path, log: &Log) -> Result<PathBuf, String> {
     let owned_home = home.to_path_buf();
     let log = log.clone();

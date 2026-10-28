@@ -239,15 +239,31 @@ pub(crate) fn methods(
         });
     if let Some(tool) = mise_tool {
         let managed = mise_installation.is_some_and(|installation| installation.tool.is_some());
-        let companions = mise_companion_tools(
-            definition,
-            |command| crate::agent_hooks::probing::command_exists(command, home),
-            super::latest::npm_latest_blocking,
+        let exists = |command: &str| crate::agent_hooks::probing::command_exists(command, home);
+        let have_mise =
+            exists("mise") || crate::managed_tools::mise::managed_executable().is_some();
+        let mut companions =
+            mise_companion_tools(definition, exists, super::latest::npm_latest_blocking);
+        // A registry name (`gemini`) can be an `npm:` tool underneath; mise's registry says which.
+        let backend = (have_mise && !exists("npm"))
+            .then(|| super::mise::backend(&tool, home))
+            .flatten();
+        let needs_node = mise_needs_node(
+            backend.as_deref().unwrap_or(&tool),
+            &companions,
+            exists("npm"),
         );
-        let (command, companion_reason) = match &companions {
-            Ok(tools) if tools.is_empty() => (super::mise::command(&tool, managed), None),
+        let (command, companion_reason) = match &mut companions {
+            Ok(tools) if tools.is_empty() && !needs_node => {
+                (super::mise::command(&tool, managed), None)
+            }
             // An agent that needs other tools installs and updates them together in one `mise use`.
-            Ok(tools) => (super::mise::use_command(&tool, tools), None),
+            Ok(tools) => {
+                if needs_node {
+                    tools.insert(0, MISE_NODE.to_string());
+                }
+                (super::mise::use_command(&tool, tools), None)
+            }
             Err(reason) => (super::mise::use_command(&tool, &[]), Some(reason.clone())),
         };
         let command = match &definition.mise_then_run {
@@ -260,14 +276,22 @@ pub(crate) fn methods(
             command.clone(),
             note(format!("Runs {command} with your mise.")),
         );
-        method.unavailable_reason =
-            missing_command("mise", home)
-                .or(companion_reason)
-                .or_else(|| {
-                    (!managed)
-                        .then(|| super::mise::unavailable_reason(&tool, home))
-                        .flatten()
-                });
+        if have_mise {
+            method.unavailable_reason = companion_reason.or_else(|| {
+                (!managed)
+                    .then(|| super::mise::unavailable_reason(&tool, home))
+                    .flatten()
+            });
+        } else if crate::managed_tools::platform::arch().is_some() {
+            method.prerequisite = Some("mise".into());
+            method.plan = note(format!(
+                "Ghostex first downloads mise from its official GitHub releases into its tools folder (checked against the published checksum), then runs {command}. No password needed."
+            ));
+            method.unavailable_reason = companion_reason;
+        } else {
+            method.unavailable_reason =
+                Some(crate::managed_tools::platform::unsupported_cpu_reason());
+        }
         methods.push(method);
     }
     if let Some(native) = &definition.native {
@@ -405,7 +429,34 @@ pub(crate) fn methods(
             methods.push(method);
         }
     }
+    mise_last_when_missing(&mut methods);
     methods
+}
+
+/// A mise this computer does not have yet goes last, so an agent with its own installer keeps that
+/// as the default (the first method the computer can run); an agent that installs only through mise
+/// (DeepSeek Harness) still installs, mise first.
+fn mise_last_when_missing(methods: &mut Vec<Method>) {
+    if let Some(index) = methods
+        .iter()
+        .position(|method| method.prerequisite.as_deref() == Some("mise"))
+    {
+        let method = methods.remove(index);
+        methods.push(method);
+    }
+}
+
+/// The Node.js mise installs beside an `npm:` tool on a computer without npm.
+const MISE_NODE: &str = "node@lts";
+
+/// CDXC:ManagedTools 2026-10-28 WHY:
+/// mise's `npm:` backend installs with npm and refuses to run without it ("requires configured install dependency node", tried on a computer with no Node.js). Asked for `node@lts` in the same `mise use`, mise installs Node.js first and its shims put that Node.js on PATH whenever the agent runs, so an agent installed through mise starts on a computer that never had Node.js.
+fn mise_needs_node(tool: &str, companions: &Result<Vec<String>, String>, have_npm: bool) -> bool {
+    !have_npm
+        && (tool.starts_with("npm:")
+            || companions
+                .as_ref()
+                .is_ok_and(|tools| tools.iter().any(|tool| tool.starts_with("npm:"))))
 }
 
 /// The versioned mise tools an agent's companions add to its `mise use`, or why they cannot be
@@ -734,6 +785,39 @@ mod tests {
             ),
             "mise use --global --yes 'npm:@deepseek-harness-tui/dsh-tui@latest' 'npm:@deepseek-ai/dsh@0.2.1-rc.2'"
         );
+    }
+
+    #[test]
+    fn an_npm_tool_brings_node_along_only_when_npm_is_missing() {
+        let none: Result<Vec<String>, String> = Ok(Vec::new());
+        assert!(mise_needs_node("npm:@google/gemini-cli", &none, false));
+        assert!(!mise_needs_node("npm:@google/gemini-cli", &none, true));
+        assert!(!mise_needs_node("claude", &none, false));
+        let dsh_companions: Result<Vec<String>, String> =
+            Ok(vec!["npm:@deepseek-ai/dsh@0.2.1-rc.2".to_string()]);
+        assert!(mise_needs_node("aqua:x/y", &dsh_companions, false));
+    }
+
+    #[test]
+    fn a_mise_to_download_goes_after_the_methods_that_need_nothing() {
+        let method = |id: &str, prerequisite: Option<&str>| {
+            let mut method = Method::new(id, id, id.into(), String::new());
+            method.prerequisite = prerequisite.map(str::to_string);
+            method
+        };
+        let mut methods = vec![
+            method("mise", Some("mise")),
+            method("native", None),
+            method("npm", Some("node")),
+        ];
+        mise_last_when_missing(&mut methods);
+        assert_eq!(
+            methods.iter().map(|m| m.id.as_str()).collect::<Vec<_>>(),
+            ["native", "npm", "mise"]
+        );
+        let mut installed = vec![method("mise", None), method("native", None)];
+        mise_last_when_missing(&mut installed);
+        assert_eq!(installed[0].id, "mise");
     }
 
     #[test]

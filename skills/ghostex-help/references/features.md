@@ -2512,8 +2512,15 @@ Ghostex leaves that setting alone. If a CLI needs a newer tool first (OMP's Bun
 install needs Bun 1.3.14 or newer), the method says what to update; the official
 installer downloads OMP's own binary and needs no Bun. mise is offered for supported CLIs and is the
 default install choice when it can install that CLI on your computer; otherwise
-(Cursor on Windows, or a CLI mise installs with npm when npm is missing) the
-official installer or npm is. When Chat is your default view, installing a CLI
+(Cursor on Windows, or a computer without mise) the official installer or npm
+is. On a computer without mise the mise choice reads "installs mise first":
+Ghostex downloads mise from its official GitHub releases into its own tools
+folder (checked against the published checksum) without changing your shell
+profile, and when npm is missing it has mise install Node.js along with the
+CLI. A CLI installed through mise starts in its sessions even when your shell
+doesn't set mise up (no `mise activate` needed): Ghostex runs it through mise.
+If a session's agent command still isn't found, its chat says which command is
+missing and offers Install. When Chat is your default view, installing a CLI
 here also installs the Ghostex hooks its chat needs. Existing mise tools, including custom
 backends, update through mise with their version pins bumped to the latest
 release; older versions remain available for running sessions. For example,
@@ -2528,7 +2535,8 @@ and update it with `npm install -g zcode-app-cli@latest`, as documented at
 Freebuff launches with `freebuff` and installs with `npm install -g freebuff`;
 sign in once in its terminal the first time it starts.
 DeepSeek Harness (under More agents until you turn it on) launches with
-`dsh-tui` and installs and updates through mise: Install and Update run
+`dsh-tui` and installs and updates only through mise (which Ghostex downloads
+itself when the computer has none): Install and Update run
 `mise use --global npm:@deepseek-harness-tui/dsh-tui@latest npm:@deepseek-ai/dsh@<release>`
 with the DeepSeek Harness release npm currently marks as latest (plus pnpm when it
 is missing), then `dsh-tui update`, which sets up its profile, so the terminal app

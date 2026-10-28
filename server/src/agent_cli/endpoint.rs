@@ -75,10 +75,46 @@ pub(crate) async fn update_and_wait(
     agent_id: &str,
     method_id: &str,
 ) -> Result<Value, String> {
+    run_and_wait(paths, agent_id, "update", method_id).await
+}
+
+/// Installs a missing agent CLI with the method Settings > Agents would pick (the first one this
+/// computer can run) and waits for the job, for Install on a failed start's card.
+pub(crate) async fn install_default_and_wait(
+    paths: &GxserverPaths,
+    agent_id: &str,
+) -> Result<Value, String> {
+    let state = read_agent(paths.agent_config_home_dir(), agent_id)
+        .await
+        .map_err(|error| error.message)?;
+    if state["executablePath"].is_string() {
+        return Ok(state);
+    }
+    let methods = state["methods"].as_array().cloned().unwrap_or_default();
+    let method = methods
+        .iter()
+        .find(|method| method["unavailableReason"].is_null())
+        .ok_or_else(|| {
+            methods
+                .first()
+                .and_then(|method| method["unavailableReason"].as_str())
+                .unwrap_or("Ghostex has no way to install this CLI on this computer.")
+                .to_string()
+        })?;
+    let method_id = method["id"].as_str().unwrap_or_default().to_string();
+    run_and_wait(paths, agent_id, "install", &method_id).await
+}
+
+async fn run_and_wait(
+    paths: &GxserverPaths,
+    agent_id: &str,
+    operation: &str,
+    method_id: &str,
+) -> Result<Value, String> {
     let mut params = Map::new();
     params.insert("action".into(), json!("start"));
     params.insert("agentId".into(), json!(agent_id));
-    params.insert("operation".into(), json!("update"));
+    params.insert("operation".into(), json!(operation));
     params.insert("methodId".into(), json!(method_id));
     let started = dispatch(paths, &params)
         .await
@@ -95,7 +131,7 @@ pub(crate) async fn update_and_wait(
             .map_err(|error| error.message)?;
         let job = &state["job"];
         if job["id"].as_str() != Some(job_id.as_str()) {
-            return Err("The update job disappeared.".into());
+            return Err(format!("The {operation} job disappeared."));
         }
         match job["status"].as_str() {
             Some("succeeded") => return Ok(state),
@@ -103,7 +139,8 @@ pub(crate) async fn update_and_wait(
                 let output = job["output"].as_str().unwrap_or_default().trim();
                 let tail: Vec<&str> = output.lines().rev().take(12).collect();
                 let tail = tail.into_iter().rev().collect::<Vec<_>>().join("\n");
-                let reason = job["error"].as_str().unwrap_or("The update failed.");
+                let failed = format!("The {operation} failed.");
+                let reason = job["error"].as_str().unwrap_or(&failed);
                 return Err(if tail.is_empty() {
                     reason.to_string()
                 } else {
@@ -111,7 +148,7 @@ pub(crate) async fn update_and_wait(
                 });
             }
             _ if std::time::Instant::now() > deadline => {
-                return Err("The update did not finish within 20 minutes.".into())
+                return Err(format!("The {operation} did not finish within 20 minutes."))
             }
             _ => {}
         }
@@ -345,6 +382,7 @@ async fn prepare_prerequisite(
     }
     match prerequisite {
         Some("node") => crate::managed_tools::ensure_npm(home, log).await,
+        Some("mise") => crate::managed_tools::ensure_mise(home, log).await,
         Some("homebrew") => crate::managed_tools::ensure_homebrew(home, log)
             .await
             .map(|brew| brew.parent().map(Path::to_path_buf).into_iter().collect()),
