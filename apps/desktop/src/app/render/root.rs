@@ -193,6 +193,7 @@ impl Render for GhostexGpuiApp {
         crate::app::workspace_windows::sync_workspace_window_title(window, &self.project_name, cx);
         self.sync_main_window_glass(window, cx);
         crate::app::window::frosted_host::sync_frosted_tooltip_presenter(window, cx);
+        crate::app::render::terminal_agent_action_bar::drop_unseen_terminal_bar_hosts(window, cx);
         self.native_docs_drop_unseen_drawer(cx);
         self.native_docs_drop_unseen_format_bar(cx);
         self.native_docs_drop_unseen_notes_windows(cx);

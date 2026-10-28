@@ -19,6 +19,7 @@ mod account_flyout;
 mod dictation;
 mod flyout_host;
 pub(crate) use dictation::TerminalDictation;
+pub(crate) use flyout_host::drop_unseen_terminal_bar_hosts;
 mod menu_width;
 mod model_pill;
 mod palette;
@@ -695,19 +696,16 @@ impl GhostexGpuiApp {
         // right unless it would run past the window's right edge. Nothing is measured on the
         // frame the menu first opens, and the flyout cannot be open yet, so it starts on the right.
         let (painted_menu, window_width) = menu_bounds.get();
-        let switchable_agents = self
-            .agents_sidebar_session_for_terminal(session_id)
-            .map(|session| session.switchable_agents.clone())
-            .unwrap_or_default();
-        let is_orchestrator = self
-            .agents_sidebar_session_for_terminal(session_id)
-            .is_some_and(|session| session.is_orchestrator);
-        // The chat's menu rule: Claude and Codex sessions switch between saved accounts, every
-        // other agent between the daemon's switchable-agent rows.
-        let accounts_target = self.terminal_agent_bar_account_target(session_id);
-        let has_switch_account = accounts_target.is_some() || !switchable_agents.is_empty();
-        let menu_width =
-            self.terminal_agent_bar_menu_width(surface, session_id, has_switch_account, cx);
+        let menu_width = self.terminal_agent_bar_menu_width(
+            surface,
+            session_id,
+            self.terminal_agent_bar_has_switch_account(session_id),
+            cx,
+        );
+        // Under window glass this copy is invisible and holds the menu's place, size and
+        // click-away bounds, and the menu draws in a frosted host of its own
+        // (CDXC:AppModal 2026-10-29 in terminal_agent_action_bar/flyout_host.rs).
+        let host = flyout_host::terminal_bar_menu_host_probe(surface, session_id, suffix, cx);
         let mut menu = div()
             .id(format!("ghostex-gpui-terminal-agent-bar-menu-{suffix}"))
             .absolute()
@@ -739,29 +737,11 @@ impl GhostexGpuiApp {
                 .blur_radius(px(22.0)),
             ])
             .occlude()
-            .child(terminal_agent_bar_menu_probe(menu_bounds));
-
-        for row in TERMINAL_AGENT_BAR_MENU_ROWS {
-            match row {
-                Some(action) => {
-                    if *action == TerminalAgentBarAction::SwitchAccount && !has_switch_account {
-                        continue;
-                    }
-                    if *action == TerminalAgentBarAction::CloseAfterDone && is_orchestrator {
-                        continue;
-                    }
-                    if let Some(heading) = terminal_agent_bar_menu_group_heading(*action) {
-                        menu = menu.child(terminal_agent_bar_menu_group_label(heading));
-                    }
-                    menu = menu.child(self.render_terminal_agent_bar_menu_item(
-                        surface, session_id, *action, suffix, cx,
-                    ));
-                }
-                None => {
-                    menu = menu.child(terminal_agent_bar_menu_separator());
-                }
-            }
-        }
+            .child(terminal_agent_bar_menu_probe(menu_bounds))
+            .children(
+                self.render_terminal_agent_bar_menu_rows(surface, session_id, suffix, None, cx),
+            )
+            .when_some(host, |this, host| this.opacity(0.0).child(host));
         if let Some(flyout) = self.render_terminal_agent_bar_inline_flyout(
             surface,
             session_id,
@@ -775,6 +755,67 @@ impl GhostexGpuiApp {
             menu = menu.child(flyout);
         }
         menu.into_any_element()
+    }
+
+    /// Whether the ⋯ menu has a Switch Account row. The chat's menu rule: Claude and Codex
+    /// sessions switch between saved accounts, every other agent between the daemon's
+    /// switchable-agent rows.
+    fn terminal_agent_bar_has_switch_account(&self, session_id: TerminalSessionId) -> bool {
+        self.terminal_agent_bar_account_target(session_id).is_some()
+            || self
+                .agents_sidebar_session_for_terminal(session_id)
+                .is_some_and(|session| !session.switchable_agents.is_empty())
+    }
+
+    /// The ⋯ menu's rows, group labels and separators. `hosted_parent` is the bar's window when
+    /// they draw in the menu's frosted host.
+    fn render_terminal_agent_bar_menu_rows(
+        &self,
+        surface: TerminalAgentBarSurface,
+        session_id: TerminalSessionId,
+        suffix: &str,
+        hosted_parent: Option<gpui::AnyWindowHandle>,
+        cx: &mut gpui::Context<Self>,
+    ) -> Vec<AnyElement> {
+        let is_orchestrator = self
+            .agents_sidebar_session_for_terminal(session_id)
+            .is_some_and(|session| session.is_orchestrator);
+        let has_switch_account = self.terminal_agent_bar_has_switch_account(session_id);
+        let mut rows = Vec::new();
+        for row in TERMINAL_AGENT_BAR_MENU_ROWS {
+            match row {
+                Some(action) => {
+                    if *action == TerminalAgentBarAction::SwitchAccount && !has_switch_account {
+                        continue;
+                    }
+                    if *action == TerminalAgentBarAction::CloseAfterDone && is_orchestrator {
+                        continue;
+                    }
+                    if let Some(heading) = terminal_agent_bar_menu_group_heading(*action) {
+                        rows.push(terminal_agent_bar_menu_group_label(heading));
+                    }
+                    rows.push(self.render_terminal_agent_bar_menu_item(
+                        surface,
+                        session_id,
+                        *action,
+                        suffix,
+                        hosted_parent,
+                        cx,
+                    ));
+                }
+                None => rows.push(if hosted_parent.is_some() {
+                    div()
+                        .h(px(1.0))
+                        .mx(px(4.0))
+                        .my(px(5.0))
+                        .bg(titlebar_popup_menu_border_color())
+                        .into_any_element()
+                } else {
+                    terminal_agent_bar_menu_separator()
+                }),
+            }
+        }
+        rows
     }
 
     /// Invisible spacer with the bar's exact layout height: while the bar's
@@ -813,7 +854,7 @@ impl GhostexGpuiApp {
         self.agents_terminal_action_bar_account_submenu_open = false;
         self.agents_terminal_action_bar_account_page = None;
         self.agents_terminal_action_bar_skills = None;
-        flyout_host::hide_terminal_bar_flyout_host(cx);
+        flyout_host::hide_terminal_bar_hosts(cx);
         cx.notify();
     }
 
@@ -821,7 +862,7 @@ impl GhostexGpuiApp {
         self.agents_terminal_action_bar_account_submenu_open = false;
         self.agents_terminal_action_bar_account_page = None;
         self.agents_terminal_action_bar_skills = None;
-        flyout_host::hide_terminal_bar_flyout_host(cx);
+        flyout_host::hide_terminal_bar_hosts(cx);
         if self
             .agents_terminal_action_bar_menu_session
             .take()
@@ -1114,9 +1155,16 @@ impl GhostexGpuiApp {
         session_id: TerminalSessionId,
         action: TerminalAgentBarAction,
         suffix: &str,
+        hosted_parent: Option<gpui::AnyWindowHandle>,
         cx: &mut gpui::Context<GhostexGpuiApp>,
     ) -> AnyElement {
         let state = self.terminal_agent_bar_action_state(surface, session_id, action, None);
+        // The frosted menus' ink wash in the menu's frosted host, the bar menu's solid hover here.
+        let hover: gpui::Hsla = if hosted_parent.is_some() {
+            titlebar_popup_menu_hover_color()
+        } else {
+            terminal_agent_bar_hover_background().into()
+        };
         let enabled = state.disabled_reason.is_none();
         let shortcut = enabled
             .then(|| terminal_element::terminal_overlay_hotkey_label(state.hotkey_action_id))
@@ -1157,17 +1205,24 @@ impl GhostexGpuiApp {
                 terminal_agent_bar_disabled_icon_color()
             })
             .when(enabled, |this| {
-                this.hover(|this| this.bg(terminal_agent_bar_hover_background()))
-                    .on_mouse_down(
-                        MouseButton::Left,
-                        cx.listener(move |this, _event: &MouseDownEvent, window, cx| {
-                            window.prevent_default();
-                            cx.stop_propagation();
-                            this.perform_terminal_agent_bar_action(
-                                surface, session_id, action, window, cx,
-                            );
-                        }),
-                    )
+                this.hover(move |this| this.bg(hover)).on_mouse_down(
+                    MouseButton::Left,
+                    cx.listener(move |this, _event: &MouseDownEvent, window, cx| {
+                        window.prevent_default();
+                        cx.stop_propagation();
+                        flyout_host::run_in_terminal_bar_window(
+                            this,
+                            hosted_parent,
+                            window,
+                            cx,
+                            move |this, window, cx| {
+                                this.perform_terminal_agent_bar_action(
+                                    surface, session_id, action, window, cx,
+                                );
+                            },
+                        );
+                    }),
+                )
             })
             .child(terminal_agent_bar_icon(
                 state.icon_path,

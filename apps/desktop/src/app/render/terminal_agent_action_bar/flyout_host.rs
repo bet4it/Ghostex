@@ -10,6 +10,12 @@
 // own window keeps an invisible copy at the same place and size, so the flyout's placement, its
 // occlusion of the terminal under it and the ⋯ anchor's click-away bounds stay exactly as before.
 // Glass off, and on Linux, the flyout draws beside the menu in the bar's window as before.
+// Then the user approved moving the ⋯ menu itself the same way, so under glass the menu and its
+// flyouts match: the menu draws in a frosted host of its own (`FrostedHostKind::TerminalBarMenu`)
+// with the same fill, outline, hover and blur, over an invisible copy that keeps its place above
+// the ⋯ button, its width, its click-away bounds and the flyouts' placement beside it. A host whose
+// menu stopped being drawn (its pane went away while it was open) is taken down at the next render
+// of that window (`drop_unseen_terminal_bar_hosts`).
 // SEE-ALSO: window/frosted_host.rs, helpers/window_glass.rs `frosted_dialog_fill`.
 
 use std::rc::Rc;
@@ -39,13 +45,13 @@ use crate::app::helpers::{
 use crate::app::model::*;
 use crate::app::window::frosted_host::{
     FrostedContent, FrostedHostKind, TERMINAL_BAR_FLYOUT_HOST_RADIUS, frosted_hosting_active,
-    hide_frosted_host, show_frosted_host,
+    hide_frosted_host, hide_frosted_host_over, show_frosted_host,
 };
 use crate::*;
 
 /// What the frosted host needs to draw the open flyout over the bar's window.
 #[derive(Clone)]
-pub(super) struct FlyoutHostRequest {
+pub(super) struct TerminalBarHostRequest {
     app: gpui::Entity<GhostexGpuiApp>,
     surface: TerminalAgentBarSurface,
     session_id: TerminalSessionId,
@@ -61,7 +67,7 @@ pub(super) enum FlyoutPlace<'a> {
         painted_menu: gpui::Bounds<gpui::Pixels>,
         window_width: gpui::Pixels,
         bounds: &'a TerminalBarPopupBounds,
-        host: Option<FlyoutHostRequest>,
+        host: Option<TerminalBarHostRequest>,
     },
     /// Filling a frosted host window over the bar's window `parent`.
     Hosted { parent: AnyWindowHandle },
@@ -153,16 +159,32 @@ impl FlyoutPlace<'_> {
                     ])
                     .child(super::terminal_agent_bar_popup_bounds_probe(bounds))
                     .when_some(host.clone(), |this, host| {
-                        this.opacity(0.0).child(flyout_host_probe(host))
+                        this.opacity(0.0).child(host_probe(
+                            FrostedHostKind::TerminalBarFlyout,
+                            host,
+                            render_hosted_flyout,
+                        ))
                     })
             }
         }
     }
 }
 
-/// An invisible child of the flyout's placeholder that shows the frosted host over its painted
-/// frame, in the bar's window coordinates.
-fn flyout_host_probe(request: FlyoutHostRequest) -> AnyElement {
+/// Draws a ⋯ menu surface in its frosted host over the bar's window `parent`.
+type HostedRender = fn(
+    &GhostexGpuiApp,
+    &TerminalBarHostRequest,
+    AnyWindowHandle,
+    &mut gpui::Context<GhostexGpuiApp>,
+) -> Option<AnyElement>;
+
+/// An invisible child of a placeholder (the ⋯ menu's or a flyout's) that shows `kind`'s frosted
+/// host over the placeholder's painted frame, in the bar's window coordinates.
+fn host_probe(
+    kind: FrostedHostKind,
+    request: TerminalBarHostRequest,
+    render: HostedRender,
+) -> AnyElement {
     gpui::canvas(
         move |painted, window, cx| {
             let parent = gpui::Window::window_handle(window);
@@ -171,25 +193,10 @@ fn flyout_host_probe(request: FlyoutHostRequest) -> AnyElement {
             let content: FrostedContent = Rc::new(move |_, cx| {
                 let request = request.clone();
                 request.app.clone().update(cx, |app, cx| {
-                    app.render_terminal_agent_bar_flyout(
-                        request.surface,
-                        request.session_id,
-                        &FlyoutPlace::Hosted { parent },
-                        &request.suffix,
-                        cx,
-                    )
-                    .unwrap_or_else(|| div().into_any_element())
+                    render(app, &request, parent, cx).unwrap_or_else(|| div().into_any_element())
                 })
             });
-            show_frosted_host(
-                FrostedHostKind::TerminalBarFlyout,
-                parent,
-                painted,
-                key,
-                content,
-                Some(app),
-                cx,
-            );
+            show_frosted_host(kind, parent, painted, key, content, Some(app), cx);
         },
         |_, _, _, _| {},
     )
@@ -198,9 +205,123 @@ fn flyout_host_probe(request: FlyoutHostRequest) -> AnyElement {
     .into_any_element()
 }
 
+fn render_hosted_flyout(
+    app: &GhostexGpuiApp,
+    request: &TerminalBarHostRequest,
+    parent: AnyWindowHandle,
+    cx: &mut gpui::Context<GhostexGpuiApp>,
+) -> Option<AnyElement> {
+    app.render_terminal_agent_bar_flyout(
+        request.surface,
+        request.session_id,
+        &FlyoutPlace::Hosted { parent },
+        &request.suffix,
+        cx,
+    )
+}
+
+fn render_hosted_menu(
+    app: &GhostexGpuiApp,
+    request: &TerminalBarHostRequest,
+    parent: AnyWindowHandle,
+    cx: &mut gpui::Context<GhostexGpuiApp>,
+) -> Option<AnyElement> {
+    if app.agents_terminal_action_bar_menu_session != Some(request.session_id) {
+        return None;
+    }
+    Some(
+        div()
+            .size_full()
+            .font_family(crate::ui_fonts::UI_FONT)
+            .flex()
+            .flex_col()
+            .p(px(5.0))
+            .rounded(px(TERMINAL_BAR_FLYOUT_HOST_RADIUS))
+            .border_1()
+            .border_color(titlebar_popup_menu_border_color())
+            .bg(popup_window_surface(
+                terminal_agent_bar_menu_background().into(),
+            ))
+            .occlude()
+            .children(app.render_terminal_agent_bar_menu_rows(
+                request.surface,
+                request.session_id,
+                &request.suffix,
+                Some(parent),
+                cx,
+            ))
+            .into_any_element(),
+    )
+}
+
+/// Under window glass, the request that makes the ⋯ menu's placeholder show the menu's frosted
+/// host; `None` (and the host hidden) otherwise.
+pub(super) fn terminal_bar_menu_host_probe(
+    surface: TerminalAgentBarSurface,
+    session_id: TerminalSessionId,
+    suffix: &str,
+    cx: &mut gpui::Context<GhostexGpuiApp>,
+) -> Option<AnyElement> {
+    if !frosted_hosting_active() {
+        hide_frosted_host(FrostedHostKind::TerminalBarMenu, cx);
+        return None;
+    }
+    // Noted as the menu is built, not when it prepaints: a frame that composites the pane's layer
+    // skips its prepaint, and the menu must not count as gone then.
+    let drawer = cx.entity_id();
+    MENU_HOSTED_BY.with(|drawn| drawn.borrow_mut().push(drawer));
+    Some(host_probe(
+        FrostedHostKind::TerminalBarMenu,
+        TerminalBarHostRequest {
+            app: cx.entity(),
+            surface,
+            session_id,
+            suffix: suffix.to_string(),
+        },
+        render_hosted_menu,
+    ))
+}
+
+thread_local! {
+    /// The app entities (one per workspace window) whose ⋯ menu showed its frosted host since
+    /// that entity's last render began.
+    static MENU_HOSTED_BY: std::cell::RefCell<Vec<gpui::EntityId>> = const {
+        std::cell::RefCell::new(Vec::new())
+    };
+}
+
+/// Called as a workspace window's render begins: takes down the ⋯ menu's and its flyout's frosted
+/// hosts over that window when its menu did not show them in the previous render, because the
+/// menu's pane went away or stopped showing the bar (a view or session switch from the keyboard)
+/// while it was open. Drawn inline the menu simply vanished with its pane; a host window would
+/// stay on screen.
+pub(crate) fn drop_unseen_terminal_bar_hosts(
+    window: &gpui::Window,
+    cx: &mut gpui::Context<GhostexGpuiApp>,
+) {
+    let drawer = cx.entity_id();
+    let seen = MENU_HOSTED_BY.with(|drawn| {
+        let mut drawn = drawn.borrow_mut();
+        let seen = drawn.contains(&drawer);
+        drawn.retain(|id| *id != drawer);
+        seen
+    });
+    if !seen {
+        let parent = gpui::Window::window_handle(window);
+        hide_frosted_host_over(FrostedHostKind::TerminalBarMenu, parent, cx);
+        hide_frosted_host_over(FrostedHostKind::TerminalBarFlyout, parent, cx);
+    }
+}
+
 /// Hides the flyout's frosted host, if one is up.
 pub(super) fn hide_terminal_bar_flyout_host(cx: &mut gpui::App) {
     hide_frosted_host(FrostedHostKind::TerminalBarFlyout, cx);
+}
+
+/// Hides the ⋯ menu's and its flyout's frosted hosts, if any is up.
+pub(super) fn hide_terminal_bar_hosts(cx: &mut gpui::App) {
+    hide_frosted_host(FrostedHostKind::TerminalBarMenu, cx);
+    hide_terminal_bar_flyout_host(cx);
 }
 
 impl GhostexGpuiApp {
@@ -218,7 +339,7 @@ impl GhostexGpuiApp {
         suffix: &str,
         cx: &mut gpui::Context<Self>,
     ) -> Option<AnyElement> {
-        let host = frosted_hosting_active().then(|| FlyoutHostRequest {
+        let host = frosted_hosting_active().then(|| TerminalBarHostRequest {
             app: cx.entity(),
             surface,
             session_id,

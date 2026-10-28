@@ -37,6 +37,8 @@ pub(crate) enum FrostedHostKind {
     /// A native app modal's open dropdown (`window/modal_popover_host.rs`), drawn over the modal's
     /// window rather than the main one.
     ModalPopover,
+    /// The terminal bar's ⋯ menu (`render/terminal_agent_action_bar/flyout_host.rs`).
+    TerminalBarMenu,
     /// The terminal bar ⋯ menu's Switch Account or Skills flyout
     /// (`render/terminal_agent_action_bar/flyout_host.rs`).
     TerminalBarFlyout,
@@ -51,7 +53,8 @@ pub(crate) const SIDEBAR_MENU_HOST_RADIUS: f32 = 8.0;
 /// The corner radius of the sidebar's peeking usage strip, which its window's blur takes too.
 pub(crate) const SIDEBAR_USAGE_HOST_RADIUS: f32 = 8.0;
 
-/// The corner radius of the terminal bar ⋯ menu's flyouts, which their window's blur takes too.
+/// The corner radius of the terminal bar's ⋯ menu and its flyouts, which their windows' blur
+/// takes too.
 pub(crate) const TERMINAL_BAR_FLYOUT_HOST_RADIUS: f32 = 10.0;
 
 /// The corner radius of the Docs selection toolbar, which its window's blur takes too.
@@ -91,6 +94,7 @@ thread_local! {
     static QUICK_ACCESS_ACTIONS_HOST: RefCell<HostSlot> = RefCell::default();
     static SIDEBAR_USAGE_HOST: RefCell<HostSlot> = RefCell::default();
     static MODAL_POPOVER_HOST: RefCell<HostSlot> = RefCell::default();
+    static TERMINAL_BAR_MENU_HOST: RefCell<HostSlot> = RefCell::default();
     static TERMINAL_BAR_FLYOUT_HOST: RefCell<HostSlot> = RefCell::default();
     static SIDEBAR_MENU_HOSTS: RefCell<Vec<HostSlot>> = RefCell::default();
 }
@@ -109,6 +113,9 @@ fn with_slot<R>(kind: FrostedHostKind, f: impl FnOnce(&mut HostSlot) -> R) -> R 
         }
         FrostedHostKind::SidebarUsage => SIDEBAR_USAGE_HOST.with(|slot| f(&mut slot.borrow_mut())),
         FrostedHostKind::ModalPopover => MODAL_POPOVER_HOST.with(|slot| f(&mut slot.borrow_mut())),
+        FrostedHostKind::TerminalBarMenu => {
+            TERMINAL_BAR_MENU_HOST.with(|slot| f(&mut slot.borrow_mut()))
+        }
         FrostedHostKind::TerminalBarFlyout => {
             TERMINAL_BAR_FLYOUT_HOST.with(|slot| f(&mut slot.borrow_mut()))
         }
@@ -193,6 +200,7 @@ pub(crate) fn hide_frosted_hosts_over(parent: AnyWindowHandle, cx: &mut App) {
         FrostedHostKind::QuickAccessActions,
         FrostedHostKind::SidebarUsage,
         FrostedHostKind::ModalPopover,
+        FrostedHostKind::TerminalBarMenu,
         FrostedHostKind::TerminalBarFlyout,
     ]
     .into_iter()
@@ -333,7 +341,7 @@ fn open_host(
                 FrostedHostKind::ModalPopover => window.set_background_corner_radius(gpui::px(
                     super::native_modal_kit::MODAL_RADIUS_CONTROL,
                 )),
-                FrostedHostKind::TerminalBarFlyout => {
+                FrostedHostKind::TerminalBarMenu | FrostedHostKind::TerminalBarFlyout => {
                     window.set_background_corner_radius(gpui::px(TERMINAL_BAR_FLYOUT_HOST_RADIUS))
                 }
             }
