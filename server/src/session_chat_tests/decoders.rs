@@ -792,3 +792,28 @@ fn pi_tail_reader_follows_the_current_branch() {
     );
     let _ = fs::remove_file(path);
 }
+
+/// Claude Code 2.1.311 rows from a Linux session (2026-10-28), trimmed to the fields that matter:
+/// a refused Write ends with an interrupt marker that has no `interruptedMessageId`.
+#[test]
+fn claude_tool_use_interrupt_marker_ends_the_turn() {
+    use crate::session_chat::SessionChatTurnLifecycleState;
+    let refused = r#"{"parentUuid":"99dbc5de","isSidechain":false,"promptId":"a0fe5dc4","type":"user","message":{"role":"user","content":[{"type":"text","text":"[Request interrupted by user for tool use]"}]},"uuid":"87fec1c9-7c4d-417b-befa-20d91a8efe8b","timestamp":"2026-10-28T05:07:19.200Z","version":"2.1.311"}"#;
+    let lifecycle = crate::session_chat_decode_claude::decode_claude_turn_lifecycle(refused, "fb")
+        .expect("the marker is a turn boundary");
+    assert_eq!(lifecycle.state, SessionChatTurnLifecycleState::Interrupted);
+    assert_eq!(lifecycle.turn_id, "87fec1c9-7c4d-417b-befa-20d91a8efe8b");
+    // The rejected tool result before it continues the turn, and a user who merely quotes the
+    // marker inside a longer message starts a new one.
+    let tool_result = r#"{"type":"user","uuid":"u9","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"t1","content":"The user doesn't want to proceed with this tool use."}]}}"#;
+    assert!(
+        crate::session_chat_decode_claude::decode_claude_turn_lifecycle(tool_result, "fb")
+            .is_none()
+    );
+    let quoted = r#"{"type":"user","uuid":"u10","message":{"role":"user","content":"why did it say [Request interrupted by user for tool use]?"}}"#;
+    assert_eq!(
+        crate::session_chat_decode_claude::decode_claude_turn_lifecycle(quoted, "fb")
+            .map(|lifecycle| lifecycle.state),
+        Some(SessionChatTurnLifecycleState::Working)
+    );
+}
