@@ -390,6 +390,9 @@ impl GhostexGpuiApp {
         )
     }
 
+    /// CDXC:SessionChat 2026-10-29 DECISION:
+    /// User: "Please unify the order of the buttons shown at the bottom right here for the terminal view and the chat view. Let's take the chat view as the source of truth."
+    /// The right-hand buttons follow the chat composer's order (`native_chat/toolbar.rs`, `COMPOSER_CONTROLS`, then Dictate, then Send): More, Attach, Maximize, the view toggle (Chat View here, where the chat has Terminal View), Dictate, and the main action last (Prompt editor, in Send's slot). Session note and Saved prompts are terminal-only; they stay together right after More.
     fn render_terminal_agent_action_bar(
         &self,
         surface: TerminalAgentBarSurface,
@@ -515,6 +518,16 @@ impl GhostexGpuiApp {
                             None,
                             cx,
                         ))
+                        .child(self.render_terminal_agent_bar_icon_button(
+                            surface,
+                            session_id,
+                            TerminalAgentBarAction::ToggleChatView,
+                            false,
+                            0,
+                            &suffix,
+                            agent_name.as_deref(),
+                            cx,
+                        ))
                         .when(dictation::TERMINAL_DICTATION, |this| {
                             this.child(self.render_terminal_agent_bar_icon_button(
                                 surface,
@@ -527,16 +540,6 @@ impl GhostexGpuiApp {
                                 cx,
                             ))
                         })
-                        .child(self.render_terminal_agent_bar_icon_button(
-                            surface,
-                            session_id,
-                            TerminalAgentBarAction::ToggleChatView,
-                            false,
-                            0,
-                            &suffix,
-                            agent_name.as_deref(),
-                            cx,
-                        ))
                         .child(terminal_agent_bar_accent_button(
                             surface,
                             session_id,
