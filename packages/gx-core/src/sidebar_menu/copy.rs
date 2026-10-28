@@ -4,7 +4,7 @@
 use crate::sidebar_view::view::SessionRow;
 
 use super::clipboard::{session_details_text, session_mention_text};
-use super::commands::{MenuCommand, message};
+use super::commands::{message, MenuCommand};
 use super::group::MenuGroup;
 use super::item::MenuItem;
 
