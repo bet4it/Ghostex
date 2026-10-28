@@ -363,3 +363,18 @@ fn codex_script_output_is_read_past_its_header() {
     ]);
     assert_eq!(found["result"], "2 matches");
 }
+
+#[test]
+fn the_phone_asks_the_core_for_an_app_logo() {
+    use crate::query::{answer_query, Query};
+    let state = crate::state::ChatState::default();
+    let context = crate::state::ChatContext::default();
+    let query = Query::from_wire("toolAppLogo").expect("a query");
+    assert_eq!(query.as_str(), "toolAppLogo");
+    let svg: Option<String> =
+        serde_json::from_str(&answer_query(&state, &context, query, &[json!("linear")]).unwrap()).unwrap();
+    assert!(svg.unwrap().starts_with("<svg"));
+    let unknown: Option<String> =
+        serde_json::from_str(&answer_query(&state, &context, query, &[json!("spaceo")]).unwrap()).unwrap();
+    assert!(unknown.is_none());
+}

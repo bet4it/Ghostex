@@ -27,8 +27,11 @@ const SHIMMER: Duration = Duration::from_millis(1400);
 /// One turn of the spinner.
 const SPIN: Duration = Duration::from_millis(800);
 /// The header's icon circles and how far each overlaps the one before it.
-const STACK_ICON: f32 = 20.0;
-const STACK_OVERLAP: f32 = 6.0;
+const STACK_ICON: f32 = 22.0;
+const STACK_OVERLAP: f32 = 7.0;
+/// The ring cut out of the card's colour around each circle, so an overlapping circle reads as
+/// sitting on top of the one before it.
+const STACK_RING: f32 = 2.0;
 /// A row's icon slot.
 const ROW_ICON: f32 = 18.0;
 
@@ -64,14 +67,14 @@ fn tool_icon(icon: &Value, size: f32, round: bool, p: &ChatAppearance) -> gpui::
         (Some(app), Some(color)) => tile.bg(color).child(
             gpui::svg()
                 .path(format!("chat-tool-apps/{app}.svg"))
-                .size(px(size * 0.58 * s))
+                .size(px(size * if round { 0.5 } else { 0.58 } * s))
                 .text_color(gpui::white()),
         ),
         _ => tile.child(
             gpui::svg()
                 .path(glyph_icon(icon["glyph"].as_str().unwrap_or("tool")))
-                .size(px(size * if round { 0.58 } else { 0.8 } * s))
-                .text_color(p.muted),
+                .size(px(size * if round { 0.5 } else { 0.8 } * s))
+                .text_color(if round { p.foreground.opacity(0.75) } else { p.muted }),
         ),
     }
 }
@@ -180,40 +183,67 @@ impl NativeChatView {
         let (surface, _, _, hover, _, _) = card_colors(p);
         let icons = card["icons"].as_array().cloned().unwrap_or_default();
         let mut stack = div().flex().items_center().flex_shrink_0();
-        // The circles overlap, so their fill is opaque: the card's surface a step lighter (darker
-        // in a light theme).
+        // Each tool is a round tile overlapping the one before it, cut out of the card by a ring
+        // of the card's own colour (the demo's stack). The fill is opaque, a clear step lighter
+        // than the card (darker in a light theme), so the circles read as circles.
         let disc = Hsla {
-            l: (surface.l + if p.light { -0.06 } else { 0.08 }).clamp(0.0, 1.0),
+            l: (surface.l + if p.light { -0.1 } else { 0.13 }).clamp(0.0, 1.0),
             a: 1.0,
             ..surface
         };
-        for (index, icon) in icons.iter().enumerate() {
-            let circle = tool_icon(icon, STACK_ICON, true, p)
-                .when(icon["app"].is_null(), |circle| circle.bg(disc))
-                .border(px(1.5 * s))
-                .border_color(surface)
-                .when(index > 0, |circle| circle.ml(px(-STACK_OVERLAP * s)));
-            // A circle pops in as its tool starts.
-            stack = stack.child(if animate {
-                circle
-                    .with_animation(
-                        SharedString::from(format!("{key}:icon:{index}")),
-                        Animation::new(ENTER).with_easing(gpui::ease_out_quint()),
-                        |circle, delta| circle.opacity(delta),
-                    )
-                    .into_any_element()
-            } else {
-                circle.into_any_element()
-            });
-        }
+        let ring = |tile: gpui::Div, index: usize| {
+            tile.border(px(STACK_RING * s))
+                .border_color(Hsla { a: 1.0, ..surface })
+                .when(index > 0, |tile| tile.ml(px(-STACK_OVERLAP * s)))
+        };
+        let mut tiles: Vec<gpui::Div> = icons
+            .iter()
+            .enumerate()
+            .map(|(index, icon)| {
+                ring(
+                    tool_icon(icon, STACK_ICON, true, p)
+                        .when(icon["app"].is_null(), |circle| circle.bg(disc)),
+                    index,
+                )
+            })
+            .collect();
         if more > 0 {
-            stack = stack.child(
+            tiles.push(ring(
                 div()
-                    .ml(px(4.0 * s))
-                    .text_size(px(11.5 * s))
-                    .text_color(p.muted)
+                    .size(px(STACK_ICON * s))
+                    .rounded_full()
+                    .bg(disc)
+                    .flex()
+                    .items_center()
+                    .justify_center()
+                    .flex_shrink_0()
+                    .text_size(px(9.5 * s))
+                    .font_weight(gpui::FontWeight::MEDIUM)
+                    .text_color(p.foreground.opacity(0.75))
                     .child(format!("+{more}")),
-            );
+                icons.len(),
+            ));
+        }
+        for (index, tile) in tiles.into_iter().enumerate() {
+            // A circle slides out from behind the one before it as its tool starts.
+            stack = stack.child(if animate {
+                let (hidden, shown) = (-STACK_ICON * s, -STACK_OVERLAP * s);
+                tile.with_animation(
+                    SharedString::from(format!("{key}:icon:{index}")),
+                    Animation::new(ENTER).with_easing(gpui::ease_out_quint()),
+                    move |tile, delta| {
+                        let tile = tile.opacity(delta);
+                        if index == 0 {
+                            tile
+                        } else {
+                            tile.ml(px(hidden + (shown - hidden) * delta))
+                        }
+                    },
+                )
+                .into_any_element()
+            } else {
+                tile.into_any_element()
+            });
         }
         let title_element = div()
             .min_w_0()

@@ -68,6 +68,10 @@ pub fn answer_query(
             first?,
         )),
         Query::WorkingCardRows => to_json(&crate::extras::working_card_rows::query(arguments)?),
+        // `null` for a key the card does not know.
+        Query::ToolAppLogo => to_json(&crate::transcript::tool_apps::tool_app_svg(
+            first.and_then(Value::as_str)?,
+        )),
     })
 }
 
@@ -160,6 +164,9 @@ pub enum Query {
     /// `workingCardRows(memo, measured)`: one or two rows for the working card
     /// (extras/working_card_rows.rs), the memo to pass back next time.
     WorkingCardRows,
+    /// `toolAppLogo(key)`: an MCP app's logo SVG for a tool-call card's icon
+    /// (transcript/tool_apps.rs), so the phone's logos ship with the core.
+    ToolAppLogo,
 }
 
 impl Query {
@@ -178,6 +185,7 @@ impl Query {
             Self::SpeakableMarkdown => "speakableMarkdown",
             Self::TranscriptPictures => "transcriptPictures",
             Self::WorkingCardRows => "workingCardRows",
+            Self::ToolAppLogo => "toolAppLogo",
         }
     }
 
@@ -196,6 +204,7 @@ impl Query {
             "speakableMarkdown" => Self::SpeakableMarkdown,
             "transcriptPictures" => Self::TranscriptPictures,
             "workingCardRows" => Self::WorkingCardRows,
+            "toolAppLogo" => Self::ToolAppLogo,
             _ => return None,
         })
     }

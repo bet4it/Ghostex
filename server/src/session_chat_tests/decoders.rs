@@ -817,3 +817,26 @@ fn claude_tool_use_interrupt_marker_ends_the_turn() {
         Some(SessionChatTurnLifecycleState::Working)
     );
 }
+
+#[test]
+fn codex_failed_command_inside_a_script_becomes_its_exit_code_row() {
+    let failed = decode_codex_transcript_line(
+        r#"{"timestamp":"2026-10-28T10:45:18.096Z","type":"event_msg","payload":{"type":"item_completed","item":{"type":"CommandExecution","id":"exec-a6be","process_id":"54178","command":["/bin/zsh","-lc","cargo build --features nope"],"parsed_cmd":[{"type":"unknown","cmd":"cargo build --features nope"}],"source":"unified_exec_startup","status":"failed","exit_code":101}}}"#,
+        "fb",
+    )
+    .expect("exit code row");
+    assert_eq!(failed.role, SessionChatRole::System);
+    assert_eq!(failed.id, "exec-a6be");
+    assert_eq!(
+        failed.blocks,
+        vec![text_block(
+            "<system-reminder>Command exited with code 101: cargo build --features nope</system-reminder>"
+        )]
+    );
+    // A command that succeeded says nothing: its exec result already stands.
+    assert!(decode_codex_transcript_line(
+        r#"{"type":"event_msg","payload":{"type":"item_completed","item":{"type":"CommandExecution","id":"exec-ok","command":["/bin/zsh","-lc","cargo test"],"source":"unified_exec_startup","status":"completed","exit_code":0}}}"#,
+        "fb",
+    )
+    .is_none());
+}
