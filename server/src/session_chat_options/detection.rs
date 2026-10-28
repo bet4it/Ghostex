@@ -233,6 +233,9 @@ pub fn detect_session_chat_selection(
         let footer = scanned_lines[top..end]
             .iter()
             .map(|line| {
+                // Claude Code's updater notices are not the session's status (the user's words are
+                // in session_chat_update_hint.rs).
+                let line = crate::session_chat_update_hint::without_claude_update_notice(line);
                 // Grok draws its statusline on the composer's border chrome.
                 if agent == SessionChatOptionAgent::Grok {
                     strip_box_drawing(line).trim().to_string()

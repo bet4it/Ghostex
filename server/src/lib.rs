@@ -109,6 +109,7 @@ pub(crate) mod session_chat_codex_stats;
 pub(crate) mod session_chat_codex_update;
 pub mod session_chat_compacting;
 pub mod session_chat_composer;
+pub(crate) mod session_chat_update_hint;
 pub(crate) mod session_chat_copilot_interrupt;
 pub mod session_chat_copilot_permission;
 pub mod session_chat_copilot_question;

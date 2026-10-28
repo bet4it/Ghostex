@@ -449,23 +449,14 @@ impl NativeChatView {
                 .child(pills_area)
                 .into_any_element();
         }
-        // Two rows (option C): the lead, the label and the action's time on top; a hairline across
+        // Two rows (option C): the lead and the label on top; a hairline across
         // the card; the pills under it, from the left (extras/working_card_label.rs has the
         // user's words). The top row and its divider grow in (or shrink away on a collapse) while
         // the pills keep their place at the bottom.
-        let elapsed = card["elapsed"].as_str().map(|elapsed| {
-            div()
-                .flex_shrink_0()
-                .text_size(px(12.0 * s))
-                .text_color(p.muted)
-                .font_features(FontFeatures(vec![("tnum".into(), 1)].into()))
-                .child(elapsed.to_owned())
-        });
         let top = padded(div())
             .h(px(TOP_ROW_HEIGHT * s))
             .children(lead)
-            .child(label_line)
-            .children(elapsed);
+            .child(label_line);
         let top = div()
             .w_full()
             .flex()

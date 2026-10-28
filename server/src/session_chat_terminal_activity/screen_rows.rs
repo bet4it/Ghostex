@@ -33,8 +33,18 @@ fn screen_rows(screen_text: &str, styled_text: Option<&str>) -> Vec<ScreenRow> {
     let mut after_blank = false;
     for raw in screen_text.lines() {
         let styled = styled_lines.as_mut().and_then(Iterator::next);
-        let stripped = crate::session_chat_options::strip_ansi_sgr(raw);
-        let line = crate::session_chat_options::normalize_spaces(&stripped);
+        let painted = crate::session_chat_options::strip_ansi_sgr(raw);
+        // Claude Code's updater notices are chrome, never activity (session_chat_update_hint.rs);
+        // a row that held only one is skipped without counting as a blank row.
+        let stripped = crate::session_chat_update_hint::without_claude_update_notice(&painted);
+        if stripped.trim().is_empty() && !painted.trim().is_empty() {
+            // The capture's bold state still runs through the row.
+            if let Some(styled) = styled {
+                bold_rows.next_row(styled, 0, 0);
+            }
+            continue;
+        }
+        let line = crate::session_chat_options::normalize_spaces(stripped);
         let text = line.trim();
         let indent = line.len() - line.trim_start().len();
         let end = stripped.trim_end().chars().count();
@@ -292,11 +302,13 @@ blank row or marker.
 */
 fn claude_tool_gutter_text(rows: &[ScreenRow], gutter: usize) -> Option<String> {
     let gutter_indent = rows[gutter].indent;
-    let mut lines = vec![rows[gutter]
-        .text
-        .trim_start_matches(CLAUDE_TOOL_OUTPUT_MARKER)
-        .trim()
-        .to_string()];
+    let mut lines = vec![
+        rows[gutter]
+            .text
+            .trim_start_matches(CLAUDE_TOOL_OUTPUT_MARKER)
+            .trim()
+            .to_string(),
+    ];
     for row in &rows[gutter + 1..] {
         if lines.len() >= CLAUDE_TOOL_DETAIL_MAX_ROWS
             || row.after_blank

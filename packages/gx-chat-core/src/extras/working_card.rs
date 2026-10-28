@@ -83,29 +83,13 @@ pub fn working_card(
         .chain(pills.iter().map(|pill| pill.aria_label.clone()))
         .collect::<Vec<_>>()
         .join(", ");
-    // The two-row top row's extras (extras/working_card_label.rs): the label in runs with its paths
-    // shortened, and how long a tool has run.
+    // The two-row top row's label in runs, its paths shortened (extras/working_card_label.rs).
     let tool_label = label_kind.as_deref() == Some("tool");
     let label_parts = label
         .as_deref()
         .filter(|_| tool_label)
         .map(crate::extras::working_card_label::label_parts)
         .unwrap_or_default();
-    let elapsed = state
-        .extras
-        .action_clock
-        .as_ref()
-        .filter(|_| {
-            tool_label
-                && working
-                && !label
-                    .as_deref()
-                    .is_some_and(crate::extras::working_card_label::label_counts_time)
-        })
-        .and_then(|clock| {
-            let now = state.extras.activity_now_ms.unwrap_or(clock.started_ms);
-            crate::extras::working_card_label::action_elapsed_label(now - clock.started_ms)
-        });
     WorkingCard {
         visible: label.is_some() || !pill_ids.is_empty() || question_waiting,
         phase: phase.to_string(),
@@ -116,14 +100,13 @@ pub fn working_card(
         pills: pill_ids,
         aria_label,
         label_parts,
-        elapsed,
     }
 }
 
 /// The label of the call the transcript records as still running in the current turn: its
 /// description, else its name and command. The tool row read off the screen retires once the
 /// transcript records the call, and the label must stay for as long as the call runs (Q254).
-fn running_call(state: &ChatState) -> Option<(String, String, Option<i64>)> {
+fn running_call_label(state: &ChatState) -> Option<String> {
     let mut answered: Vec<&str> = Vec::new();
     for message in state.messages.list.iter().rev().take(400) {
         let mut prompt = message.role == ChatRole::User;
@@ -141,15 +124,14 @@ fn running_call(state: &ChatState) -> Option<(String, String, Option<i64>)> {
                     input,
                     call_id: Some(id),
                 } if !answered.contains(&id.as_str()) => {
-                    let found = |label: String| Some((label, id.clone(), message.timestamp));
                     let description = tool_description(input);
                     if !description.is_empty() {
-                        return found(description);
+                        return Some(description);
                     }
                     if let Some(label) =
                         crate::transcript::tool_label::tool_label(name, input, None, false)
                     {
-                        return found(label.text);
+                        return Some(label.text);
                     }
                     let preview = tool_preview(
                         &ToolPair {
@@ -158,7 +140,7 @@ fn running_call(state: &ChatState) -> Option<(String, String, Option<i64>)> {
                         },
                         None,
                     );
-                    return found(if preview.is_empty() {
+                    return Some(if preview.is_empty() {
                         name.clone()
                     } else {
                         format!("{name}: {preview}")
@@ -173,34 +155,4 @@ fn running_call(state: &ChatState) -> Option<(String, String, Option<i64>)> {
         }
     }
     None
-}
-
-fn running_call_label(state: &ChatState) -> Option<String> {
-    running_call(state).map(|(label, _, _)| label)
-}
-
-/// The tool action the card names while the agent works, for its clock: the call the transcript
-/// records as running (keyed by its id, started at its own time), else the tool read off the
-/// agent's screen (keyed by its label without digits, since a screen label counts its own seconds,
-/// and started when first seen). `None` while no tool runs.
-///
-/// CDXC:SessionChat 2026-10-28 WHY:
-/// Keyed on the screen label first, the clock restarted every second: Claude's "Running 1 shell command · 9s…" changes as it counts and comes and goes between samples, so the top row's time never got past a second. The recorded call's start is the real one and stays put.
-pub fn current_tool_action(state: &ChatState) -> Option<(String, Option<i64>)> {
-    let working = state.session.server_working || state.session.external_working;
-    if let Some((_, id, started)) = working.then(|| running_call(state)).flatten() {
-        return Some((format!("call:{id}"), started));
-    }
-    visible_terminal_tool(state, crate::session::working::is_working(state))
-        .map(terminal_tool_activity)
-        .and_then(|tool| {
-            tool.get("label").and_then(Value::as_str).map(|label| {
-                label
-                    .chars()
-                    .filter(|c| !c.is_ascii_digit())
-                    .collect::<String>()
-            })
-        })
-        .filter(|label| !label.trim().is_empty())
-        .map(|label| (format!("screen:{label}"), None))
 }
