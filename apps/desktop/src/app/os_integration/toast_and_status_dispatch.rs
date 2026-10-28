@@ -180,8 +180,6 @@ impl GhostexGpuiApp {
         */
         self.remote_machine_connect_states
             .insert(remote_machine_id.to_string(), state.to_string());
-        // Settings > Remote counts connected machines on its Remote machines tab.
-        self.publish_remote_machine_connect_states(cx);
         // The sanitized summary of THIS transition, which the machine tab and the sidebar's
         // machine notice draw (gx_store/remote_clients.rs). A transition without a message leaves
         // the last failure's standing, but a new attempt or a connection clears it so a later
@@ -195,6 +193,9 @@ impl GhostexGpuiApp {
             self.remote_machine_status_messages
                 .remove(remote_machine_id);
         }
+        // Settings > Remote counts connected machines on its Remote machines tab, and draws each
+        // failing machine's reason on its tile, so this goes out after the reason is updated.
+        self.publish_remote_machine_connect_states(cx);
         // Every connect transition funnels through here, so this is also where the store learns
         // whether it still has a daemon to subscribe to on that machine: a client starts on the
         // connected edge and is retired on every other one, which leaves the machine's rows on

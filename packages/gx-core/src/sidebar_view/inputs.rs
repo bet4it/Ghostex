@@ -35,6 +35,9 @@ pub struct MachineTabInput {
     /// The host subscribes to this machine's presentation and feeds it into the store, so a list
     /// can be built for it. A machine the host does not feed keeps whatever the caller drew.
     pub fed: bool,
+    /// The machine's gxserver is the one this computer runs (a saved machine that points back at
+    /// this computer), which its list says (`machine_connection::machine_notice`).
+    pub this_computer: bool,
 }
 
 impl MachineTabInput {

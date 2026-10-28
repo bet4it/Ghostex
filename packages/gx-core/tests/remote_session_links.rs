@@ -127,6 +127,7 @@ fn remote_inputs() -> SidebarInputs {
             state: MACHINE_STATE_CONNECTED.to_string(),
             message: None,
             fed: true,
+            this_computer: false,
         })
         .collect();
     inputs.ui.selected_machine_id = MACHINE.to_string();

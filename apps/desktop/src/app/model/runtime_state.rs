@@ -68,6 +68,9 @@ pub(crate) struct GpuiRemoteGxserverConnection {
     pub(crate) token: String,
     pub(crate) child: Child,
     pub(crate) health_check_failures: u8,
+    /// The machine's gxserver is this computer's own (`gpui_remote_is_this_computer`), so it is
+    /// never installed or updated from here.
+    pub(crate) this_computer: bool,
 }
 
 impl GpuiRemoteGxserverConnection {

@@ -144,11 +144,53 @@ pub(crate) fn gpui_connect_remote_gxserver_platform_inner(
     );
     let config = ssh_share.share_into(config);
     let mut execution_target = GpuiRemoteExecutionTarget::PosixHost;
-    let mut token_result = gpui_run_remote_ssh(
-        &config,
-        gpui_remote_token_read_command(),
-        GPUI_REMOTE_GXSERVER_CONNECT_TIMEOUT,
+    /*
+    CDXC:RemoteMachines 2026-10-28 WHY: a saved machine that points back at this computer (SSH
+    to localhost, its own address or name, as the same user) reaches the gxserver this app
+    already runs: same port, same data folder, same token. The token read below runs `gxserver
+    start`, which replaces a running daemon of another build, and an install or update runs
+    `gxserver setup`, which stops it, so either could take down this app's own gxserver (found
+    testing a loopback machine on Linux; the same on macOS). Before anything runs there, the
+    remote's server id is compared with this daemon's: when they match, the connection uses this
+    daemon's own token, never installs or updates, and is marked as this computer, which the
+    sidebar and Settings say.
+    */
+    let this_computer = gpui_remote_is_this_computer(
+        gpui_remote_identity_server_id(
+            gpui_run_remote_ssh(
+                &config,
+                gpui_remote_identity_read_command(),
+                GPUI_REMOTE_GXSERVER_CONNECT_TIMEOUT,
+            )
+            .stdout
+            .as_str(),
+        )
+        .as_deref(),
+        gpui_local_gxserver_server_id().as_deref(),
     );
+    let mut token_result = if this_computer {
+        match read_gpui_gxserver_auth_token() {
+            Ok(token) => GpuiRemoteProcessResult {
+                exit_code: 0,
+                stderr: String::new(),
+                stdout: format!(
+                    "__GHOSTEX_REMOTE_TOKEN_START__\n{token}\n__GHOSTEX_REMOTE_TOKEN_END__\n"
+                ),
+            },
+            Err(_) => {
+                return GpuiRemoteGxserverConnectResult::without_connection(
+                    GpuiRemoteGxserverConnectState::TokenUnavailable,
+                    "This machine is this computer, and this computer's gxserver token could not be read.",
+                );
+            }
+        }
+    } else {
+        gpui_run_remote_ssh(
+            &config,
+            gpui_remote_token_read_command(),
+            GPUI_REMOTE_GXSERVER_CONNECT_TIMEOUT,
+        )
+    };
     if gpui_remote_process_failure_is_authentication(&token_result) {
         // The login itself was refused: probing the platform would only be another failed login.
         return GpuiRemoteGxserverConnectResult::without_connection(
@@ -210,7 +252,8 @@ pub(crate) fn gpui_connect_remote_gxserver_platform_inner(
             }
         }
     }
-    let installed_managed_package_needs_update = token_result.exit_code == 0
+    let installed_managed_package_needs_update = !this_computer
+        && token_result.exit_code == 0
         && gpui_remote_managed_gxserver_package_needs_update(&config, &execution_target);
     if (token_result.exit_code == 127 && install_approved) || installed_managed_package_needs_update
     {
@@ -285,7 +328,10 @@ pub(crate) fn gpui_connect_remote_gxserver_platform_inner(
     }
 
     match gpui_open_remote_gxserver_tunnel(&config, &execution_target, token.as_str()) {
-        Ok(connection) => GpuiRemoteGxserverConnectResult::connected(connection),
+        Ok(mut connection) => {
+            connection.this_computer = this_computer;
+            GpuiRemoteGxserverConnectResult::connected(connection)
+        }
         Err(message) => GpuiRemoteGxserverConnectResult::without_connection(
             GpuiRemoteGxserverConnectState::TunnelFailed,
             message.as_str(),
@@ -723,6 +769,47 @@ pub(crate) fn gpui_is_remote_gxserver_token_char(ch: char) -> bool {
     ch.is_ascii_alphanumeric() || ch == '_' || ch == '-'
 }
 
+/// Prints the remote gxserver's `identity.json` between markers, from the state folder the token
+/// read uses, or nothing when there is none.
+pub(crate) fn gpui_remote_identity_read_command() -> &'static str {
+    concat!(
+        "case \"${GHOSTEX_HOME:-}\" in /*) GHOSTEX_REMOTE_STATE_DIR=\"$GHOSTEX_HOME/state\";; ",
+        "*) case \"${XDG_STATE_HOME:-}\" in /*) GHOSTEX_REMOTE_STATE_DIR=\"${XDG_STATE_HOME%/}/ghostex\";; *) GHOSTEX_REMOTE_STATE_DIR=\"$HOME/.local/state/ghostex\";; esac;; esac; ",
+        "GHOSTEX_REMOTE_IDENTITY_FILE=\"$GHOSTEX_REMOTE_STATE_DIR/gxserver/identity.json\"; ",
+        "if [ ! -r \"$GHOSTEX_REMOTE_IDENTITY_FILE\" ]; then GHOSTEX_REMOTE_IDENTITY_FILE=\"$HOME/.ghostex/gxserver/identity.json\"; fi; ",
+        "if [ -r \"$GHOSTEX_REMOTE_IDENTITY_FILE\" ]; then ",
+        "printf '__GHOSTEX_REMOTE_IDENTITY_START__\\n'; cat \"$GHOSTEX_REMOTE_IDENTITY_FILE\"; printf '\\n__GHOSTEX_REMOTE_IDENTITY_END__\\n'; ",
+        "fi"
+    )
+}
+
+/// The `serverId` in [`gpui_remote_identity_read_command`]'s output.
+pub(crate) fn gpui_remote_identity_server_id(stdout: &str) -> Option<String> {
+    let (_, rest) = stdout.split_once("__GHOSTEX_REMOTE_IDENTITY_START__")?;
+    let (body, _) = rest.split_once("__GHOSTEX_REMOTE_IDENTITY_END__")?;
+    serde_json::from_str::<serde_json::Value>(body.trim())
+        .ok()?
+        .get("serverId")?
+        .as_str()
+        .map(str::trim)
+        .filter(|id| !id.is_empty())
+        .map(str::to_string)
+}
+
+/// This app's own gxserver's server id, from its health answer.
+fn gpui_local_gxserver_server_id() -> Option<String> {
+    gpui_gxserver_server_health(Duration::from_millis(1500))
+        .ok()?
+        .get("serverId")?
+        .as_str()
+        .map(str::to_string)
+}
+
+/// Whether a remote's server id names this computer's own gxserver.
+pub(crate) fn gpui_remote_is_this_computer(remote: Option<&str>, local: Option<&str>) -> bool {
+    matches!((remote, local), (Some(remote), Some(local)) if remote == local)
+}
+
 pub(crate) fn gpui_remote_token_read_command() -> &'static str {
     /*
     Remote packages released before the platform-storage migration remain
@@ -909,4 +996,25 @@ pub(crate) fn gpui_sanitized_remote_gxserver_version(raw: &str) -> Option<String
             character.is_ascii_alphanumeric() || matches!(character, '.' | '-' | '_' | '+')
         })
         .then_some(version)
+}
+
+#[cfg(test)]
+mod this_computer_tests {
+    use super::{gpui_remote_identity_server_id, gpui_remote_is_this_computer};
+
+    #[test]
+    fn a_remote_with_this_computers_server_id_is_this_computer() {
+        let stdout = "motd line\n__GHOSTEX_REMOTE_IDENTITY_START__\n{\"createdAt\":\"2026-10-27T21:46:46.991Z\",\"serverId\":\"S6s\"}\n__GHOSTEX_REMOTE_IDENTITY_END__\n";
+        let remote = gpui_remote_identity_server_id(stdout);
+        assert_eq!(remote.as_deref(), Some("S6s"));
+        assert!(gpui_remote_is_this_computer(remote.as_deref(), Some("S6s")));
+        assert!(!gpui_remote_is_this_computer(
+            remote.as_deref(),
+            Some("S9q")
+        ));
+        // No identity on the remote, or no answer from this computer's own gxserver, is never a match.
+        assert_eq!(gpui_remote_identity_server_id(""), None);
+        assert!(!gpui_remote_is_this_computer(None, Some("S6s")));
+        assert!(!gpui_remote_is_this_computer(Some("S6s"), None));
+    }
 }

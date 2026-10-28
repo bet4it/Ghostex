@@ -72,7 +72,9 @@ pub use links::{
     SessionLinks, SessionLinksBadge, SessionLinksChatPill, SessionLinksDisplay, SessionLinksRow,
     SuggestedSessionLink, SUGGESTED_SHOWN_FIRST,
 };
-pub use machine_connection::{machine_state_copy, machine_state_is_busy, machine_state_is_failure};
+pub use machine_connection::{
+    machine_state_copy, machine_state_is_busy, machine_state_is_failure, THIS_COMPUTER_NOTICE_STATE,
+};
 pub use machine_switch::{
     machine_switch_memory, plan_machine_switch_restore, MACHINE_SESSION_MEMORY_SPACE_ID,
 };

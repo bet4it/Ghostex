@@ -106,6 +106,18 @@ impl GhostexGpuiApp {
             write_result.snapshot.object(),
             cx,
         );
+        for remote_machine_id in gpui_remote_machines_with_changed_connection(
+            &previous_settings_object,
+            write_result.snapshot.object(),
+        ) {
+            self.stop_gpui_remote_gxserver_connection(remote_machine_id.as_str());
+            let mut command = serde_json::Map::new();
+            command.insert(
+                "remoteMachineId".to_string(),
+                serde_json::Value::String(remote_machine_id),
+            );
+            self.handle_gpui_reconnect_remote_machine_message(&command, cx);
+        }
         let previous_app_icon_source_id =
             app_icon::source_id_from_settings(&previous_settings_object);
         let next_app_icon_source_id =

@@ -42,6 +42,7 @@ pub(crate) fn gpui_open_remote_gxserver_tunnel(
                 token: token.to_string(),
                 child: tunnel.child,
                 health_check_failures: 0,
+                this_computer: false,
             });
         }
         gpui_forget_remote_tunnel(tunnel.child.id());
