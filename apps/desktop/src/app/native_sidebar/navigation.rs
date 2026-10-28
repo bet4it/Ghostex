@@ -16,8 +16,14 @@ use crate::app::render::window_drag_region::window_drag_region;
 use crate::*;
 
 /// The narrowest a top-row button gets when the sidebar is too narrow for the full 34pt slots:
-/// its 15pt icon plus a little room, so every button stays visible.
-pub(crate) const SIDEBAR_TOP_ROW_BUTTON_MIN_WIDTH: f32 = 20.0;
+/// its 15pt icon plus 2pt either side, so every button stays visible.
+///
+/// CDXC:Sidebar 2026-10-29 DECISION:
+/// User, asked whether Claude's button may stay hidden at the default macOS sidebar width (235pt,
+/// 1pt short of fitting Claude, Search and the menu at the old 20pt minimum): "Yes, make it fit".
+/// The minimum is 19pt (was 20pt), which only matters while a row is squeezed: at any width where
+/// the buttons fit at their full 34pt slots, nothing changed.
+pub(crate) const SIDEBAR_TOP_ROW_BUTTON_MIN_WIDTH: f32 = 19.0;
 
 /// A built-in extension's button in the sidebar's top row (Claude's), listed by the desktop's
 /// app/claude_web/sidebar_button.rs (the web build lists none).
@@ -55,8 +61,8 @@ const SIDEBAR_TOP_ROW_TOGGLES_WIDTH: f32 = 2.0
 /// fits at its minimum, so they give way before anything else is clipped.
 ///
 /// Narrowest docked width that fits the row at 1x (macOS, 88pt reserve; Windows and Linux need
-/// 78pt less): Claude + Search + menu 236pt, + the bell (or the Hermes button) 260pt, + both
-/// 284pt. Every further button adds 24pt.
+/// 78pt less): Claude + Search + menu 233pt (so it shows at the 235pt default), + the bell (or
+/// the Hermes button) 256pt, + both 279pt. Every further button adds 23pt.
 fn sidebar_top_row_fits(
     sidebar_width: f32,
     scale: f32,
@@ -494,7 +500,7 @@ mod tests {
 
     // The row's width at which `count` buttons just fit, found by the same rule.
     fn narrowest_fitting(scale: f32, corner: bool, count: usize) -> f32 {
-        (100..800)
+        (50..800)
             .map(|width| width as f32)
             .find(|width| sidebar_top_row_fits(*width, scale, corner, count))
             .expect("fits below 800pt")
@@ -505,28 +511,30 @@ mod tests {
         for corner in [true, false] {
             let without = narrowest_fitting(1.0, corner, 4);
             let with = narrowest_fitting(1.0, corner, 5);
-            assert!((with - without - 24.0).abs() <= 1.0);
+            assert!((with - without - 23.0).abs() <= 1.0);
         }
     }
 
     #[test]
     fn narrowest_docked_row_matches_the_hand_count() {
-        // Claude, Search, the bell and the menu at 20pt with 4pt gaps = 92pt, plus the two
+        // Claude, Search, the bell and the menu at 19pt with 4pt gaps = 88pt, plus the two
         // toggles (67pt) and their gaps (4 + 4), plus the leading reserve and 5pt right padding.
-        let expected = SIDEBAR_TOGGLE_LEADING_X + 5.0 + 67.0 + 4.0 + 4.0 + 92.0;
+        let expected = SIDEBAR_TOGGLE_LEADING_X + 5.0 + 67.0 + 4.0 + 4.0 + 88.0;
         assert_eq!(narrowest_fitting(1.0, true, 4), expected);
         // Without the bell: Claude, Search and the menu.
-        assert_eq!(narrowest_fitting(1.0, true, 3), expected - 24.0);
+        assert_eq!(narrowest_fitting(1.0, true, 3), expected - 23.0);
     }
 
     #[cfg(target_os = "macos")]
     #[test]
-    fn claude_needs_more_than_the_default_sidebar_on_macos() {
+    fn claude_fits_the_default_sidebar_on_macos_without_the_bell() {
         const DEFAULT_WIDTH: f32 = 235.0;
-        assert!(!sidebar_top_row_fits(DEFAULT_WIDTH, 1.0, true, 3));
-        assert!(sidebar_top_row_fits(236.0, 1.0, true, 3));
-        assert!(sidebar_top_row_fits(260.0, 1.0, true, 4));
-        assert!(!sidebar_top_row_fits(259.0, 1.0, true, 4));
+        // Claude, Search and the menu.
+        assert!(sidebar_top_row_fits(DEFAULT_WIDTH, 1.0, true, 3));
+        assert!(!sidebar_top_row_fits(232.0, 1.0, true, 3));
+        // With the bell (or Hermes) it needs a wider sidebar, and then it gives way.
+        assert!(!sidebar_top_row_fits(DEFAULT_WIDTH, 1.0, true, 4));
+        assert!(sidebar_top_row_fits(256.0, 1.0, true, 4));
     }
 
     #[test]
