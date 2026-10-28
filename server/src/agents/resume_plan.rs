@@ -312,6 +312,10 @@ pub(crate) fn to_agent_resume_input(
     let runtime_command = runtime_command.map(|command| {
         crate::connectors::with_project_cli_env_for_resume(project, agent_id.as_deref(), command)
     });
+    let runtime_command = match agent_id.as_deref() {
+        Some("dsh") => runtime_command.map(|command| with_dsh_launch_env(&command)),
+        _ => runtime_command,
+    };
     let agent_session_id = read_text_from_map(&runtime_settings, "agentSessionId");
     let agent_session_path = read_text_from_map(&runtime_settings, "agentSessionPath");
     let (agent_session_id, agent_session_path) = if agent_id.as_deref() == Some("claude") {

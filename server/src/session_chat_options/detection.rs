@@ -87,6 +87,14 @@ pub fn detect_session_chat_selection(
                 }
                 continue;
             }
+            SessionChatOptionAgent::Dsh => {
+                if let Some(selection) = match_dsh_statusline(scanned) {
+                    found = selection;
+                    topmost_match = Some(index);
+                    break;
+                }
+                continue;
+            }
             SessionChatOptionAgent::Hermes => {
                 if let Some(selection) = match_hermes_statusline(scanned) {
                     found = selection;
@@ -176,6 +184,9 @@ pub fn detect_session_chat_selection(
                     unreachable!("Empryo is parsed as a complete statusline")
                 }
                 SessionChatOptionAgent::Pi => unreachable!("Pi is parsed as a complete statusline"),
+                SessionChatOptionAgent::Dsh => {
+                    unreachable!("DeepSeek Harness is parsed as a complete statusline")
+                }
                 // ZCode has no segment grammar: it is an option agent only so
                 // the notice classifier accepts it (see the enum's CDXC).
                 SessionChatOptionAgent::Zcode => {}

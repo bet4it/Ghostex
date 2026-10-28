@@ -262,6 +262,19 @@ pub(crate) fn create_agent_session_params_for_project(
                     );
                     plan.insert("command".to_string(), Value::String(command));
                 }
+                if family.as_deref() == Some("dsh") {
+                    if let Some(command) = plan
+                        .get("command")
+                        .and_then(Value::as_str)
+                        .map(with_dsh_launch_env)
+                    {
+                        plan.insert(
+                            "startupText".to_string(),
+                            Value::String(as_atuin_ignored_shell_input(&command)),
+                        );
+                        plan.insert("command".to_string(), Value::String(command));
+                    }
+                }
             }
             plan
         }

@@ -996,6 +996,34 @@ pub(super) fn match_pi_statusline(line: &str) -> Option<SessionChatDetectedSelec
 }
 
 // ---------------------------------------------------------------------------
+// DeepSeek Harness grammar
+//    deepseek-flash · max · cache 98.3% · ≈¥0.02 peak · repo        (chat page)
+//    deepseek-flash  ·  Max  ·  standard  ·  Workspace read/write    (launchpad)
+// ---------------------------------------------------------------------------
+
+/// The reasoning levels dsh-tui's DeepSeek routes take (`/effort off|low|high|max`).
+pub(crate) const DSH_EFFORTS: &[&str] = &["off", "low", "high", "max"];
+
+/// CDXC:AgentProviders 2026-10-28 WHY:
+/// dsh-tui 0.17 prints the route's model id, then its reasoning level, as the first two ` · ` fields of its status line, below its input box: lower-case on the chat page, capitalised (with wider spacing) on the launchpad. The line names no provider, so the id maps to the catalog's row through `terminalLabels`, which only the API-key rows carry; an account session's pill shows the same model under the API-key row's name.
+pub(super) fn match_dsh_statusline(line: &str) -> Option<SessionChatDetectedSelection> {
+    let fields: Vec<&str> = line.trim().split('\u{b7}').map(str::trim).collect();
+    let [model, effort, _, ..] = fields.as_slice() else {
+        return None;
+    };
+    let effort = effort.to_ascii_lowercase();
+    if !DSH_EFFORTS.contains(&effort.as_str())
+        || model.contains(char::is_whitespace)
+        || !is_pi_family_model_id(model)
+    {
+        return None;
+    }
+    let value = crate::agent_model_catalog::model_value_for_label("dsh", model)
+        .unwrap_or_else(|| model.to_string());
+    Some(pi_family_selection(value, model.to_string(), Some(effort)))
+}
+
+// ---------------------------------------------------------------------------
 // Omp grammar
 //   ╭── π > ⬢ GPT-5.6-Sol · ◒ high > … ▶────────────────────────╮
 //   ╭── π > ◒ GLM-5.2 > 📁 ~/dev/repo > ⑂ main > … ▶──1.0%──1M─◀ title ──╮

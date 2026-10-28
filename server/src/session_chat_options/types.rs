@@ -455,6 +455,8 @@ pub enum SessionChatOptionAgent {
     // of the terminal-notice classifier, and without an arm a dead ZCode's
     // exit screen can never classify, so chat shows Ready over a corpse.
     Zcode,
+    /// DeepSeek Harness's terminal app (dsh-tui): its status line names the model and level.
+    Dsh,
 }
 
 pub fn session_chat_option_agent(agent: Option<&str>) -> Option<SessionChatOptionAgent> {
@@ -470,6 +472,7 @@ pub fn session_chat_option_agent(agent: Option<&str>) -> Option<SessionChatOptio
         "omp" => Some(SessionChatOptionAgent::Omp),
         "pi" => Some(SessionChatOptionAgent::Pi),
         "zcode" | "zcode-cli" => Some(SessionChatOptionAgent::Zcode),
+        "dsh" | "dsh-tui" => Some(SessionChatOptionAgent::Dsh),
         _ => None,
     }
 }

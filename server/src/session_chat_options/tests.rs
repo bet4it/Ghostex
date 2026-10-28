@@ -748,3 +748,65 @@ fn a_codex_title_without_its_yolo_line_rules_out_full_access() {
         "› Ask Codex to do anything\n"
     ));
 }
+
+/// DeepSeek Harness (dsh-tui 0.17.0), captured with `ghostex read-text` on 2026-10-28: the chat
+/// page, after a reply.
+const DSH_CHAT_PAGE: &str = concat!(
+    "  ⏺ The command printed WORKING_CHECK.\n",
+    "  ╭────────────────────────────────────────────────────────────╮\n",
+    "  ⌸ ❯                                                          ⛶\n",
+    "  ╰────────────────────────────────────────────────────────────╯\n",
+    "                                                 9.5k/1.0M 1.0%\n",
+    "   deepseek-flash · max · cache 98.3% · ≈¥0.02 peak · dsh-throwaway      ctx 1.0% (9.5k/1.0m)\n",
+);
+
+/// The launchpad a new session opened on before Ghostex turned it off, with the header line that
+/// names the model too but is not the status line.
+const DSH_LAUNCHPAD: &str = concat!(
+    "                        deepseek-flash · Max effort\n",
+    "   ╭──────────────────────────────────────────╮\n",
+    "   │ ❯ Say something, or type / for commands… │\n",
+    "   ╰──────────────────────────────────────────╯\n",
+    "     deepseek-flash  ·  High  ·  standard  ·  Workspace read/write\n",
+    "         Sessions & workspaces    Settings    Kernel · DSH    Help\n",
+);
+
+#[test]
+fn deepseek_harness_status_line_names_the_model_and_level() {
+    let chat = detect_session_chat_selection(SessionChatOptionAgent::Dsh, DSH_CHAT_PAGE).unwrap();
+    let model = chat.model.unwrap();
+    assert_eq!(model.value, "deepseek-official/deepseek-flash");
+    assert_eq!(model.label, "deepseek-flash");
+    assert_eq!(chat.effort.unwrap().value, "max");
+    let launchpad =
+        detect_session_chat_selection(SessionChatOptionAgent::Dsh, DSH_LAUNCHPAD).unwrap();
+    assert_eq!(
+        launchpad.model.unwrap().value,
+        "deepseek-official/deepseek-flash"
+    );
+    assert_eq!(launchpad.effort.unwrap().value, "high");
+}
+
+#[test]
+fn deepseek_harness_prose_and_menus_are_not_its_status_line() {
+    for line in [
+        "Sessions & workspaces    Settings    Kernel · DSH    Help",
+        "deepseek-flash · Max effort",
+        "We compared a · b · c in the notes",
+        "deepseek-v4-pro · turbo · cache 10%",
+    ] {
+        assert!(
+            agent_matchers::match_dsh_statusline(line).is_none(),
+            "{line}"
+        );
+    }
+    let pro = agent_matchers::match_dsh_statusline(
+        " deepseek-v4-pro · off · cache 0.0% · ≈¥0.00 peak · repo",
+    )
+    .unwrap();
+    assert_eq!(
+        pro.model.unwrap().value,
+        "deepseek-official/deepseek-v4-pro"
+    );
+    assert_eq!(pro.effort.unwrap().value, "off");
+}

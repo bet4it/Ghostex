@@ -599,6 +599,8 @@ fn read_session_chat_transcript_selection(
             SessionChatOptionAgent::Zcode => return None,
             // Copilot's footer names the model and the mode for the whole session.
             SessionChatOptionAgent::Copilot => return None,
+            // dsh-tui's status line names the model and the level for the whole session.
+            SessionChatOptionAgent::Dsh => return None,
         })?;
     let path = crate::session_chat::resolve_session_chat_transcript_path(
         transcript_agent,
