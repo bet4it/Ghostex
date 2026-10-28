@@ -271,6 +271,16 @@ pub struct SessionLinksChatPill {
 }
 
 impl SessionLink {
+    /// The label without its repo name: `maestro_ed#151` is `#151`; `#151` and a Linear ID stay.
+    pub fn badge_id(&self) -> String {
+        match (self.kind, self.label.find('#')) {
+            (SessionLinkKind::PullRequest | SessionLinkKind::Issue, Some(at)) => {
+                self.label[at..].to_string()
+            }
+            _ => self.label.clone(),
+        }
+    }
+
     /// The icon says the kind (a branch for a PR, the GitHub mark for an issue, the Linear logo
     /// for a ticket) and its colour the state.
     ///
@@ -592,9 +602,12 @@ impl SessionLinks {
     ///
     /// CDXC:SessionLinks 2026-10-28 DECISION:
     /// User: "If we pin one link, or if it's just one link, we should show the ID for that link instead of just showing the number of total links. Then we can put +3 or something like that if there are more links." From the mockup (Q702 "id", Q703 "yes, as shown"): with several links and none pinned, the most pressing link's ID and "+N". The same text on the sidebar badge (Badge option) and the chat's Links pill; a pinned link no longer has its own line under the name with Badge, it is the badge's ID. The colour stays the most pressing link's (grey once none is open). Supersedes the 2026-10-24 badge that counted the links the pinned chips left out.
+    ///
+    /// CDXC:SessionLinks 2026-10-28 DECISION:
+    /// User: "let's not show the repo name here". gxserver labels a PR or issue from another repo than the session's `repo#151` (a folder `mastro_ed` on a repo `maestro_ed` made every PR read `maestro_ed#151`); the badge and the Links pill have no room for it and show `#151` (`#151 +2` with more links). A Linear ticket keeps its ID. The Links panel, the hover card and the sidebar's line under the name keep the full label so PRs from two repos stay apart. The phone's `sessionLinksBadgeLabel` does the same.
     pub fn badge_label(&self) -> Option<(String, usize)> {
         let link = self.badge_link()?;
-        Some((link.label.clone(), self.items.len() - 1))
+        Some((link.badge_id(), self.items.len() - 1))
     }
 
     /// What a row shows under `display`; `selected` is whether the row is the session the window
@@ -937,6 +950,52 @@ mod tests {
         };
         assert_eq!(done.badge_label(), Some(("#3".to_string(), 1)));
         assert_eq!(SessionLinks::default().badge_label(), None);
+    }
+
+    #[test]
+    fn badge_and_pill_drop_the_repo_name_but_the_label_keeps_it() {
+        let mut pr = link("pr:acme/maestro_ed#151", "open", false);
+        pr.label = "maestro_ed#151".to_string();
+        let mut issue = link("issue:acme/rust#57563", "open", false);
+        issue.kind = SessionLinkKind::Issue;
+        issue.label = "rust#57563".to_string();
+        let mut linear = link("linear:SPX-123", "open", false);
+        linear.kind = SessionLinkKind::Linear;
+        linear.label = "SPX-123".to_string();
+
+        let one = SessionLinks {
+            items: vec![pr.clone()],
+            ..SessionLinks::default()
+        };
+        assert_eq!(one.badge_label(), Some(("#151".to_string(), 0)));
+        assert_eq!(one.chat_pill().expect("a pill").label, "#151");
+
+        let several = SessionLinks {
+            items: vec![pr.clone(), issue.clone(), linear.clone()],
+            ..SessionLinks::default()
+        };
+        assert_eq!(several.badge_label(), Some(("#151".to_string(), 2)));
+        let badge = several
+            .row(SessionLinksDisplay::Badge, false)
+            .badge
+            .expect("a badge");
+        assert_eq!((badge.label.as_str(), badge.more), ("#151", 2));
+        // The full label stays for the places with room.
+        assert_eq!(several.items[0].label, "maestro_ed#151");
+
+        let mut pinned_issue = issue;
+        pinned_issue.pinned = true;
+        let other = SessionLinks {
+            items: vec![pinned_issue, pr],
+            ..SessionLinks::default()
+        };
+        assert_eq!(other.badge_label(), Some(("#57563".to_string(), 1)));
+
+        let ticket = SessionLinks {
+            items: vec![linear],
+            ..SessionLinks::default()
+        };
+        assert_eq!(ticket.badge_label(), Some(("SPX-123".to_string(), 0)));
     }
 
     #[test]
