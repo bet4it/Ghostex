@@ -12,13 +12,13 @@
 
 //!
 //! CDXC:SessionChat 2026-10-27 DECISION:
-//! User: "i want hovering over the ? mark "Previous questions" pill in the chat view to show me a list of all the questions. should look like this threads one in terms of having sections and i really care about the "already answered ones" so i can click to jump to those previously answered ones. make sure we sort by date". The pill carries a list of every question form and question page in the chat (`sections`), in the Links card's folding sections: Unanswered, For later, Answered and Withdrawn, each with its count, rows newest first, each row the page's title (or the form's first question), its tags and its time; a row jumps to its card and flashes it. The pill stays while the chat has any question, so the list is always reachable, but its count, attention dot and ping are only for unanswered ones (`count`). On the desktop hovering opens the list and a click still steps to the previous unanswered question (opening the list when none waits); on the phone a tap opens it.
+//! User: "i want hovering over the ? mark "Previous questions" pill in the chat view to show me a list of all the questions. should look like this threads one in terms of having sections and i really care about the "already answered ones" so i can click to jump to those previously answered ones. make sure we sort by date". The pill carries a list of every question form and question page in the chat (`sections`), in the Links card's folding sections: Unanswered, For later, Answered and Withdrawn, each with its count, rows newest first, each row the page's title (or the form's first question), its tags and its time; a row jumps to its card and flashes it. Its count, attention dot and ping are only for unanswered ones (`count`). On the desktop hovering opens the list; on the phone a tap opens it.
 //!
 //! CDXC:SessionChat 2026-10-28 DECISION:
-//! User: "please make the menu that appears when clicking on question not appear on hover, instead should appear when clicking on a new button we add there. call this button resources so that i can just click on the ? mark pill to jump between questions or click on this new button to see the list that we show. show the new resources button between threads and ? pills in the bar and give resources a different icon". The list now opens from a Resources pill (`chatPills`, extras/chat_pills.rs, right after the ? pill and before Threads) while the list has any row (`total`); a second click or Escape closes it. The ? pill never opens a list: a click only steps through the questions (`previous`), and it shows while there is any to step through (`questionTotal`). Supersedes the 2026-10-27 hover and the click that opened the list when nothing waited.
+//! User: "please make the menu that appears when clicking on question not appear on hover, instead should appear when clicking on a new button we add there. call this button resources so that i can just click on the ? mark pill to jump between questions or click on this new button to see the list that we show. show the new resources button between threads and ? pills in the bar and give resources a different icon". The list now opens from a Resources pill (`chatPills`, extras/chat_pills.rs, right after the ? pill and before Threads) while the list has any row (`total`); a second click or Escape closes it. The ? pill never opens a list: a click only steps through the questions (`previous`). Supersedes the 2026-10-27 hover and the click that opened the list when nothing waited.
 //!
 //! CDXC:SessionChat 2026-10-28 DECISION:
-//! User: "The question mark button here keeps jumping me between questions/inline html i already answered pls fix". A click on the ? pill steps only through the questions that still wait for an answer (`jump_pool`): the unanswered ones, else, when only For later ones remain, those. With none waiting it never scrolls to an answered form or page: it opens the Chat Resources list instead (the Resources pill's own, `steps` is zero). The pill still shows while the chat has any question (`questionTotal`), and keeps its dot, ping and count rules. Supersedes the 2026-10-28 "a click always goes somewhere", which stepped through the For later and Answered ones when none was unanswered.
+//! User: "The question mark button here keeps jumping me between questions/inline html i already answered pls fix", then "let's not show the ? pill here unless there's an unanswered question (that i didn't set to 'for later')". The ? pill shows only while at least one question form or page is unanswered and not put off For later (`count`); answered, withdrawn and For later ones no longer keep it on screen, the Resources pill lists them and is where For later ones are reached. A click steps only through those (`previous`), never to an answered or For later one, and its dot, ping and ?/count swap follow the same count. Supersedes the 2026-10-27 pill that stayed while the chat had any question, the same day's click that opened the list when none waited, and the 2026-10-28 stepping into For later and Answered ones when none was unanswered.
 //!
 //! CDXC:SessionChat 2026-10-27 DECISION:
 //! User, of the list: "we're not indicating HTML pages from normal questions here", "also please show "All" "Html" "Q&A" "Charts" as 4 selections so i can jump to previous generated content", "also i wanna see even Htmls that don't have any questions in them so i can jump back to them". Every row says what it is (`kind`: an HTML page, a Q&A form or a chart), and four filters sit over the list (`filters`, the reader's pick `filter`): All, Html (pages, with or without questions), Q&A (```questions forms) and Charts (```visual drawings: charts, stats, tables). Forms and question pages keep the Unanswered, For later, Answered and Withdrawn sections; pages that ask nothing are listed under Pages and charts under Charts, newest first. The pill's count, dot and ping stay about unanswered questions only.
@@ -34,8 +34,8 @@ use crate::transcript::page_answers::PageAnswers;
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct OpenQuestions {
-    /// How many forms and question pages are unanswered; the pill shows while this is above zero.
-    /// Zero while the Previous question setting is off, so the pill never shows.
+    /// How many forms and question pages are unanswered and not put off For later; the ? pill shows
+    /// while this is above zero.
     pub count: u32,
     /// The pill's text: "Previous question ↑".
     pub text: String,
@@ -49,14 +49,6 @@ pub struct OpenQuestions {
     /// Every form, page and chart in the list; the Resources pill shows while this is above zero.
     #[serde(default)]
     pub total: u32,
-    /// Every question form and question page the chat has, answered or not (withdrawn and inherited
-    /// ones left out); the pill shows while this is above zero.
-    #[serde(default)]
-    pub question_total: u32,
-    /// The questions a click on the pill steps through (`jump_pool`): the ones still waiting. Zero
-    /// means the click opens the Chat Resources list instead.
-    #[serde(default)]
-    pub steps: u32,
     /// The list's header detail: "2 unanswered · 1 for later".
     #[serde(default)]
     pub summary: String,
@@ -270,27 +262,6 @@ pub fn later_waiting(state: &ChatState) -> Vec<String> {
         .filter(|asker| later.contains(&asker.id))
         .map(|asker| asker.id.clone())
         .collect()
-}
-
-/// The askers the ? pill steps through, oldest first: the ones still waiting. The unanswered ones
-/// first; when only For later ones wait, those; never an answered one.
-pub fn jump_pool(state: &ChatState) -> Vec<&Asker> {
-    let open = unanswered(state);
-    if !open.is_empty() {
-        return open;
-    }
-    waiting(state)
-}
-
-/// Every question form and page the chat has that the list does not call withdrawn, answered or
-/// not: what keeps the ? pill on screen.
-fn question_count(state: &ChatState) -> usize {
-    state
-        .transcript_view
-        .askers
-        .iter()
-        .filter(|asker| !asker.obsolete && !asker.inherited)
-        .count()
 }
 
 /// Which section of the list an asker belongs in, or `None` for one this chat does not list (an
@@ -528,15 +499,13 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
         count,
         text: "Previous question \u{2191}".to_string(),
         accessibility_label: match count {
-            0 => "No unanswered questions: go to a previous one".to_string(),
+            0 => "No unanswered questions".to_string(),
             1 => "1 unanswered question: go to it".to_string(),
             _ => format!("{count} unanswered questions: go to the previous one"),
         },
         newest: open.last().map(|asker| asker.id.clone()),
         jump: state.questions.open_questions.jump.clone(),
         total,
-        question_total: question_count(state) as u32,
-        steps: jump_pool(state).len() as u32,
         summary,
         filters: FILTERS
             .iter()
@@ -562,14 +531,13 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
 
 /// `previousQuestion`: the pill's click. It goes to the unanswered question before the one it went
 /// to last (wrapping to the newest after the oldest), or to the newest when it has not gone
-/// anywhere yet or the last one is no longer waiting. With none unanswered it steps the same way
-/// through the For later ones; with none waiting at all it does nothing (`steps` is zero and the
-/// renderers open the Chat Resources list).
+/// anywhere yet or the last one is no longer waiting. For later ones are left out: the pill is not
+/// on screen without an unanswered question, and Resources reaches the rest.
 ///
 /// CDXC:SessionChat 2026-10-14 WHY:
 /// Starting again from the newest whenever the reader sat at the bottom was tried and dropped: the newest question usually sits at the bottom, so the second click landed on it again instead of stepping back.
 pub fn previous(state: &mut ChatState, context: &ChatContext) -> Vec<Effect> {
-    let open: Vec<Asker> = jump_pool(state).into_iter().cloned().collect();
+    let open: Vec<Asker> = unanswered(state).into_iter().cloned().collect();
     if open.is_empty() {
         return Vec::new();
     }
@@ -722,7 +690,7 @@ mod tests {
     }
 
     fn pool_ids(state: &ChatState) -> Vec<String> {
-        jump_pool(state)
+        unanswered(state)
             .iter()
             .map(|asker| asker.id.clone())
             .collect()
@@ -761,7 +729,7 @@ mod tests {
     }
 
     #[test]
-    fn the_question_pill_never_steps_to_an_answered_question() {
+    fn the_pill_steps_through_unanswered_questions_only() {
         let mut state = ChatState::default();
         let mut withdrawn = asker("gone", AskerKind::Page, Some(1_500));
         withdrawn.obsolete = true;
@@ -774,41 +742,61 @@ mod tests {
             .transcript_view
             .askers
             .push(asker("open", AskerKind::Form, Some(2_000)));
-        // One waits: the pill steps through it only.
         assert_eq!(pool_ids(&state), ["open"]);
-        // Everything answered: nothing to step through, yet the pill stays and counts them.
-        state.transcript_view.askers[2].answered = true;
-        assert!(pool_ids(&state).is_empty());
-        let pill = project(&state, &ChatContext::default());
-        assert_eq!((pill.count, pill.steps, pill.question_total), (0, 0, 2));
         assert_eq!(step(2, None), 1);
         assert_eq!(step(2, Some(1)), 0);
         assert_eq!(step(2, Some(0)), 1, "it wraps");
     }
 
     #[test]
-    fn a_click_with_only_answered_questions_goes_nowhere() {
+    fn a_chat_with_only_answered_questions_has_no_pill() {
         let mut state = chat_asking(vec![
             answered("a", AskerKind::Form, 1_000),
             answered("b", AskerKind::Page, 2_000),
         ]);
-        assert_eq!(project(&state, &ChatContext::default()).steps, 0);
+        state.transcript_view.askers.push({
+            let mut gone = asker("gone", AskerKind::Page, Some(3_000));
+            gone.obsolete = true;
+            gone
+        });
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!(
+            pill.count, 0,
+            "nothing waits, so the renderers hide the pill"
+        );
+        assert_eq!(pill.total, 3, "Resources still lists them all");
         assert_eq!(clicked(&mut state), None);
-        assert!(
-            state.questions.open_questions.jump.is_none(),
-            "no scroll to an answered form"
+        assert!(state.questions.open_questions.jump.is_none());
+    }
+
+    #[test]
+    fn a_chat_where_only_for_later_questions_wait_has_no_pill() {
+        let mut state = chat_asking(vec![
+            answered("a", AskerKind::Form, 1_000),
+            asker("later", AskerKind::Form, Some(2_000)),
+        ]);
+        crate::questions::later::set(&mut state, "later", true);
+        let pill = project(&state, &ChatContext::default());
+        assert_eq!(pill.count, 0);
+        assert_eq!(pill.total, 2);
+        assert_eq!(
+            clicked(&mut state),
+            None,
+            "For later ones are reached from Resources"
         );
     }
 
     #[test]
-    fn a_click_goes_to_the_one_unanswered_question_every_time() {
+    fn a_click_goes_only_to_the_unanswered_question_among_answered_and_for_later() {
         let mut state = chat_asking(vec![
             answered("a", AskerKind::Form, 1_000),
+            asker("later", AskerKind::Form, Some(1_500)),
             asker("open", AskerKind::Form, Some(2_000)),
             answered("b", AskerKind::Page, 3_000),
         ]);
+        crate::questions::later::set(&mut state, "later", true);
         let pill = project(&state, &ChatContext::default());
-        assert_eq!((pill.count, pill.steps, pill.question_total), (1, 1, 3));
+        assert_eq!(pill.count, 1);
         assert_eq!(clicked(&mut state).as_deref(), Some("open"));
         assert_eq!(
             clicked(&mut state).as_deref(),
@@ -817,44 +805,6 @@ mod tests {
         );
         let jump = state.questions.open_questions.jump.as_ref().unwrap();
         assert_eq!((jump.target.as_str(), jump.revision), ("open", 2));
-    }
-
-    #[test]
-    fn for_later_questions_are_stepped_through_only_when_nothing_else_waits() {
-        let mut state = chat_asking(vec![
-            answered("a", AskerKind::Form, 1_000),
-            asker("later", AskerKind::Form, Some(2_000)),
-        ]);
-        crate::questions::later::set(&mut state, "later", true);
-        let pill = project(&state, &ChatContext::default());
-        assert_eq!(
-            (pill.count, pill.steps),
-            (0, 1),
-            "no dot, but the click has somewhere to go"
-        );
-        assert_eq!(clicked(&mut state).as_deref(), Some("later"));
-        state
-            .transcript_view
-            .askers
-            .push(asker("fresh", AskerKind::Page, Some(3_000)));
-        assert_eq!(
-            pool_ids(&state),
-            ["fresh"],
-            "an unanswered question comes first"
-        );
-    }
-
-    #[test]
-    fn a_chat_with_only_pages_and_charts_has_nothing_for_the_question_pill() {
-        let mut state = ChatState::default();
-        state.transcript_view.askers.push({
-            let mut gone = asker("gone", AskerKind::Page, None);
-            gone.obsolete = true;
-            gone
-        });
-        let pill = project(&state, &ChatContext::default());
-        assert_eq!(pill.question_total, 0);
-        assert_eq!(pill.total, 1, "the withdrawn page is still in the list");
     }
 
     #[test]
