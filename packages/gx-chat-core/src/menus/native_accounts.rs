@@ -11,8 +11,8 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::menus::accounts_data::{
-    account_usage_label, js_number_text, js_number_value, js_round, mask_account_text, Account,
-    AccountsState,
+    account_usage_label, format_reset_countdown, js_number_text, js_number_value, js_round,
+    mask_account_text, Account, AccountsState, UsageWindow,
 };
 use crate::menus::accounts_presentation::{
     account_figures, account_policy_at_limit_description, account_reset_label,
@@ -51,14 +51,74 @@ fn identity(account: &Account) -> AccountIdentity {
     }
 }
 
-/// One limit bar under the current account.
+/// One limit bar under an account.
+///
+/// CDXC:AgentProviders 2026-10-28 DECISION:
+/// User: the Accounts & limits panel was too tall; show an account's usage as one row of small
+/// columns (label and percent over a thin bar) instead of a full-width bar per limit. The compact
+/// column writes `name` and `value` on one line and keeps the reset for its hover tooltip (desktop)
+/// or as `resetIn` under the bar (phone). Compact places name a model's weekly window by the model
+/// alone ("Fable"), and the account limits stay 5h and 7d.
 #[derive(Clone, Debug, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PanelUsageBar {
+    /// "5h: 16%", for older clients and the tooltip.
     pub label: String,
+    /// The compact column's label: "5h", "7d", "Fable".
+    pub name: String,
+    /// "16%".
+    pub value: String,
     /// `Math.max(0, Math.min(100, usedPercent))`, written as the engine writes a number.
     pub percent: Value,
+    /// "Resets 2h 36m", "Reset due" or "Reset time unavailable".
     pub reset: String,
+    /// The bare countdown ("2h 36m", "due"), absent without a reset time.
+    pub reset_in: Option<String>,
+}
+
+/// `name` for a window: a model's weekly window is the model alone in compact places.
+fn compact_usage_label(window: &UsageWindow) -> String {
+    let label = account_usage_label(window);
+    match window.scoped_model() {
+        Some(model) => label
+            .strip_prefix(model)
+            .filter(|rest| *rest == " 7d")
+            .map_or(label.clone(), |_| model.to_string()),
+        None => label,
+    }
+}
+
+/// The account's limits as compact columns, in the order the answer lists them.
+pub fn panel_usage_bars(account: &Account, now_ms: i64) -> Vec<PanelUsageBar> {
+    account
+        .usage
+        .iter()
+        .map(|window| {
+            let value = format!(
+                "{}%",
+                js_number_text(js_round(window.used_percent.unwrap_or(f64::NAN)))
+            );
+            PanelUsageBar {
+                label: format!("{}: {value}", account_usage_label(window)),
+                name: compact_usage_label(window),
+                value,
+                percent: js_number_value(window.used_percent.unwrap_or(f64::NAN).clamp(0.0, 100.0)),
+                reset: account_reset_label(window.resets_at.as_deref(), now_ms),
+                reset_in: window
+                    .resets_at
+                    .as_deref()
+                    .and_then(crate::menus::time::parse_iso_millis)
+                    .map(|at| at - now_ms)
+                    .map(|remaining| {
+                        if remaining > 0 {
+                            format_reset_countdown(remaining as f64)
+                        } else {
+                            "due".to_string()
+                        }
+                    }),
+            }
+        })
+        .collect()
 }
 
 /// The context meter shown under the account's own limits.
@@ -88,6 +148,12 @@ pub struct PanelOtherAccount {
     pub id: Option<String>,
     pub name: String,
     pub detail: Option<String>,
+    /// The email beside the name when the account has a name of its own.
+    pub email: Option<String>,
+    /// The usage error that takes the place of the usage row.
+    pub usage_error: Option<String>,
+    /// The account's limits, drawn as the same compact row as the current account's.
+    pub usage: Vec<PanelUsageBar>,
     pub ready: bool,
     pub action: String,
 }
@@ -217,6 +283,13 @@ pub fn native_account_panel(
                 id: account.id.clone(),
                 name: text(&account.name),
                 detail: detail.map(|detail| text(&detail)),
+                email: account
+                    .email
+                    .as_deref()
+                    .filter(|email| !email.is_empty() && *email != account.name)
+                    .map(text),
+                usage_error: account.usage_error.as_deref().map(text),
+                usage: panel_usage_bars(account, now_ms),
                 ready,
                 action: if ready {
                     "Use account \u{2192}"
@@ -258,21 +331,8 @@ pub fn native_account_panel(
                 .and_then(|account| account.usage_error.as_deref())
                 .map(text),
             usage: current
-                .map(|account| account.usage.as_slice())
-                .unwrap_or_default()
-                .iter()
-                .map(|window| PanelUsageBar {
-                    label: format!(
-                        "{}: {}%",
-                        account_usage_label(window),
-                        js_number_text(js_round(window.used_percent.unwrap_or(f64::NAN)))
-                    ),
-                    percent: js_number_value(
-                        window.used_percent.unwrap_or(f64::NAN).clamp(0.0, 100.0),
-                    ),
-                    reset: account_reset_label(window.resets_at.as_deref(), now_ms),
-                })
-                .collect(),
+                .map(|account| panel_usage_bars(account, now_ms))
+                .unwrap_or_default(),
             context: context.map(|context| PanelContext {
                 percent: js_number_value(context.used_percentage.unwrap_or(0.0)),
                 value: match context.used_percentage {
@@ -408,4 +468,90 @@ fn locale_date_time(value: &str, context: &crate::ChatContext) -> String {
         other => other,
     };
     format!("{month}/{day}/{year}, {clock}:{minute}:{second} {meridiem}")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const NOW: i64 = 1_800_000_000_000;
+
+    fn window(
+        id: &str,
+        model: Option<&str>,
+        seconds: f64,
+        percent: f64,
+        reset_ms: Option<i64>,
+    ) -> UsageWindow {
+        UsageWindow {
+            id: Some(id.to_string()),
+            label: None,
+            used_percent: Some(percent),
+            limit_window_seconds: Some(seconds),
+            resets_at: reset_ms.map(crate::menus::time::iso_from_millis),
+            model: model.map(str::to_string),
+        }
+    }
+
+    #[test]
+    fn usage_bars_are_compact_columns_with_5h_7d_and_the_model_name() {
+        let account = Account {
+            provider: Some("claude".into()),
+            usage: vec![
+                window(
+                    "fiveHour",
+                    None,
+                    18_000.0,
+                    16.4,
+                    Some(NOW + (2 * 60 + 36) * 60_000),
+                ),
+                window(
+                    "sevenDay",
+                    None,
+                    604_800.0,
+                    40.0,
+                    Some(NOW + (5 * 24 + 4) * 3_600_000),
+                ),
+                window("sevenDayFable", Some("Fable"), 604_800.0, 0.0, None),
+                window(
+                    "sevenDaySonnet",
+                    Some("Sonnet"),
+                    604_800.0,
+                    3.0,
+                    Some(NOW - 1),
+                ),
+            ],
+            ..Account::default()
+        };
+        let bars = panel_usage_bars(&account, NOW);
+        let columns: Vec<(&str, &str, Option<&str>)> = bars
+            .iter()
+            .map(|bar| {
+                (
+                    bar.name.as_str(),
+                    bar.value.as_str(),
+                    bar.reset_in.as_deref(),
+                )
+            })
+            .collect();
+        assert_eq!(
+            columns,
+            [
+                ("5h", "16%", Some("2h 36m")),
+                ("7d", "40%", Some("5d 4h")),
+                ("Fable", "0%", None),
+                ("Sonnet", "3%", Some("due")),
+            ]
+        );
+        assert_eq!(bars[0].label, "5h: 16%");
+        assert_eq!(bars[0].reset, "Resets 2h 36m");
+        assert_eq!(bars[2].reset, "Reset time unavailable");
+        assert_eq!(bars[3].label, "Sonnet 7d: 3%");
+    }
+
+    #[test]
+    fn a_model_window_other_than_7d_keeps_its_duration() {
+        let spark = window("codexSpark", Some("Spark"), 18_000.0, 12.0, None);
+        assert_eq!(compact_usage_label(&spark), "Spark 5h");
+    }
 }
