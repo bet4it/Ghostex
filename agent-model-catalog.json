@@ -1,7 +1,7 @@
 {
   "_readme": "Do not edit blind. docs/important/agent-model-catalog.md explains the schema, how every Ghostex client loads this file from GitHub (with the bundled copy as the offline source), how to publish a change, and how to re-collect models, efforts and fast mode from the agent CLIs' own /model pickers.",
   "schemaVersion": 1,
-  "updatedAt": "2026-10-17T13:17:29Z",
+  "updatedAt": "2026-10-28T02:44:57Z",
   "effortLabels": {
     "none": "None",
     "minimal": "Minimal",
@@ -16,7 +16,7 @@
   "agents": {
     "claude": {
       "name": "Claude Code",
-      "cliVersion": "2.1.293",
+      "cliVersion": "2.1.311",
       "modelCommand": "/model <value>",
       "effortCommand": "/effort <value>",
       "efforts": ["low", "medium", "high", "xhigh", "max", "ultracode"],
@@ -57,11 +57,11 @@
           "notes": "The `haiku` alias runs claude-haiku-5-5. Its effort rail stops at Max (no Ultracode) and defaults to Medium; Haiku 4.5 had no effort tiers."
         }
       ],
-      "notes": "Re-read from the 2.1.293 /model picker on 2026-10-07: Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5 (the `haiku` alias now runs claude-haiku-5-5, with a Low to Max effort rail, default Medium, which replaces Haiku 4.5 at the user's request), then older models (Sonnet 5, Opus 5, Fable 5, Opus 4.8, 4.7, ...). The `sonnet` alias runs claude-sonnet-5-5, so Sonnet 5.5 replaces Sonnet 5, and Opus 5 is not listed: the user asked that Sonnet 5.5 and Opus 5.5 fully replace Sonnet 5 and Opus 5 wherever both are offered. Opus 5.5 is one `opus[1m]` row: the picker has no 200K Opus and `claude -p --model opus` reports a 1,000,000-token window, so the 200K `opus` twin was removed at the user's request and the model menu shows no Context Window choice for it. The older models are not listed, and neither are sonnet[1m] and fable[1m], which `claude --model` accepts but the picker never offers."
+      "notes": "Re-read from the 2.1.311 /model picker on 2026-10-28: unchanged (Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5, then Haiku 4.5, Sonnet 5, Opus 5, Fable 5, Opus 4.8, 4.7, 4.6 and Sonnet 4.6, none of them listed here). Re-read from the 2.1.293 /model picker on 2026-10-07: Opus 5.5, Fable 5.1, Sonnet 5.5, Haiku 5.5 (the `haiku` alias now runs claude-haiku-5-5, with a Low to Max effort rail, default Medium, which replaces Haiku 4.5 at the user's request), then older models (Sonnet 5, Opus 5, Fable 5, Opus 4.8, 4.7, ...). The `sonnet` alias runs claude-sonnet-5-5, so Sonnet 5.5 replaces Sonnet 5, and Opus 5 is not listed: the user asked that Sonnet 5.5 and Opus 5.5 fully replace Sonnet 5 and Opus 5 wherever both are offered. Opus 5.5 is one `opus[1m]` row: the picker has no 200K Opus and `claude -p --model opus` reports a 1,000,000-token window, so the 200K `opus` twin was removed at the user's request and the model menu shows no Context Window choice for it. The older models are not listed, and neither are sonnet[1m] and fable[1m], which `claude --model` accepts but the picker never offers."
     },
     "codex": {
       "name": "Codex CLI",
-      "cliVersion": "0.163.0",
+      "cliVersion": "0.165.0",
       "modelCommand": "/model",
       "effortCommand": null,
       "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
@@ -83,7 +83,6 @@
           "value": "gpt-6-astra",
           "label": "GPT 6 Astra",
           "description": "Frontier intelligence for the most demanding work.",
-          "default": true,
           "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
           "defaultEffort": "low",
           "fastMode": true
@@ -92,8 +91,17 @@
           "value": "gpt-6.1-sol",
           "label": "GPT 6.1 Sol",
           "description": "Latest workhorse model for coding and everyday work.",
+          "default": true,
           "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
           "defaultEffort": "medium",
+          "fastMode": true
+        },
+        {
+          "value": "gpt-6.1-terra",
+          "label": "GPT 6.1 Terra",
+          "description": "GPT-6.1 Terra Codex model.",
+          "efforts": ["low", "medium", "high", "xhigh", "max", "ultra"],
+          "defaultEffort": "low",
           "fastMode": true
         },
         {
@@ -132,7 +140,7 @@
           "group": "legacy"
         }
       ],
-      "notes": "gxserver reads this lineup from `codex debug models` since 2026-10-17; these rows serve released apps and a computer whose Codex never answered. Re-read on 0.163.0 (2026-10-17) from `codex debug models`: the listed models are GPT-6.1-Sol, GPT-6-Astra, GPT-6-Sol, GPT-6-Luna, GPT-5.6-Sol, GPT-5.6-Terra and GPT-5.6-Luna, so GPT 5.5 is gone, and the default efforts are Astra Low, 6.1 Sol Medium, 5.6 Sol Medium. Re-read on 0.159.1 (2026-09-30). GPT-6.1 Sol (`gpt-6.1-sol`, efforts Low to Ultra, default Low, Fast tier) is in 0.159.1's built-in model list at the top of the picker, but the server had not yet offered it to the account used for the scan, whose /model still listed GPT-6-Astra, GPT-6-Sol, GPT-6-Luna, GPT-5.6-Sol, GPT-5.6-Terra, GPT-5.6-Luna, GPT-5.5. The user asked to show Sol 6.1 and move GPT 6 Sol under Legacy, so the top level is Astra, Sol 6.1, Luna and Legacy holds GPT 6 Sol, GPT 5.6 Sol, GPT 5.6 Luna and GPT 5.5. GPT 5.6 Terra is left out on purpose even though the picker still offers it: the user asked to remove it (\"Nobody is going to use that one\")."
+      "notes": "gxserver reads this lineup from `codex debug models` since 2026-10-17; these rows serve released apps and a computer whose Codex never answered. Re-read on 0.165.0 (2026-10-28) from `codex debug models` and the /model picker: GPT-6.1-Sol, GPT-6.1 Terra (new, `gpt-6.1-terra`, Low to Ultra, default Low, Fast), GPT-6-Astra, GPT-6-Sol, GPT-6-Luna, GPT-5.6-Sol, GPT-5.6-Terra, GPT-5.6-Luna. The user asked to add the new Terra, reversing the 2026-09-23 decision that kept Terra out; that decision still applies to GPT 5.6 Terra, which stays out. Codex starts new sessions on GPT 6.1 Sol, the first model it lists. The top level follows the user's Astra, Sol, Terra, Luna order with the newest of each; GPT 6 Sol, GPT 5.6 Sol and GPT 5.6 Luna sit under Legacy."
     },
     "cursor": {
       "name": "Cursor CLI",
@@ -497,7 +505,7 @@
     },
     "grok": {
       "name": "Grok Build",
-      "cliVersion": "1.0.40",
+      "cliVersion": "1.0.70",
       "modelCommand": "/model <pickerLabel> [effort]",
       "effortCommand": null,
       "efforts": ["low", "medium", "high", "xhigh"],
@@ -548,7 +556,7 @@
     },
     "antigravity": {
       "name": "Antigravity CLI",
-      "cliVersion": "1.4.0",
+      "cliVersion": "1.4.7",
       "modelCommand": "/model <value>-<effort> for models with efforts, /model <value> otherwise; ids from `agy models`",
       "effortCommand": null,
       "efforts": ["low", "medium", "high"],

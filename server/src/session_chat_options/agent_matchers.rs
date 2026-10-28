@@ -191,14 +191,30 @@ fn codex_model_value(token: &str) -> Option<String> {
     .then_some(id)
 }
 
-pub(super) fn match_codex_segment(segment: &str) -> Option<SessionChatDetectedSelection> {
+/// CDXC:AgentScreenDetection 2026-10-28 WHY:
+/// Codex 0.165 names GPT-6.1 Terra "GPT-6.1 Terra" (a space, where every other display name is hyphenated: "GPT-6.1-Sol"), so its footer reads `GPT-6.1 Terra medium · …` and taking the first word as the model dropped the whole footer. A two-word name counts only when its hyphenated lower case is a Codex model in the live catalog, so an id followed by its effort (`gpt-6-sol high`) is never read as one name.
+fn codex_footer_model(segment: &str) -> Option<(String, String, std::str::Split<'_, char>)> {
     let mut tokens = segment.split(' ');
-    let label = tokens.next()?;
-    let model = codex_model_value(label)?;
+    let first = tokens.next()?;
+    let mut lookahead = tokens.clone();
+    if let Some(second) = lookahead.next() {
+        let id = format!("{first}-{second}").to_ascii_lowercase();
+        if first.starts_with("GPT-")
+            && is_codex_model_id(&id)
+            && crate::agent_model_catalog::catalog_model("codex", &id).is_some()
+        {
+            return Some((id, format!("{first} {second}"), lookahead));
+        }
+    }
+    Some((codex_model_value(first)?, first.to_string(), tokens))
+}
+
+pub(super) fn match_codex_segment(segment: &str) -> Option<SessionChatDetectedSelection> {
+    let (model, label, mut tokens) = codex_footer_model(segment)?;
     let mut selection = SessionChatDetectedSelection {
         model: Some(SessionChatDetectedChoice {
             value: model,
-            label: label.to_string(),
+            label,
             source: SessionChatOptionEvidence::Terminal,
         }),
         ..SessionChatDetectedSelection::default()
