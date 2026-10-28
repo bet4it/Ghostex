@@ -28,7 +28,6 @@ use palette::*;
 use gpui::AnyElement;
 use gpui::BoxShadow;
 use gpui::ClipboardItem;
-use gpui::FontWeight;
 use gpui::InteractiveElement as _;
 use gpui::IntoElement;
 use gpui::MouseButton;
@@ -88,17 +87,10 @@ const TERMINAL_AGENT_BAR_ACCENT_BUTTON_RADIUS: f32 = 6.0;
 /// `gap-1.5` in the chat footer's action group.
 const TERMINAL_AGENT_BAR_BUTTON_GAP: f32 = 6.0;
 const TERMINAL_AGENT_BAR_ICON_SIZE: f32 = 16.0;
-/*
-The React chat's `.ghostex-chat-stash-control .n svg { width: 1.25rem }` (in
-packages/core-ui/styles/chat.css until 2026-09-25): the stack-push glyph only
-inks 16x15 of its 24px box, so at the shared 16px size it reads smaller than the
-paperclip beside it. The chat footer rendered that one glyph a size up; the bar
-does the same.
-*/
-const TERMINAL_AGENT_BAR_STASH_ICON_SIZE: f32 = 20.0;
 const TERMINAL_AGENT_BAR_MENU_ICON_SIZE: f32 = 14.0;
 const TERMINAL_AGENT_BAR_MENU_SHORTCUT_SIZE: f32 = 11.0;
-const TERMINAL_AGENT_BAR_INDICATOR_SIZE: f32 = 12.0;
+/// The diameter of a ⋯ menu row's badge (`BADGE_SIZE` in the chat's menu).
+const TERMINAL_AGENT_BAR_MENU_BADGE_SIZE: f32 = 14.0;
 /// The ⋯ menu is as wide as its rows need (`menu_width.rs`), between these.
 const TERMINAL_AGENT_BAR_MENU_MIN_WIDTH: f32 = 200.0;
 const TERMINAL_AGENT_BAR_MENU_MAX_WIDTH: f32 = 360.0;
@@ -293,7 +285,6 @@ impl TerminalAgentBarAction {
 
     fn icon_size(self) -> f32 {
         match self {
-            Self::StashPrompt | Self::StashedPrompts => TERMINAL_AGENT_BAR_STASH_ICON_SIZE,
             Self::PromptEditor => 13.5,
             _ => TERMINAL_AGENT_BAR_ICON_SIZE,
         }
@@ -335,12 +326,15 @@ Close After Done action, then the host's "Agent" group, then the host's
 remaining actions in host-list order under no heading at all. The headings themselves come from
 [`terminal_agent_bar_menu_group_heading`], keyed off the row that opens each
 block. Prompt editor is intentionally absent because its accent button is always
-visible immediately beside the menu.
+visible immediately beside the menu. Session note and Saved prompts are terminal-only
+rows (see the decision on `render_terminal_agent_action_bar`); Skills, Stash prompt and
+Handoff close the menu in the chat's order.
 */
 const TERMINAL_AGENT_BAR_MENU_ROWS: &[Option<TerminalAgentBarAction>] = &[
     Some(TerminalAgentBarAction::VerboseMode),
     Some(TerminalAgentBarAction::DelayedActions),
     Some(TerminalAgentBarAction::CloseAfterDone),
+    Some(TerminalAgentBarAction::SessionNote),
     None,
     Some(TerminalAgentBarAction::Rename),
     Some(TerminalAgentBarAction::Sleep),
@@ -352,6 +346,8 @@ const TERMINAL_AGENT_BAR_MENU_ROWS: &[Option<TerminalAgentBarAction>] = &[
     None,
     // Second from the bottom, as in the chat's More actions menu.
     Some(TerminalAgentBarAction::Skills),
+    Some(TerminalAgentBarAction::StashPrompt),
+    Some(TerminalAgentBarAction::StashedPrompts),
     Some(TerminalAgentBarAction::ExportTranscript),
 ];
 
@@ -391,8 +387,8 @@ impl GhostexGpuiApp {
     }
 
     /// CDXC:SessionChat 2026-10-29 DECISION:
-    /// User: "Please unify the order of the buttons shown at the bottom right here for the terminal view and the chat view. Let's take the chat view as the source of truth."
-    /// The right-hand buttons follow the chat composer's order (`native_chat/toolbar.rs`, `COMPOSER_CONTROLS`, then Dictate, then Send): More, Attach, Maximize, the view toggle (Chat View here, where the chat has Terminal View), Dictate, and the main action last (Prompt editor, in Send's slot). Session note and Saved prompts are terminal-only; they stay together right after More.
+    /// User: "Please unify the order of the buttons shown at the bottom right here for the terminal view and the chat view. Let's take the chat view as the source of truth." and then "also please make the shown sessions and the ones placed inside the More Actions menu match, there's more buttons on terminal side currently".
+    /// The bar shows what the chat composer shows, in its order (`native_chat/toolbar.rs`, `COMPOSER_CONTROLS`, then Dictate, then Send): More, Attach, Maximize, the view toggle (Chat View here, where the chat has Terminal View), Dictate, and the main action last (Prompt editor, in Send's slot). Everything else is a ⋯ menu row in the chat menu's order (`TERMINAL_AGENT_BAR_MENU_ROWS`): Session note after Close After Done, where the chat folds its toolbar controls, and Stash prompt after Skills, with the note's "1" and the stash count as a badge after the row's label (the chat's Stash prompt row does the same). Saved prompts is a terminal-only row under Stash prompt: the chat opens them from Stash prompt when its box is empty, and a terminal cannot see its prompt box.
     fn render_terminal_agent_action_bar(
         &self,
         surface: TerminalAgentBarSurface,
@@ -440,8 +436,6 @@ impl GhostexGpuiApp {
                 });
             });
         }
-        let has_session_note = presentation_session.has_session_note;
-        let stashed_prompt_count = presentation_session.stashed_prompt_count;
         let full_session_id = agent_session_id.map(str::to_string);
         let menu_open = self.agents_terminal_action_bar_menu_session == Some(session_id);
         let suffix = surface.element_id_suffix(session_id);
@@ -481,29 +475,7 @@ impl GhostexGpuiApp {
                         .child(self.render_terminal_agent_bar_icon_button(
                             surface,
                             session_id,
-                            TerminalAgentBarAction::SessionNote,
-                            has_session_note,
-                            0,
-                            &suffix,
-                            None,
-                            cx,
-                        ))
-                        .child(self.render_terminal_agent_bar_icon_button(
-                            surface,
-                            session_id,
-                            TerminalAgentBarAction::StashPrompt,
-                            false,
-                            stashed_prompt_count,
-                            &suffix,
-                            None,
-                            cx,
-                        ))
-                        .child(self.render_terminal_agent_bar_icon_button(
-                            surface,
-                            session_id,
                             TerminalAgentBarAction::AttachPath,
-                            false,
-                            0,
                             &suffix,
                             None,
                             cx,
@@ -512,8 +484,6 @@ impl GhostexGpuiApp {
                             surface,
                             session_id,
                             TerminalAgentBarAction::Maximize,
-                            false,
-                            0,
                             &suffix,
                             None,
                             cx,
@@ -522,8 +492,6 @@ impl GhostexGpuiApp {
                             surface,
                             session_id,
                             TerminalAgentBarAction::ToggleChatView,
-                            false,
-                            0,
                             &suffix,
                             agent_name.as_deref(),
                             cx,
@@ -533,8 +501,6 @@ impl GhostexGpuiApp {
                                 surface,
                                 session_id,
                                 TerminalAgentBarAction::Dictate,
-                                false,
-                                0,
                                 &suffix,
                                 None,
                                 cx,
@@ -578,16 +544,6 @@ impl GhostexGpuiApp {
             tooltip_override: None,
         };
         match action {
-            TerminalAgentBarAction::StashPrompt => {
-                state.tooltip_override = Some(format!(
-                    "{}\n{}",
-                    terminal_element::terminal_overlay_tooltip("Stash prompt", "stashPrompt"),
-                    terminal_element::terminal_overlay_tooltip(
-                        "Right-click to open Saved prompts",
-                        "stashedPrompts",
-                    ),
-                ));
-            }
             TerminalAgentBarAction::VerboseMode => {
                 // Verbose mode chooses how much of a turn the chat transcript
                 // renders. A terminal shows the agent's own output verbatim, so
@@ -685,8 +641,6 @@ impl GhostexGpuiApp {
                 surface,
                 session_id,
                 TerminalAgentBarAction::ToggleMenu,
-                false,
-                0,
                 suffix,
                 None,
                 cx,
@@ -1169,16 +1123,12 @@ impl GhostexGpuiApp {
         surface: TerminalAgentBarSurface,
         session_id: TerminalSessionId,
         action: TerminalAgentBarAction,
-        show_note_dot: bool,
-        stashed_prompt_count: u64,
         suffix: &str,
         agent_name: Option<&str>,
         cx: &mut gpui::Context<GhostexGpuiApp>,
     ) -> AnyElement {
         let state = self.terminal_agent_bar_action_state(surface, session_id, action, agent_name);
         let enabled = state.disabled_reason.is_none();
-        let right_click_action = (action == TerminalAgentBarAction::StashPrompt)
-            .then_some(TerminalAgentBarAction::StashedPrompts);
         terminal_agent_bar_button_base(action, &state, suffix, self.configured_tooltip_delay())
             .size(px(TERMINAL_AGENT_BAR_BUTTON_SIZE))
             .when(enabled, |this| {
@@ -1207,22 +1157,6 @@ impl GhostexGpuiApp {
                     )
                 },
             )
-            .when_some(right_click_action, |this, right_click_action| {
-                this.on_mouse_down(
-                    MouseButton::Right,
-                    cx.listener(move |this, _event: &MouseDownEvent, window, cx| {
-                        window.prevent_default();
-                        cx.stop_propagation();
-                        this.perform_terminal_agent_bar_action(
-                            surface,
-                            session_id,
-                            right_click_action,
-                            window,
-                            cx,
-                        );
-                    }),
-                )
-            })
             .child(terminal_agent_bar_icon(
                 state.icon_path,
                 action.icon_size(),
@@ -1232,27 +1166,6 @@ impl GhostexGpuiApp {
                     terminal_agent_bar_disabled_icon_color()
                 },
             ))
-            .when(show_note_dot, |this| {
-                this.child(
-                    h_flex()
-                        .absolute()
-                        .top_0()
-                        .right_0()
-                        .size(px(TERMINAL_AGENT_BAR_INDICATOR_SIZE))
-                        .justify_center()
-                        .rounded_full()
-                        .bg(terminal_agent_bar_indicator_background())
-                        .text_size(px(9.0))
-                        .font_weight(FontWeight::BOLD)
-                        .text_color(terminal_agent_bar_accent_icon_color())
-                        .child("1"),
-                )
-            })
-            .when(stashed_prompt_count > 0, |this| {
-                this.child(terminal_agent_bar_stashed_prompt_count_badge(
-                    stashed_prompt_count,
-                ))
-            })
             .into_any_element()
     }
 
@@ -1276,6 +1189,18 @@ impl GhostexGpuiApp {
             terminal_agent_bar_icon_color()
         } else {
             terminal_agent_bar_disabled_icon_color()
+        };
+        // What the bar's own buttons used to carry: the session note's presence and the stash count.
+        let session = self.agents_sidebar_session_for_terminal(session_id);
+        let badge = match action {
+            TerminalAgentBarAction::SessionNote => session
+                .is_some_and(|session| session.has_session_note)
+                .then(|| "1".to_string()),
+            TerminalAgentBarAction::StashPrompt => session
+                .map(|session| session.stashed_prompt_count)
+                .filter(|count| *count > 0)
+                .map(|count| count.min(9).to_string()),
+            _ => None,
         };
         h_flex()
             .id(format!(
@@ -1314,6 +1239,9 @@ impl GhostexGpuiApp {
                 icon_color,
             ))
             .child(state.label)
+            .when_some(badge, |this, badge| {
+                this.child(terminal_agent_bar_menu_row_badge(badge))
+            })
             .child(div().flex_1().min_w_0())
             .when_some(shortcut, |this, shortcut| {
                 this.child(
@@ -1506,18 +1434,17 @@ fn terminal_agent_bar_agent_name(session: &GpuiSidebarWorkspaceTabSession) -> Op
     )
 }
 
-fn terminal_agent_bar_stashed_prompt_count_badge(count: u64) -> AnyElement {
-    let label = count.min(9).to_string();
+/// The filled circle after a ⋯ menu row's label, like the chat menu's Stash prompt count
+/// (`native_chat/option_menu/render.rs`).
+fn terminal_agent_bar_menu_row_badge(label: String) -> AnyElement {
     h_flex()
-        .absolute()
-        .top_0()
-        .right_0()
-        .size(px(TERMINAL_AGENT_BAR_INDICATOR_SIZE))
+        .flex_shrink_0()
+        .size(px(TERMINAL_AGENT_BAR_MENU_BADGE_SIZE))
         .justify_center()
         .rounded_full()
         .bg(terminal_agent_bar_indicator_background())
-        .text_size(px(9.0))
-        .font_weight(FontWeight::BOLD)
+        .text_size(px(10.0))
+        .line_height(px(10.0))
         .text_color(terminal_agent_bar_accent_icon_color())
         .child(label)
         .into_any_element()
