@@ -423,6 +423,8 @@ pub(crate) async fn handle_answer_session_chat_prompt_http(
             Err(error) => domain_error_response(endpoint_path, request_id, error),
         };
     }
+    // Set when the terminal row answered is the No of a tool permission prompt.
+    let mut denied_permission_row = false;
     let steps = match kind {
         "approval" => {
             // Allow → the option's raw send byte ("1"); Deny/empty → ESC.
@@ -928,6 +930,9 @@ pub(crate) async fn handle_answer_session_chat_prompt_http(
                     },
                 );
             };
+            denied_permission_row = screen.as_deref().is_some_and(|text| {
+                crate::session_chat_resume_prompt::permission_prompt_row_denies(text, choice_index)
+            });
             if skips_outright {
                 vec![
                     crate::session_chat_send::SessionChatSendStep::Write("\u{1b}".to_string()),
@@ -960,12 +965,20 @@ pub(crate) async fn handle_answer_session_chat_prompt_http(
             steps,
         );
     }
-    let denied_approval = kind == "approval"
-        && params
-            .get("approvalSend")
-            .and_then(Value::as_str)
-            .unwrap_or_default()
-            .is_empty();
+    /*
+    CDXC:SessionChat 2026-10-28 WHY: the chat's approval card answers Claude's permission prompt
+    through its numbered rows (`terminalChoice`), and its No row interrupts the tool call just as
+    silently as Deny's Escape: no PostToolUse, no Stop. The stored card outlived the answer, so the
+    session sat idle under the red "waiting for approval" dot until its next turn (found testing
+    plan mode on Linux; gxserver, every platform). The No row retires the card like Deny does.
+    */
+    let denied_approval = denied_permission_row
+        || kind == "approval"
+            && params
+                .get("approvalSend")
+                .and_then(Value::as_str)
+                .unwrap_or_default()
+                .is_empty();
     if denied_approval {
         if let Some(answered) = crate::agents::session_chat_prompt_setting(&target.session)
             .as_deref()

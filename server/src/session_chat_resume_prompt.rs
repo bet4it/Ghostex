@@ -699,6 +699,17 @@ pub(crate) fn is_permission_prompt_heading(heading: &str) -> bool {
 
 /// `Some` only when a known Claude picker is live on screen and its highlight
 /// is proven, so every row is reachable with a derived key count.
+/// Whether answering row `choice_index` of the picker on `text` refuses a tool permission prompt.
+pub fn permission_prompt_row_denies(text: &str, choice_index: usize) -> bool {
+    detect_session_chat_terminal_picker(text).is_some_and(|picker| {
+        picker.kind == SessionChatTerminalPickerKind::PermissionPrompt
+            && picker
+                .rows
+                .get(choice_index)
+                .is_some_and(|row| row.label.starts_with(PERMISSION_PROMPT_NO_PREFIX))
+    })
+}
+
 pub fn detect_session_chat_terminal_picker(text: &str) -> Option<SessionChatTerminalPicker> {
     let window = scan_window(&strip_claude_side_panel(text));
     for run in picker_runs(&window).into_iter().rev() {
@@ -771,5 +782,19 @@ mod side_panel_tests {
     fn a_screen_without_a_side_panel_is_left_alone() {
         let text = "one │ two\nplain line\n❯ 1. Yes\n  2. No";
         assert_eq!(strip_claude_side_panel(text), text);
+    }
+
+    /// Claude Code 2.1.311's Write prompt as it painted on Linux (2026-10-28), rules shortened.
+    #[test]
+    fn only_the_no_row_of_a_permission_prompt_denies() {
+        let rule = "\u{2500}".repeat(60);
+        let dashes = "\u{254c}".repeat(60);
+        let screen = format!(
+            "\u{25cf} Write(rc_notes/plan_probe.txt)\n{rule}\n Create file\n rc_notes/plan_probe.txt\n{dashes}\n  1 hello\n{dashes}\n Do you want to create plan_probe.txt?\n \u{276f} 1. Yes\n   2. Yes, and switch to accept edits (auto-approve file edits and common file commands) for this session (shift+tab)\n   3. No\n Esc to cancel \u{00b7} Tab to amend\n"
+        );
+        assert!(!permission_prompt_row_denies(&screen, 0));
+        assert!(!permission_prompt_row_denies(&screen, 1));
+        assert!(permission_prompt_row_denies(&screen, 2));
+        assert!(!permission_prompt_row_denies("\u{276f} Ask anything\n", 2));
     }
 }
