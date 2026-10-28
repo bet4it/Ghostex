@@ -290,6 +290,14 @@ pub(super) const DEFAULT_SIDEBAR_AGENTS: &[DefaultSidebarAgent] = &[
         icon: "empryo",
         name: "Empryo",
     },
+    DefaultSidebarAgent {
+        agent_id: "dsh",
+        command: "dsh-tui",
+        // Starts off for the same reason as Empryo above.
+        hidden_by_default: true,
+        icon: "dsh",
+        name: "DeepSeek Harness",
+    },
 ];
 
 /// The display name of a built-in agent (`Codex`, `Factory Droid`), for clients that list agents

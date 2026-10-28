@@ -18,6 +18,13 @@ pub(super) fn parse_freebuff_record(builder: &mut TranscriptBuilder, line: &str)
     }
 }
 
+/// DeepSeek Harness mirror rows (`session_chat_decode_dsh.rs`).
+pub(super) fn parse_dsh_record(builder: &mut TranscriptBuilder, line: &str) {
+    if let Some(message) = crate::session_chat::decode_dsh_transcript_line(line, "dsh") {
+        parse_normalized_record(builder, message);
+    }
+}
+
 /// Copilot's `events.jsonl`, read through the chat's own decoder.
 pub(super) fn parse_copilot_record(builder: &mut TranscriptBuilder, line: &str) {
     if let Some(message) = crate::session_chat::decode_copilot_transcript_line(line, "copilot") {

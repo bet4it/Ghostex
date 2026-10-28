@@ -4,6 +4,7 @@
   "updatedAt": "2026-10-28T03:26:45Z",
   "effortLabels": {
     "none": "None",
+    "off": "Off",
     "minimal": "Minimal",
     "low": "Low",
     "medium": "Medium",
@@ -668,6 +669,56 @@
           "label": "GLM 5.3 FlashX",
           "description": "An even faster Flash tier.",
           "efforts": []
+        }
+      ]
+    },
+    "dsh": {
+      "name": "DeepSeek Harness",
+      "cliVersion": "dsh-tui 0.17.0 on dsh 0.2.1-rc.3",
+      "modelCommand": "/model <provider>/<model>",
+      "effortCommand": "/effort <effort>",
+      "notes": "dsh-tui's DeepSeek routes: deepseek-official uses DEEPSEEK_API_KEY, deepseek-account the DeepSeek sign-in (/auth login deepseek-account). Read from dsh-tui 0.17.0's /model picker on dsh 0.2.1-rc.2, 2026-10-28.",
+      "efforts": ["off", "low", "high", "max"],
+      "groups": [
+        {
+          "id": "account",
+          "label": "DeepSeek account",
+          "description": "Signed in with your DeepSeek account instead of an API key."
+        }
+      ],
+      "models": [
+        {
+          "value": "deepseek-official/deepseek-flash",
+          "label": "V4.1 Flash",
+          "pickerLabel": "DeepSeek-V4.1-Flash",
+          "description": "DeepSeek's everyday model, with your API key.",
+          "default": true,
+          "terminalLabels": ["deepseek-flash"],
+          "efforts": ["off", "low", "high", "max"]
+        },
+        {
+          "value": "deepseek-official/deepseek-v4-pro",
+          "label": "V4 Pro",
+          "pickerLabel": "DeepSeek-V4-Pro",
+          "description": "Stronger coding and reasoning for complex work, at a higher cost. With your API key.",
+          "terminalLabels": ["deepseek-v4-pro"],
+          "efforts": ["off", "low", "high", "max"]
+        },
+        {
+          "value": "deepseek-account/deepseek-flash",
+          "label": "V4.1 Flash · account",
+          "pickerLabel": "DeepSeek-V4.1-Flash",
+          "description": "DeepSeek's everyday model, with your DeepSeek account.",
+          "group": "account",
+          "efforts": ["off", "low", "high", "max"]
+        },
+        {
+          "value": "deepseek-account/deepseek-v4-pro",
+          "label": "V4 Pro · account",
+          "pickerLabel": "DeepSeek-V4-Pro",
+          "description": "Stronger coding and reasoning for complex work, at a higher cost. With your DeepSeek account.",
+          "group": "account",
+          "efforts": ["off", "low", "high", "max"]
         }
       ]
     }

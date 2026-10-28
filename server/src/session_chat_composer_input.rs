@@ -120,6 +120,9 @@ pub(super) fn freebuff_input_region(lines: &[String]) -> Option<Range<usize>> {
         .then_some(head + 1..foot)
 }
 
+#[path = "session_chat_dsh_composer.rs"]
+pub(super) mod dsh_composer;
+
 const FREEBUFF_PLACEHOLDERS: &[&str] = &[
     "enter a coding task or / for commands",
     "enter a coding task",
@@ -1102,6 +1105,10 @@ pub fn session_chat_composer_input(agent: &str, screen: &str) -> Option<SessionC
     if agent == "freebuff" {
         let lines: Vec<String> = screen.lines().map(strip_ansi_sgr).collect();
         return freebuff_composer_input(&lines);
+    }
+    if agent == "dsh" {
+        let lines: Vec<String> = screen.lines().map(strip_ansi_sgr).collect();
+        return dsh_composer::dsh_composer_input(&lines);
     }
     let mut lines = styled_lines(screen);
     if agent == "empryo" {

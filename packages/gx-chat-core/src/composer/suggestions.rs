@@ -410,6 +410,7 @@ const DEFAULT_AGENT_NAMES: &[(&str, &str)] = &[
     ("zcode", "ZCode"),
     ("freebuff", "Freebuff"),
     ("empryo", "Empryo"),
+    ("dsh", "DeepSeek Harness"),
 ];
 
 fn default_agent_name(agent_id: &str) -> Option<&'static str> {
@@ -432,9 +433,9 @@ pub fn suggestion_popup(
         SuggestionKind::Skill
     } else if matches.file_open {
         SuggestionKind::File
-    } else {
     } else if matches.session_open {
         SuggestionKind::Session
+    } else {
         return None;
     };
     let rows: Vec<(String, String)> = match kind {
@@ -468,7 +469,6 @@ pub fn suggestion_popup(
                 )
             })
             .collect(),
-    };
         SuggestionKind::Session => matches
             .session_matches
             .iter()
@@ -489,6 +489,7 @@ pub fn suggestion_popup(
             .session_matches
             .get(row_index)
             .filter(|_| kind == SuggestionKind::Session)
+    };
     let count = rows.len();
     let selected = index.min(count.saturating_sub(1));
     let send_on_enter = kind == SuggestionKind::Slash
@@ -511,10 +512,10 @@ pub fn suggestion_popup(
                     detail,
                     round_top,
                     round_bottom,
-                }
                     agent_icon: choice(row_index).and_then(|choice| choice.agent_icon.clone()),
                     coordinator: choice(row_index).is_some_and(|choice| choice.coordinator),
                     working: choice(row_index).is_some_and(|choice| choice.working),
+                }
             })
             .collect(),
         selected,
@@ -523,8 +524,8 @@ pub fn suggestion_popup(
             SuggestionKind::Slash => slash_heading_for_agent(sources.agent.as_deref()).to_string(),
             SuggestionKind::Skill => skills_heading(sources),
             SuggestionKind::File => FILE_SUGGESTION_HEADING.to_string(),
-        },
             SuggestionKind::Session => SESSION_SUGGESTION_HEADING.to_string(),
+        },
         status: match kind {
             SuggestionKind::Skill => {
                 if sources.skills_loading {
@@ -577,7 +578,6 @@ pub fn suggestion_replacement(
             .file_matches
             .get(index)
             .map(|path| file_mention(path, next_file_reference_index(text))),
-    }
         SuggestionKind::Session => matches.session_matches.get(index).map(choice_mention),
     }
 }
@@ -681,4 +681,5 @@ mod session_picker_tests {
             complete_composer_mention(draft, caret, &format!("{replacement} ")).unwrap();
         assert_eq!(text, "ask [Fix login](S90:P3lv0:G1) ");
         assert_eq!(caret, text.encode_utf16().count());
+    }
 }

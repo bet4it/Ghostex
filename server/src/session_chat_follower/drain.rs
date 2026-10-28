@@ -136,6 +136,9 @@ pub(crate) fn follower_drain_once(
     if agent == SessionChatTranscriptAgent::Freebuff {
         crate::session_chat_freebuff::sync_freebuff_transcript_mirror_for_path(file_path);
     }
+    if agent == SessionChatTranscriptAgent::Dsh {
+        crate::session_chat_dsh::sync_dsh_transcript_mirror_for_path(file_path);
+    }
     if agent == SessionChatTranscriptAgent::Hermes {
         crate::session_chat_hermes::sync_hermes_transcript_mirror_for_path(file_path);
     }

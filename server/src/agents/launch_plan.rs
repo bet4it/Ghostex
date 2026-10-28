@@ -718,6 +718,7 @@ pub(crate) fn default_agent_session_title_name(agent_id: &str) -> Option<&'stati
         "mastra" => Some("Mastra Code"),
         "devin" => Some("Devin"),
         "droid" => Some("Factory Droid"),
+        "dsh" => Some("DeepSeek Harness"),
         "empryo" => Some("Empryo"),
         "freebuff" => Some("Freebuff"),
         "gemini" => Some("Gemini"),

@@ -76,6 +76,7 @@ pub(crate) fn workspace_tab_agent_icon_path(agent_icon: &str) -> Option<&'static
         "mastra" => Some("agent-icons/mastra.svg"),
         "zcode" => Some("agent-icons/zcode.svg"),
         "devin" => Some("agent-icons/devin.svg"),
+        "dsh" => Some("agent-icons/dsh.svg"),
         "empryo" => Some("agent-icons/empryo.svg"),
         "factory-droid" => Some("agent-icons/factory-droid.svg"),
         "freebuff" => Some("agent-icons/freebuff.svg"),

@@ -130,6 +130,11 @@ static LOGOS: &[(&str, &str, &str)] = &[
         include_str!("../../../core-ui/assets/freebuff.svg"),
     ),
     (
+        "dsh",
+        "#4d6bfe",
+        include_str!("../../../core-ui/assets/dsh.svg"),
+    ),
+    (
         "pi",
         "#c8ff62",
         include_str!("../../../core-ui/assets/pi.svg"),

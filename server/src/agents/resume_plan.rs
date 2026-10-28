@@ -527,14 +527,13 @@ pub(crate) fn build_agent_resume_command(
                 quote_shell_double_arg(&reference)
             )
         }),
-        "codebuddy" | "copilot" | "droid" | "gemini" | "hermes-agent" | "qoder" | "zcode" => {
-            exact_reference.map(|reference| {
-                format!(
-                    "{agent_command} --resume {}",
-                    quote_shell_double_arg(&reference)
-                )
-            })
-        }
+        "codebuddy" | "copilot" | "droid" | "dsh" | "gemini" | "hermes-agent" | "qoder"
+        | "zcode" => exact_reference.map(|reference| {
+            format!(
+                "{agent_command} --resume {}",
+                quote_shell_double_arg(&reference)
+            )
+        }),
         "grok" => exact_reference
             .map(|reference| format!("{agent_command} -r {}", quote_shell_double_arg(&reference))),
         "freebuff" => exact_reference.map(|reference| {
@@ -698,14 +697,13 @@ pub(crate) fn build_agent_resume_copy_command(input: &AgentResumeInput) -> Optio
                 quote_shell_double_arg(&reference)
             )
         }),
-        "codebuddy" | "copilot" | "droid" | "gemini" | "hermes-agent" | "qoder" | "zcode" => {
-            exact_reference.map(|reference| {
-                format!(
-                    "{agent_command} --resume {}",
-                    quote_shell_double_arg(&reference)
-                )
-            })
-        }
+        "codebuddy" | "copilot" | "droid" | "dsh" | "gemini" | "hermes-agent" | "qoder"
+        | "zcode" => exact_reference.map(|reference| {
+            format!(
+                "{agent_command} --resume {}",
+                quote_shell_double_arg(&reference)
+            )
+        }),
         "grok" => exact_reference
             .map(|reference| format!("{agent_command} -r {}", quote_shell_double_arg(&reference))),
         "freebuff" => exact_reference.map(|reference| {
@@ -848,7 +846,7 @@ pub(crate) fn restorable_agent_id(value: Option<&str>) -> Option<&str> {
     let value = value?.trim();
     match value {
         "amp" | "antigravity" | "claude" | "codebuddy" | "codex" | "command-code" | "copilot"
-        | "cursor" | "devin" | "droid" | "empryo" | "freebuff" | "gemini" | "grok"
+        | "cursor" | "devin" | "droid" | "dsh" | "empryo" | "freebuff" | "gemini" | "grok"
         | "hermes-agent" | "kimi" | "kiro" | "omp" | "openclaude" | "opencode" | "pi" | "qoder"
         | "rovodev" | "zcode" => Some(value),
         _ => None,
@@ -865,6 +863,10 @@ pub(crate) fn get_exact_agent_session_reference(
         "omp" => get_omp_session_reference(input),
         "pi" => get_pi_session_reference(input),
         "empryo" => get_empryo_session_reference(input),
+        "dsh" => input
+            .agent_session_id
+            .clone()
+            .filter(|id| crate::session_chat_dsh::is_safe_dsh_session_id(id)),
         _ => input.agent_session_id.clone(),
     }
 }

@@ -9007,6 +9007,10 @@
         {
           "label": "Empryo",
           "value": "Empryo"
+        },
+        {
+          "label": "DeepSeek Harness",
+          "value": "DeepSeek Harness"
         }
       ],
       "agentWritable": false

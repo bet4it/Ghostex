@@ -684,6 +684,16 @@ fn infer_agent_id_from_process_executable(
     {
         return Some("omp".to_string());
     }
+    // dsh-tui's launcher starts its terminal app as a second node process running the profile's
+    // `host-entry.js`, which is the process in the foreground while DeepSeek Harness runs.
+    if executable_name == "host-entry"
+        && tokens
+            .get(executable_index)?
+            .replace('\\', "/")
+            .ends_with("/dsh-adapter/host-entry.js")
+    {
+        return Some("dsh".to_string());
+    }
     if executable_name == "acli"
         && normalize_process_token(tokens.get(executable_index + 1).map(String::as_str)).as_deref()
             == Some("rovodev")
@@ -707,6 +717,7 @@ fn infer_agent_id_from_process_executable(
             "droid" => "droid",
             "empryo" | "em" => "empryo",
             "freebuff" => "freebuff",
+            "dsh-tui" | "dst" => "dsh",
             "gemini" => "gemini",
             "grok" => "grok",
             "hermes" => "hermes-agent",
@@ -780,6 +791,10 @@ fn extract_agent_process_session_id(
     }
     if agent_id == "freebuff" {
         return read_agent_process_flag_value(agent_id, args, "--continue");
+    }
+    if agent_id == "dsh" {
+        return read_agent_process_flag_value(agent_id, args, "--resume")
+            .filter(|id| crate::session_chat_dsh::is_safe_dsh_session_id(id));
     }
     if agent_id == "empryo" {
         return ["--session", "--resume", "-s"]

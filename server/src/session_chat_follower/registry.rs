@@ -228,6 +228,13 @@ pub(crate) fn sync_session_chat_follower_for_session(
                     .get_session(&context_project_id, &context_session_id)
                     .ok()??;
                 let sessions = repository.list_presentation_sessions().ok()?;
+                if session.get("agentId").and_then(Value::as_str) == Some("dsh") {
+                    return crate::session_chat_dsh::discover_dsh_session_for_session(
+                        &repository,
+                        &session,
+                        &sessions,
+                    );
+                }
                 crate::session_chat_freebuff::discover_freebuff_chat_for_session(
                     &repository,
                     &session,

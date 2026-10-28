@@ -576,6 +576,18 @@ async fn read_state_with(
                     .as_deref()
                     .and_then(|path| catalog::detected_method(path, definition))
             };
+            // CDXC:AgentProviders 2026-10-28 WHY:
+            // DeepSeek Harness offers only mise, so a copy someone installed with a global npm install was detected as npm with no npm method to update it, and the update was refused. A detected method Ghostex does not offer updates through the CLI's own updater when it has one (`dsh-tui update`).
+            let detected = match detected {
+                Some(method)
+                    if method != "manual"
+                        && definition.self_updater().is_some()
+                        && !methods.iter().any(|offered| offered.id == method) =>
+                {
+                    None
+                }
+                detected => detected,
+            };
             // An installation Ghostex cannot place updates through the CLI's own updater.
             let detected = detected.or_else(|| {
                 let updater = definition.self_updater().filter(|_| executable.is_some())?;

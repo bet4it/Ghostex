@@ -411,6 +411,7 @@ pub async fn run_gxserver_foreground(
     let session_chat_open_questions_task =
         crate::session_chat_open_questions::spawn_open_questions_task(&state);
     let freebuff_activity_task = crate::freebuff_activity::spawn_freebuff_activity_task(&state);
+    let dsh_activity_task = crate::dsh_activity::spawn_dsh_activity_task(&state);
     let app_auto_update_task = crate::app_update::spawn_app_auto_update_task(&state);
     let zcode_turn_activity_task =
         crate::zcode_turn_activity::spawn_zcode_turn_activity_task(&state);
@@ -476,6 +477,7 @@ pub async fn run_gxserver_foreground(
     session_chat_async_question_status_task.abort();
     session_chat_open_questions_task.abort();
     freebuff_activity_task.abort();
+    dsh_activity_task.abort();
     app_auto_update_task.abort();
     zcode_turn_activity_task.abort();
     program_status_source_task.abort();

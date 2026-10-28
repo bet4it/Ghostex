@@ -1415,6 +1415,20 @@ named after your first message. Switch to Terminal for sign-in, `/model`, and
 Freebuff's other commands and settings. For agents whose models the chat cannot
 list, such as Freebuff, the model menu offers Switch model in CLI, which opens
 the session's terminal.
+DeepSeek Harness chats (its terminal app, `dsh-tui`) show your messages, its
+replies and thinking, and the tools it runs with their results, and they can be
+exported like any other chat. DeepSeek Harness saves each step when it finishes,
+so the chat fills in step by step rather than word by word. It has no hooks, so
+a new session's chat appears after its first message; the sidebar still shows it
+working and done. The model menu lists DeepSeek's models for both ways of
+signing in (your API key, or your DeepSeek account under DeepSeek account) with
+the reasoning levels Off, Low, High and Max; picking one types its `/model` and
+`/effort` into the session. Sign-in (`DEEPSEEK_API_KEY`, or `/auth login
+deepseek-account` in its terminal), its Claude and Codex kernels, and its other
+commands and settings stay in the terminal; a session running the Claude or
+Codex kernel shows no chat. Until you finish DeepSeek Harness's first-run guide
+once (in its terminal), each new session opens on that guide, and a chat message
+waits until you finish or skip it.
 GitHub Copilot chats show its replies, the commands it runs, the files it reads,
 creates and edits with their changes, and its thinking when the model shares it.
 When Copilot asks for approval (in Manual Approval mode), the request appears as
@@ -2506,6 +2520,14 @@ and update it with `npm install -g zcode-app-cli@latest`, as documented at
 [the ZCode installation docs](https://github.com/kingsword09/zcode-cli).
 Freebuff launches with `freebuff` and installs with `npm install -g freebuff`;
 sign in once in its terminal the first time it starts.
+DeepSeek Harness (under More agents until you turn it on) launches with
+`dsh-tui` and installs and updates through mise: Install and Update run
+`mise use --global npm:@deepseek-harness-tui/dsh-tui@latest npm:@deepseek-ai/dsh@<release>`
+with the DeepSeek Harness release npm currently marks as latest (plus pnpm when it
+is missing), then `dsh-tui update`, which sets up its profile, so the terminal app
+and its profile stay on the same release. A copy installed another way
+updates with `dsh-tui update`. It needs a DeepSeek API key (`DEEPSEEK_API_KEY`)
+or a DeepSeek account sign-in in its terminal.
 Empryo launches with `empryo` (`em` works too) and installs with
 `curl -fsSL https://empryo.com/install.sh | bash`, which puts it in
 `~/.empryo/bin` (on Windows, `irm https://empryo.com/install.ps1 | iex` in

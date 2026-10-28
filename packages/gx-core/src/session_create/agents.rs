@@ -92,6 +92,7 @@ pub fn default_agent_id_for_icon(icon: Option<&str>) -> Option<&'static str> {
         "zcode" => "zcode",
         "freebuff" => "freebuff",
         "empryo" => "empryo",
+        "dsh" => "dsh",
         _ => return None,
     })
 }
@@ -159,6 +160,7 @@ pub fn built_in_agent_id_for_command(command: &str) -> Option<&'static str> {
         "zcode" | "zcode-cli" => "zcode",
         "droid" => "droid",
         "freebuff" => "freebuff",
+        "dsh-tui" | "dst" => "dsh",
         "grok" => "grok",
         "amp" => "amp",
         "pi" => "pi",
@@ -241,6 +243,7 @@ fn default_session_agent_title_name(lowercased: &str) -> Option<&'static str> {
         "droid" | "factory-droid" => "Factory Droid",
         "empryo" | "em" => "Empryo",
         "freebuff" => "Freebuff",
+        "dsh" | "dsh-tui" => "DeepSeek Harness",
         "gemini" => "Gemini",
         "grok" | "grok-build" => "Grok Build",
         "hermes" | "hermes-agent" => "Hermes Agent",

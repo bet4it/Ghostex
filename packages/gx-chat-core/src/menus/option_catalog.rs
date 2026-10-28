@@ -1169,6 +1169,14 @@ pub fn session_option_catalog(
                 None => cli_lineup_handoff_catalog(id),
             });
         }
+        // CDXC:AgentProviders 2026-10-28 DECISION:
+        // User: DeepSeek Harness's chat should "expose the models there". Its rows are the catalog's `provider/model` routes (the API-key route, then the account route) with DeepSeek's off, low, high and max levels; a pick types dsh-tui's `/model <provider>/<id>` and `/effort <level>` (server/src/session_chat_dsh_picker.rs). dsh-tui keeps its level across a model switch, like Pi, so the menu has Pi's shape.
+        "dsh" | "dsh-tui" => {
+            return Some(match catalog.agents.get("dsh") {
+                Some(agent) => build_pi_family_catalog(catalog, agent, "dsh"),
+                None => cli_lineup_handoff_catalog("dsh"),
+            });
+        }
         _ => return None,
     };
     let agent = catalog.agents.get(builder_id)?;

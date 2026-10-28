@@ -182,6 +182,27 @@ pub(crate) fn command(tool: &str, installed: bool) -> String {
     }
 }
 
+/// One `mise use` that installs `tool` at its latest release with the tools it runs on, each named
+/// with its version (`npm:@deepseek-ai/dsh@0.2.1-rc.2`). Updating runs the same command; mise keeps
+/// the versions it replaces.
+pub(crate) fn use_command(tool: &str, companions: &[String]) -> String {
+    std::iter::once(format!("{tool}@latest"))
+        .chain(companions.iter().cloned())
+        .map(|spec| process::quote(&spec))
+        .fold("mise use --global --yes".to_string(), |command, spec| {
+            format!("{command} {spec}")
+        })
+}
+
+/// `command` followed by `then` inside the tools mise just set up, only when `command` succeeded.
+pub(crate) fn then_run(command: &str, then: &str) -> String {
+    if cfg!(windows) {
+        format!("{command}; if (-not $LASTEXITCODE) {{ mise exec -- {then} }}")
+    } else {
+        format!("{command} && mise exec -- {then}")
+    }
+}
+
 /// What mise does with a newer release than the installed one.
 #[derive(Clone)]
 pub(crate) struct HeldBack {

@@ -1201,9 +1201,13 @@ pub(crate) fn normalize_agent_hook_activity(
     the event mapping here aligned with the hook helper prevents a later
     sidecar sync from erasing the attention transition.
     */
-    // Freebuff's events come from its saved chat (server/src/freebuff_activity.rs) and finish turns
-    // the way Codex's Stop does.
-    if matches!(normalized_agent.as_deref(), Some("codex" | "freebuff")) {
+    // Freebuff's and DeepSeek Harness's events come from their saved chats
+    // (server/src/freebuff_activity.rs, server/src/dsh_activity.rs) and finish turns the way Codex's
+    // Stop does.
+    if matches!(
+        normalized_agent.as_deref(),
+        Some("codex" | "freebuff" | "dsh")
+    ) {
         if lower == "stop" {
             return Some("attention".to_string());
         }

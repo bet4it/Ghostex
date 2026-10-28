@@ -1332,6 +1332,7 @@ pub(crate) async fn select_session_chat_model(
                 | "pi"
                 | "omp"
                 | "empryo"
+                | "dsh"
         )
     ) {
         return Err(DomainStateError {

@@ -46,6 +46,30 @@ pub(crate) async fn latest(definition: &'static Definition) -> Option<String> {
     value
 }
 
+/// The version npm's `latest` tag names for `package`, from a blocking context, cached like
+/// [`latest`] (keyed by package, so it never shares an agent's entry).
+pub(crate) fn npm_latest_blocking(package: &str) -> Option<String> {
+    let key = format!("npm:{package}");
+    if let Some((at, value)) = CACHE.lock().ok()?.get(&key).cloned() {
+        let ttl = if value.is_some() {
+            FOUND_TTL
+        } else {
+            MISSING_TTL
+        };
+        if at.elapsed() < ttl {
+            return value;
+        }
+    }
+    let value = fetch(
+        &format!("https://registry.npmjs.org/{package}/latest"),
+        Some("version"),
+    );
+    if let Ok(mut cache) = CACHE.lock() {
+        cache.insert(key, (Instant::now(), value.clone()));
+    }
+    value
+}
+
 fn fetch(url: &str, field: Option<&str>) -> Option<String> {
     let agent: ureq::Agent = crate::http_agent::config()
         .timeout_global(Some(Duration::from_secs(4)))

@@ -578,7 +578,35 @@ pub(crate) fn cli_catalog() -> Vec<CliCatalogEntry> {
                     })
                     .unwrap_or_default()
             };
-            let install_command = if let Some(package) = text("npmPackage") {
+            // An agent that installs only through mise (DeepSeek Harness) lists no package managers.
+            let mise_only = entry
+                .get("packageManagers")
+                .and_then(Value::as_array)
+                .is_some_and(Vec::is_empty);
+            let install_command = if let Some(tool) = text("miseTool").filter(|_| mise_only) {
+                // The companions mise installs with it unconditionally (DeepSeek Harness's `dsh`).
+                let companions: String = entry
+                    .get("npmCompanions")
+                    .and_then(Value::as_array)
+                    .into_iter()
+                    .flatten()
+                    .filter(|companion| companion.get("unlessCommand").is_none())
+                    .filter_map(|companion| {
+                        let package = companion.get("package").and_then(Value::as_str)?;
+                        // The release npm's `latest` tag names, read by the shell (zsh, bash and
+                        // PowerShell all expand `$(…)` in double quotes).
+                        Some(
+                            if companion.get("pinNpmLatest").and_then(Value::as_bool) == Some(true)
+                            {
+                                format!(" \"npm:{package}@$(npm view {package} version)\"")
+                            } else {
+                                format!(" npm:{package}@latest")
+                            },
+                        )
+                    })
+                    .collect();
+                Some(format!("mise use --global {tool}@latest{companions}"))
+            } else if let Some(package) = text("npmPackage") {
                 let manager = list("packageManagers")
                     .first()
                     .cloned()

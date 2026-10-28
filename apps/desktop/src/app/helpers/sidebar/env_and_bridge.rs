@@ -142,6 +142,7 @@ pub(crate) fn gpui_sidebar_agent_icon(value: Option<&str>) -> Option<&'static st
         "mastra" | "mastracode" | "mastra code" => Some("mastra"),
         "zcode" => Some("zcode"),
         "freebuff" => Some("freebuff"),
+        "dsh" | "dsh-tui" | "deepseek" | "deepseek harness" => Some("dsh"),
         "devin" => Some("devin"),
         "empryo" | "em" => Some("empryo"),
         other => GPUI_DEFAULT_SIDEBAR_AGENTS

@@ -189,6 +189,7 @@ pub(crate) fn validate_selection(
             | "pi"
             | "omp"
             | "empryo"
+            | "dsh"
     ) || !token(model)
         || (!effort.is_empty() && !token(effort))
     {

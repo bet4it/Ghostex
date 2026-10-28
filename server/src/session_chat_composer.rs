@@ -297,6 +297,8 @@ enum ComposerSignature {
     /// Antigravity's `>` rule sandwich, which may have its active-items list (one
     /// `● [HH:MM:SS] … running` row per background task) framed by rules below it.
     AntigravityInputBox,
+    /// dsh-tui's lowest rounded box with `❯` opening its first row (DeepSeek Harness).
+    DshInputBox,
 }
 
 /// Tallest rounded box `TrailingRoundedFoot` will accept as a composer. Two
@@ -361,6 +363,8 @@ fn composer_signature(agent: &str) -> Option<ComposerSignature> {
         // Rounded box over `<model> · <folder> · /model to change` and `← for history · ? for
         // help`. Measured 2026-10-04, Freebuff 0.2.12.
         "freebuff" => ComposerSignature::FooteredRoundedBox,
+        // Measured 2026-10-28, dsh-tui 0.17.0 (session_chat_dsh_composer.rs).
+        "dsh" => ComposerSignature::DshInputBox,
         // `╭─╮ / │ ◈ … │ / ╰─╯` with the statusline below. Measured 2026-10-06, Empryo 3.9.0-beta.
         "empryo" => ComposerSignature::EmpryoInputBox,
         _ => return None,
@@ -780,6 +784,7 @@ fn signature_matches(signature: ComposerSignature, lines: &[String]) -> bool {
         ComposerSignature::FooteredRoundedBox => input::freebuff_input_region(lines).is_some(),
         ComposerSignature::EmpryoInputBox => input::empryo_input_region(lines).is_some(),
         ComposerSignature::AntigravityInputBox => input::antigravity_input_region(lines).is_some(),
+        ComposerSignature::DshInputBox => input::dsh_composer::dsh_input_region(lines).is_some(),
     }
 }
 

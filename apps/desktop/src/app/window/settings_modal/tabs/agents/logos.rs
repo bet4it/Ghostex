@@ -12,7 +12,7 @@ use gpui::{
 };
 
 /// The agent icons shipped under `agent-icons/` (`SidebarAgentIcon`).
-const AGENT_ICONS: [&str; 26] = [
+const AGENT_ICONS: [&str; 27] = [
     "amp-cli",
     "antigravity-cli",
     "browser",
@@ -23,6 +23,7 @@ const AGENT_ICONS: [&str; 26] = [
     "codex",
     "copilot",
     "devin",
+    "dsh",
     "empryo",
     "factory-droid",
     "freebuff",
@@ -51,6 +52,7 @@ fn brand_color(icon: &str) -> u32 {
         "command-code" => 0x22d3ee,
         "cursor-cli" => 0xedecec,
         "devin" => 0x3ea6ff,
+        "dsh" => 0x4d6bfe,
         "empryo" => 0x1fa31d,
         "factory-droid" => 0xff7a1a,
         "gemini" => 0x8b9aff,
