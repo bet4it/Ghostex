@@ -400,6 +400,12 @@ pub(super) fn append_platform_command_line_switches(command_line: &mut cef::Comm
     // Thin overlay scrollbars instead of tracked ones with a white track on dark pages
     // (CDXC:CefRuntime 2026-10-07 in cef/windows.rs).
     super::shell::append_chromium_feature(command_line, "enable-features", "OverlayScrollbar");
+    // CDXC:Browser 2026-10-28 WHY: on Linux Chromium shows a page's notification itself over
+    // D-Bus, beside the one Ghostex relays (browser_page_notifications.rs), so every page
+    // notification appeared twice and clicking Chromium's copy did nothing. Without its native
+    // bridge Chromium draws none, as on macOS and Windows; the page's Notification API and
+    // permission are unchanged.
+    super::shell::append_chromium_feature(command_line, "disable-features", "NativeNotifications");
 }
 
 /*

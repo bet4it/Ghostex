@@ -818,9 +818,8 @@ pub(crate) enum ComputerUseGrantSetting {
 ///
 /// CDXC:Onboarding 2026-10-28 WHY:
 /// The Computer Use copy promised Accessibility and Screen Recording prompts on every computer, but
-/// those are macOS's grants: on Windows and on Linux under X11 nothing asks, and on Wayland the
-/// desktop's screen-sharing portal asks each session the first time an agent looks at the screen
-/// (cua-driver's platform notes). Each desktop now says what it really does.
+/// those are macOS's grants: on Windows and on Linux under X11 nothing asks, and on Wayland it
+/// depends on the compositor (see the Wayland arm below). Each desktop now says what it really does.
 pub(crate) struct ComputerUseCopy {
     /// The label above the grants while nothing is pending, and while macOS is asking.
     pub(crate) label: &'static str,
@@ -894,25 +893,28 @@ pub(crate) fn computer_use_copy(desktop: ComputerUseDesktop) -> ComputerUseCopy 
             turned_on: "Computer Use is installing. X11 asks for no permission.",
             pending_summary: "On",
         },
+        // CDXC:ComputerUse 2026-10-28 WHY: Hyprland and Sway hand the screen to cua-driver's native
+        // Wayland backend without a prompt (screencopy, checked on Omarchy's Hyprland); GNOME and
+        // KDE go through the screen-sharing portal (cua-driver LINUX.md), so only they ask.
         ComputerUseDesktop::LinuxWayland => ComputerUseCopy {
-            label: "Your Wayland desktop asks for",
-            asking_label: "Your Wayland desktop asks for",
+            label: "Wayland desktops differ",
+            asking_label: "Wayland desktops differ",
             grants: [
                 ComputerUseGrant {
                     icon: "monitor",
                     name: "Screen sharing",
-                    why: "each session, the first time an agent looks",
+                    why: "Hyprland and Sway allow it; GNOME and KDE ask once a session",
                     opens: None,
                 },
                 ComputerUseGrant {
                     icon: "shield",
-                    name: "Depends on desktop",
-                    why: "some Wayland desktops limit what agents can drive",
+                    name: "Clicks and typing",
+                    why: "go to the window in front; some desktops limit them",
                     opens: None,
                 },
             ],
-            turned_on: "Computer Use is installing. Your desktop asks to share the screen the first time an agent looks.",
-            pending_summary: "On · your desktop asks to share the screen",
+            turned_on: "Computer Use is installing. GNOME and KDE ask to share the screen the first time an agent looks; Hyprland and Sway don't ask.",
+            pending_summary: "On · GNOME and KDE ask to share the screen",
         },
     }
 }
@@ -921,8 +923,6 @@ pub(crate) fn computer_use_copy(desktop: ComputerUseDesktop) -> ComputerUseCopy 
 mod tests {
     use super::*;
 
-    #[test]
-    fn linux_session_picks_the_computer_use_copy() {
     #[test]
     fn a_launcher_only_agent_reads_as_not_installed() {
         let payload = serde_json::json!({ "agents": [
@@ -949,6 +949,8 @@ mod tests {
         );
     }
 
+    #[test]
+    fn linux_session_picks_the_computer_use_copy() {
         assert_eq!(
             ComputerUseDesktop::linux(Some("wayland"), false),
             ComputerUseDesktop::LinuxWayland

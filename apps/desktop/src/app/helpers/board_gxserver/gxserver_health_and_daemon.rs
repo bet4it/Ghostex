@@ -1071,6 +1071,15 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
     terminal_environment::remove_session_identity_from_process_command(&mut command);
     // Agent sessions inherit gxserver's environment.
     crate::restore_wayland_display_for_process_command(&mut command);
+    /*
+    CDXC:ComputerUse 2026-10-28 WHY:
+    On a Wayland desktop an agent's cua-driver used its X11 backend, because its native Wayland backend is opt-in (`CUA_DRIVER_RS_ENABLE_WAYLAND=1`, cua-driver LINUX.md "Wayland"), and XWayland's root window has no desktop pixels: every screenshot failed with an X11 GetImage error, so Computer Use could not see the screen on Hyprland. Sessions get the opt-in whenever they get the Wayland display; a value the user set is kept.
+    */
+    if crate::linux_inherited_wayland_display().is_some()
+        && env::var_os("CUA_DRIVER_RS_ENABLE_WAYLAND").is_none()
+    {
+        command.env("CUA_DRIVER_RS_ENABLE_WAYLAND", "1");
+    }
     let current_path = env::var("PATH").ok();
     command.env(
         "PATH",

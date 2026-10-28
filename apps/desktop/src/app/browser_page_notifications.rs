@@ -98,10 +98,21 @@ impl GhostexGpuiApp {
                 if !allowed {
                     continue;
                 }
+                let candidate = page_notification_candidate(title, body, &url, target);
+                // Linux posts over D-Bus through GPUI so the click comes back like a session
+                // banner's (gpui_show_linux_session_attention_notification).
+                #[cfg(target_os = "linux")]
+                let delivered = cx.update(|cx| {
+                    gpui_show_linux_session_attention_notification(candidate, cx);
+                    GpuiMacOSNotificationDeliveryResult::Sent
+                });
                 // Off the main thread, like a session's notification: delivery waits for macOS.
+                #[cfg(not(target_os = "linux"))]
                 let delivered = cx
                     .background_executor()
-                    .spawn(async move { deliver_page_notification(title, body, &url, target) })
+                    .spawn(
+                        async move { gpui_deliver_macos_session_attention_notification(candidate) },
+                    )
                     .await;
                 support_logs::append_for_scenario(
                     support_logs::GpuiSupportLog::SidebarRefresh,
@@ -137,12 +148,12 @@ impl GhostexGpuiApp {
     }
 }
 
-fn deliver_page_notification(
+fn page_notification_candidate(
     title: String,
     body: String,
     url: &str,
     target: uuid::Uuid,
-) -> GpuiMacOSNotificationDeliveryResult {
+) -> GpuiSessionAttentionNotificationCandidate {
     let site = url
         .split_once("://")
         .map(|(_, rest)| rest.split('/').next().unwrap_or(rest).to_string())
@@ -157,10 +168,10 @@ fn deliver_page_notification(
                 .to_string(),
         ),
     };
-    gpui_deliver_macos_session_attention_notification(GpuiSessionAttentionNotificationCandidate {
+    GpuiSessionAttentionNotificationCandidate {
         body,
         icon_data_url: None,
         session_id: format!("{BROWSER_PAGE_NOTIFICATION_PREFIX}{}", target.simple()),
         title,
-    })
+    }
 }

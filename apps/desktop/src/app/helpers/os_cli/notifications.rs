@@ -396,13 +396,8 @@ pub(crate) fn gpui_deliver_macos_session_attention_notification(
     gpui_deliver_windows_notification(candidate)
 }
 
-#[cfg(target_os = "linux")]
-pub(crate) fn gpui_deliver_macos_session_attention_notification(
-    candidate: GpuiSessionAttentionNotificationCandidate,
-) -> GpuiMacOSNotificationDeliveryResult {
-    gpui_deliver_linux_notification(&candidate.title, &candidate.body)
-}
-
+// Linux has no variant: session and Browser page banners go through GPUI there
+// (gpui_show_linux_session_attention_notification).
 #[cfg(not(any(target_os = "macos", target_os = "windows", target_os = "linux")))]
 pub(crate) fn gpui_deliver_macos_session_attention_notification(
     _candidate: GpuiSessionAttentionNotificationCandidate,
@@ -411,7 +406,7 @@ pub(crate) fn gpui_deliver_macos_session_attention_notification(
 }
 
 /// CDXC:Notifications 2026-10-05 WHY:
-/// Linux shows system notifications through the desktop's freedesktop notification daemon via `notify-send` (libnotify), which every major desktop ships. A missing `notify-send` reports the banners as unavailable. Session attention banners no longer come through here (see `gpui_show_linux_session_attention_notification`); the Settings test banner still does.
+/// Linux shows system notifications through the desktop's freedesktop notification daemon via `notify-send` (libnotify), which every major desktop ships. A missing `notify-send` reports the banners as unavailable. Session attention and Browser page banners no longer come through here (see `gpui_show_linux_session_attention_notification`); the Settings test banner still does.
 #[cfg(target_os = "linux")]
 pub(crate) fn gpui_deliver_linux_notification(
     title: &str,
