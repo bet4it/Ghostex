@@ -139,7 +139,7 @@ impl GhostexGpuiApp {
             }
         }));
         // CDXC:WorkMode 2026-10-09 DECISION:
-        // User: "Work" is listed in the side panel's "Open a view" picker, beside the briefcase that opens it from the sidebar, whenever the window shows a work-mode project. (Called Issues since 2026-10-24.)
+        // User: "Work" is listed in the side panel's "Open a view" picker whenever the window shows a work-mode project. (Called Issues since 2026-10-24; its sidebar briefcase button was removed 2026-10-29, see CDXC:WorkMode 2026-10-29 in work_view/host.rs.)
         if self.work_view_available() {
             items.push(TitlebarModeSwitcherItem {
                 mode: TitlebarMode::Work,

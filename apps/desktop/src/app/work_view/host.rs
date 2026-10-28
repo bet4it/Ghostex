@@ -1,8 +1,7 @@
 //! Where the Work view lives in the window: when it is available, its page's URL and surface,
-//! and the ways it opens (the sidebar's briefcase, "Open a view", a session card's chip).
+//! and the ways it opens ("Open a view" and the Alt+number view hotkeys, a session card's chip).
 
 use gpui::AnyElement;
-use gpui::Window;
 use serde_json::Value;
 
 use crate::app::helpers::*;
@@ -20,6 +19,8 @@ pub(crate) struct WorkViewState {
 }
 
 impl GhostexGpuiApp {
+    // CDXC:WorkMode 2026-10-29 DECISION:
+    // User, asked whether to keep the Issues (briefcase) button at the top of the sidebar: "remove the button, keep Issues in Open a view". The sidebar's top row has no Issues button; the view opens from the side panel's Open a view picker (and the Alt+number view hotkeys) and from a session card's chip. This supersedes CDXC:WorkMode 2026-10-09's briefcase button.
     /// The work-mode projects of this computer that the window's sidebar shows.
     pub(crate) fn work_view_project_ids(&self) -> Vec<String> {
         self.native_sidebar
@@ -78,16 +79,6 @@ impl GhostexGpuiApp {
             && self
                 .work_view_page_url()
                 .is_some_and(|url| owned.matches_runtime_url(&url))
-    }
-
-    /// The sidebar's briefcase: opens Work as a view tab, and a second click closes it like its
-    /// tab's close button does.
-    pub(crate) fn toggle_work_view(&mut self, window: &mut Window, cx: &mut gpui::Context<Self>) {
-        if self.work_view_showing() {
-            self.close_view_tab(TitlebarMode::Work, window, cx);
-        } else if self.titlebar_mode_available(TitlebarMode::Work) {
-            self.open_view_tab(TitlebarMode::Work, window, cx);
-        }
     }
 
     /// Opens one ticket's details in the Work view (a session card's chip). `item` names it the

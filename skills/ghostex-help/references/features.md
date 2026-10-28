@@ -103,9 +103,10 @@ Cmd+R renames the file open in Files.
 
 **Issues** (called Work before) lists the tickets and pull requests of the
 window's projects (Linear tickets or GitHub issues, whichever the workspace's
-primary tracker is; see Issues Workflow under Git and worktrees). Open it with
-the briefcase at the top of the sidebar, which shows once Issues Workflow is
-set up (a Linear API key, or `gh` signed in), or from **Open a view**. It is one list,
+primary tracker is; see Issues Workflow under Git and worktrees). Open it from
+**Open a view** (it is listed once Issues Workflow is set up: a Linear API key,
+or `gh` signed in), where the Alt+number view hotkeys reach it by its place in the list, or by clicking a ticket or PR chip on a
+session's card. It is one list,
 newest change first, and it opens with **Assigned to me** on (**Mine** on a narrow
 panel). Under the search box, **All | Linear issues (or GitHub issues) | PRs**
 picks what the list shows. **Filter** on the right (a number shows how many are

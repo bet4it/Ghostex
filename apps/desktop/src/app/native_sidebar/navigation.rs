@@ -53,6 +53,10 @@ const SIDEBAR_TOP_ROW_TOGGLES_WIDTH: f32 = 2.0
 /// The sidebar menu is the row's last button, so it is what slides off the edge when the row is
 /// too narrow (GitHub #288). Extension buttons (Claude's) therefore show only while every button
 /// fits at its minimum, so they give way before anything else is clipped.
+///
+/// Narrowest docked width that fits the row at 1x (macOS, 88pt reserve; Windows and Linux need
+/// 78pt less): Claude + Search + menu 236pt, + the bell (or the Hermes button) 260pt, + both
+/// 284pt. Every further button adds 24pt.
 fn sidebar_top_row_fits(
     sidebar_width: f32,
     scale: f32,
@@ -152,7 +156,6 @@ impl GhostexGpuiApp {
         let bots_toggle = (!footer && snapshot.bots_enabled && !snapshot.spaces_enabled)
             .then_some(snapshot.bots_mode);
         let bell_visible = !footer && self.titlebar_notification_bell_visible();
-        let work_visible = !footer && !snapshot.work_mode_project_ids().is_empty();
         let icon_path = if footer {
             "titlebar/bolt.svg"
         } else {
@@ -222,69 +225,21 @@ impl GhostexGpuiApp {
             .when_some(bots_toggle, |row, bots_mode| {
                 row.child(self.render_native_sidebar_bots_toggle(bots_mode, appearance, cx))
             })
-            // CDXC:WorkMode 2026-10-09 DECISION:
-            // User: a briefcase button at the top of the sidebar opens the Work list as a tab in the side panel; it shows only while the window has a project with Work mode on, Personal ones included. (Since 2026-10-24 the view is called Issues and a project has Issues Workflow on once a Linear key or `gh` is set up; CDXC:WorkMode 2026-10-24 in server/src/work_mode/project.rs.)
-            .when(work_visible, |row| {
-                let showing = self.work_view_showing();
-                row.child(
-                    div()
-                        .id("native-sidebar-work")
-                        .role(gpui::Role::Button)
-                        .aria_label("Issues")
-                        .aria_selected(showing)
-                        .when(cfg!(target_os = "windows"), |button| button.occlude())
-                        .h(px(28.0 * scale))
-                        .w(px(34.0 * scale))
-                        .rounded(px(5.0 * scale))
-                        .flex()
-                        .flex_shrink(1.0)
-                        .min_w(px(SIDEBAR_TOP_ROW_BUTTON_MIN_WIDTH * scale))
-                        .items_center()
-                        .justify_center()
-                        .cursor_default()
-                        .when(showing, |button| button.bg(appearance.hover))
-                        .hover(|button| button.bg(appearance.hover))
-                        .child(titlebar_svg_icon(
-                            "titlebar/briefcase.svg",
-                            15.0 * scale,
-                            if showing {
-                                titlebar_active_text_color()
-                            } else {
-                                appearance.muted
-                            },
-                        ))
-                        .on_click(cx.listener(|app, _, _, cx| {
-                            cx.stop_propagation();
-                            app.dispatch_native_sidebar_ui(json!({"type": "openWorkView"}), cx);
-                        }))
-                        .managed_discrete_tooltip_with_placement(
-                            ManagedTooltipPlacement::Right,
-                            tooltip_delay,
-                            |window, cx| {
-                                super::tooltips::sidebar_style_tooltip(
-                                    "Issues".to_string(),
-                                    window,
-                                    cx,
-                                )
-                            },
-                        ),
-                )
-            })
             /*
             CDXC:Extensions 2026-10-28 DECISION:
             User: "move the Claude button here up to where 'Issues' button is and make this button
-            match this color #7C828C (shouldn't be orange)". Claude's button sits right of Issues in
-            the top row, whether or not Issues shows, and is drawn in the row's muted grey (#7C828C
-            dark, #6B7280 light) like its neighbours; the bottom bar keeps Commands as its last
-            button. Selected follows Issues (hover fill, bright icon). This supersedes the
-            2026-10-25 bottom-bar placement (app/claude_web/sidebar_button.rs).
+            match this color #7C828C (shouldn't be orange)". Claude's button sits in the top row,
+            left of Search, and is drawn in the row's muted grey (#7C828C dark, #6B7280 light) like
+            its neighbours; selected is a hover fill with a bright icon. The bottom bar keeps
+            Commands. This supersedes the 2026-10-25 bottom-bar placement
+            (app/claude_web/sidebar_button.rs). Issues' briefcase left this row afterwards (see
+            CDXC:WorkMode 2026-10-29 in app/work_view/host.rs), so Claude is the row's first
+            right-aligned button after the Hermes one.
             */
             .when(!footer, |row| {
                 // Search, the menu and each button the row shows now.
-                let other_buttons = 2
-                    + usize::from(bots_toggle.is_some())
-                    + usize::from(work_visible)
-                    + usize::from(bell_visible);
+                let other_buttons =
+                    2 + usize::from(bots_toggle.is_some()) + usize::from(bell_visible);
                 row.children(self.render_native_sidebar_extension_buttons(
                     appearance,
                     owns_window_corner,
@@ -555,11 +510,23 @@ mod tests {
     }
 
     #[test]
-    fn narrowest_docked_row_with_everything_matches_the_hand_count() {
-        // Issues, Claude, Search, bell and menu at 20pt with 4pt gaps = 116pt, plus the two
+    fn narrowest_docked_row_matches_the_hand_count() {
+        // Claude, Search, the bell and the menu at 20pt with 4pt gaps = 92pt, plus the two
         // toggles (67pt) and their gaps (4 + 4), plus the leading reserve and 5pt right padding.
-        let expected = SIDEBAR_TOGGLE_LEADING_X + 5.0 + 67.0 + 4.0 + 4.0 + 116.0;
-        assert_eq!(narrowest_fitting(1.0, true, 5), expected.ceil());
+        let expected = SIDEBAR_TOGGLE_LEADING_X + 5.0 + 67.0 + 4.0 + 4.0 + 92.0;
+        assert_eq!(narrowest_fitting(1.0, true, 4), expected);
+        // Without the bell: Claude, Search and the menu.
+        assert_eq!(narrowest_fitting(1.0, true, 3), expected - 24.0);
+    }
+
+    #[cfg(target_os = "macos")]
+    #[test]
+    fn claude_needs_more_than_the_default_sidebar_on_macos() {
+        const DEFAULT_WIDTH: f32 = 235.0;
+        assert!(!sidebar_top_row_fits(DEFAULT_WIDTH, 1.0, true, 3));
+        assert!(sidebar_top_row_fits(236.0, 1.0, true, 3));
+        assert!(sidebar_top_row_fits(260.0, 1.0, true, 4));
+        assert!(!sidebar_top_row_fits(259.0, 1.0, true, 4));
     }
 
     #[test]
