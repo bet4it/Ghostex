@@ -112,16 +112,28 @@ pub(crate) fn session_chat_queue_compacting_refresher(
     state: &Arc<AppState>,
 ) -> SessionChatQueueCompactingRefresher {
     let detector = SessionChatOptionDetector::new(state);
+    let state = state.clone();
     Arc::new(
         move |project_id: &str, session_id: &str, agent: Option<&str>| {
             let detector = detector.clone();
+            let state = state.clone();
             let project_id = project_id.to_string();
             let session_id = session_id.to_string();
             let agent = agent.map(str::to_string);
             tokio::task::spawn_blocking(move || {
                 // Only startup and compaction holds request this probe. Fresh evidence
                 // releases input promptly instead of waiting out the five-second cache.
-                detector.detect_blocking(&project_id, &session_id, agent.as_deref(), true)
+                let detection =
+                    detector.detect_blocking(&project_id, &session_id, agent.as_deref(), true);
+                // An idle Claude whose input box stays unreadable is asked to redraw, since
+                // nothing else repaints an unwatched one (held_redraw.rs).
+                super::held_redraw::redraw_held_claude_if_due(
+                    &state,
+                    &project_id,
+                    &session_id,
+                    agent.as_deref(),
+                    &detection,
+                );
             });
         },
     )

@@ -840,3 +840,41 @@ fn codex_failed_command_inside_a_script_becomes_its_exit_code_row() {
     )
     .is_none());
 }
+
+/// A thread report as Claude Code 2.1.3xx records it in the coordinator's transcript: the whole
+/// paste wrapped in `<pasted_content id="…">`, with a literal tag in the body escaped as
+/// `<\pasted_content`. The row reaches the chat as the text the sender wrote, ending in the
+/// sender block the chat recognises as a message from another agent (S90:P3lv0:G1pif, 2026-10-28).
+#[test]
+fn claude_decoder_unwraps_a_pasted_agent_message() {
+    let line = json!({
+        "type": "user",
+        "uuid": "u-report",
+        "timestamp": "2026-10-28T11:05:39.568Z",
+        "message": {"role": "user", "content": concat!(
+            "\n\n<pasted_content id=\"da06\">\n",
+            "Ghostex thread report: finished its turn. Its final message:\n\n",
+            "Claude now wraps pastes in <\\pasted_content id=\"x\"> tags.\n\n",
+            "Message from another agent\nAgent: Claude\nSession: Tool call look behind a toggle\n",
+            "Session ID: G14l1\nAgent ID: claude\n",
+            "Agent Session ID: a0ef8d63-2dea-42c4-9e36-600089110889\nReply to: S90:P3lv0:G14l1\n",
+            "</pasted_content id=\"da06\">\n",
+        )},
+    })
+    .to_string();
+    let message = decode_claude_transcript_line(&line, "fb").expect("the report decodes");
+    assert_eq!(message.role, SessionChatRole::User);
+    let SessionChatBlock::Text { text } = &message.blocks[0] else {
+        panic!("a text block: {:?}", message.blocks);
+    };
+    assert!(
+        text.starts_with("Ghostex thread report: finished its turn."),
+        "{text}"
+    );
+    assert!(text.ends_with("Reply to: S90:P3lv0:G14l1"), "{text}");
+    assert!(
+        text.contains("wraps pastes in <pasted_content id=\"x\"> tags"),
+        "{text}"
+    );
+    assert!(!text.contains("</pasted_content id=\"da06\">"), "{text}");
+}
