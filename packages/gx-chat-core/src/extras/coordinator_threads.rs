@@ -47,7 +47,7 @@ pub struct CoordinatorThreadRow {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CoordinatorThreadsPanel {
-    /// "1 working · 94 workers".
+    /// "1 active · 94 total".
     pub meta: String,
     pub rows: Vec<CoordinatorThreadRow>,
     /// A thread needs the user's approval, which marks the header (red, as the sidebar's approval
@@ -300,8 +300,10 @@ pub fn coordinator_threads_panel(
     };
     let hidden = total.saturating_sub(listed);
     let mut meta = Vec::new();
+    // CDXC:Coordinators 2026-10-29 DECISION: User: "make this 2 active • 429 total": the header counts
+    // the workers running now as "active" and every worker as "total".
     if working > 0 {
-        meta.push(format!("{working} working"));
+        meta.push(format!("{working} active"));
     }
     if approval > 0 {
         meta.push(plural(
@@ -310,7 +312,7 @@ pub fn coordinator_threads_panel(
             "need your approval",
         ));
     }
-    meta.push(plural(total, "worker", "workers"));
+    meta.push(format!("{total} total"));
     let rows: Vec<CoordinatorThreadRow> = match all {
         // The full list: its first `listed` rows.
         Some(_) => rows.into_iter().take(listed).map(|(_, row)| row).collect(),
