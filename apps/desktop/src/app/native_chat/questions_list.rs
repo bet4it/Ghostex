@@ -69,10 +69,7 @@ fn later_action(status: &str, kind: &str, id: &str) -> Option<(&'static str, Val
         return None;
     }
     match status {
-        "waiting" => Some((
-            "For later",
-            json!({"type": "questionForLater", "id": id, "later": true}),
-        )),
+        "waiting" => Some(("For later", json!({"type": "questionForLater", "id": id, "later": true}))),
         "later" => Some((
             "Back to open",
             json!({"type": "questionForLater", "id": id, "later": false}),
@@ -130,22 +127,22 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
     };
     let rows: f32 = more
         + sections
-            .iter()
-            .map(|section| {
-                let shown = if list.folded(&text(section, "id")) {
-                    0
-                } else {
-                    section["rows"].as_array().map_or(0, Vec::len)
-                };
-                // A group with no title (Earlier, alone) has no header line.
-                let header = if text(section, "title").is_empty() {
-                    0.0
-                } else {
-                    SECTION_HEIGHT
-                };
-                header + shown as f32 * ROW_HEIGHT
-            })
-            .sum::<f32>();
+        .iter()
+        .map(|section| {
+            let shown = if list.folded(&text(section, "id")) {
+                0
+            } else {
+                section["rows"].as_array().map_or(0, Vec::len)
+            };
+            // A group with no title (Earlier, alone) has no header line.
+            let header = if text(section, "title").is_empty() {
+                0.0
+            } else {
+                SECTION_HEIGHT
+            };
+            header + shown as f32 * ROW_HEIGHT
+        })
+        .sum::<f32>();
     Some(
         super::chat_pills::MENU_HEADER_HEIGHT
             + super::chat_pills::MENU_SECTION_GAP
@@ -550,10 +547,13 @@ impl NativeChatView {
             .group_hover(group, |this| this.opacity(1.0))
             .chat_cursor_pointer()
             .hover(|style| style.bg(p.foreground.opacity(0.1)))
-            .tooltip(move |window, cx| {
-                gpui_component::tooltip::Tooltip::new(label).build(window, cx)
-            })
-            .child(svg().path(icon).size(px(13.0 * s)).text_color(p.card_muted))
+            .tooltip(move |window, cx| gpui_component::tooltip::Tooltip::new(label).build(window, cx))
+            .child(
+                svg()
+                    .path(icon)
+                    .size(px(13.0 * s))
+                    .text_color(p.card_muted),
+            )
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
                 this.invoke(action.clone(), cx);
@@ -641,15 +641,7 @@ impl NativeChatView {
                 )
             })
             .children(later.map(|(label, action)| {
-                self.later_row_button(
-                    &id,
-                    label,
-                    action,
-                    group.clone(),
-                    later_icon(&status),
-                    p,
-                    cx,
-                )
+                self.later_row_button(&id, label, action, group.clone(), later_icon(&status), p, cx)
             }))
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
@@ -700,16 +692,10 @@ mod tests {
     fn the_for_later_button_toggles_by_section() {
         let (label, action) = later_action("waiting", "form", "f1").unwrap();
         assert_eq!(label, "For later");
-        assert_eq!(
-            action,
-            json!({"type": "questionForLater", "id": "f1", "later": true})
-        );
+        assert_eq!(action, json!({"type": "questionForLater", "id": "f1", "later": true}));
         let (label, action) = later_action("later", "page", "p1").unwrap();
         assert_eq!(label, "Back to open");
-        assert_eq!(
-            action,
-            json!({"type": "questionForLater", "id": "p1", "later": false})
-        );
+        assert_eq!(action, json!({"type": "questionForLater", "id": "p1", "later": false}));
         for status in ["answered", "withdrawn", "other"] {
             assert!(later_action(status, "form", "x").is_none(), "{status}");
         }
@@ -725,10 +711,7 @@ mod tests {
         let whole = json!({"total": 30, "sections": [section.clone()], "remaining": 0});
         let cut = json!({"total": 30, "sections": [section.clone()], "remaining": 29});
         let base = questions_menu_height(&whole, &list).unwrap();
-        assert_eq!(
-            questions_menu_height(&cut, &list).unwrap(),
-            base + ROW_HEIGHT
-        );
+        assert_eq!(questions_menu_height(&cut, &list).unwrap(), base + ROW_HEIGHT);
         // A long page is capped at the list's maximum, Show more row or not.
         let rows: Vec<Value> = (0..15).map(|i| json!({"id": i})).collect();
         let long = json!({"total": 90, "sections": [{"id": "answered", "rows": rows, "count": 80}], "remaining": 65});

@@ -60,10 +60,7 @@ impl PillsStripCells {
     ///
     /// CDXC:SessionChat 2026-10-29 DECISION:
     /// User, of the strip's menus: "please make the menus always appear above the composer not below ... but it shouldn't be above the bar above the composer anymore, should be above the composer itself instead", and then "wtf this menu is opening so far from the trigger button's position". Every menu the strip opens (Resources, Workers, Tasks, Subagents, Background and Links) opens upward from the chat box's top edge with its 4px gap, over the working bar rather than above it, never below. Across, it lines up with its own pill: its right edge on the pill's (the pills sit at the strip's right), its left edge on the pill's for a pill in the box's left half, switching sides or shifting to stay inside the box (`strip_menu_left`, the sidebar's button-menu rule). Supersedes the same day's "aligned to the box's left edge" and the 2026-10-18 menus 4px above the working card.
-    pub(super) fn menu_anchor(
-        &self,
-        pill: Bounds<Pixels>,
-    ) -> (Bounds<Pixels>, super::option_menu::MenuSide) {
+    pub(super) fn menu_anchor(&self, pill: Bounds<Pixels>) -> (Bounds<Pixels>, super::option_menu::MenuSide) {
         let chat_box = self.chat_box();
         let anchor = Bounds::new(
             point(pill.left(), chat_box.top()),
@@ -76,11 +73,7 @@ impl PillsStripCells {
 /// The left edge of a `width`-wide strip menu for the pill at `pill` inside the chat box `within`:
 /// right-aligned with a pill in the box's right half, left-aligned with one in its left half, and
 /// kept inside the box (`PillsStripCells::menu_anchor` has the user's words).
-pub(super) fn strip_menu_left(
-    pill: Bounds<Pixels>,
-    within: Bounds<Pixels>,
-    width: Pixels,
-) -> Pixels {
+pub(super) fn strip_menu_left(pill: Bounds<Pixels>, within: Bounds<Pixels>, width: Pixels) -> Pixels {
     crate::app::native_sidebar::menus::menu_left_at_button(
         pill,
         pill.center().x > within.center().x,
@@ -336,40 +329,25 @@ mod tests {
     #[test]
     fn a_pill_in_the_right_half_puts_the_menu_s_right_edge_on_its_own() {
         // The Tasks pill at 760..840: a 360-wide menu ends at 840, not at the box's left.
-        assert_eq!(
-            strip_menu_left(rect(760.0, 80.0), chat_box(), px(360.0)),
-            px(480.0)
-        );
+        assert_eq!(strip_menu_left(rect(760.0, 80.0), chat_box(), px(360.0)), px(480.0));
     }
 
     #[test]
     fn a_pill_in_the_left_half_puts_the_menu_s_left_edge_on_its_own() {
-        assert_eq!(
-            strip_menu_left(rect(200.0, 80.0), chat_box(), px(440.0)),
-            px(200.0)
-        );
+        assert_eq!(strip_menu_left(rect(200.0, 80.0), chat_box(), px(440.0)), px(200.0));
     }
 
     #[test]
     fn a_menu_that_would_leave_the_box_shifts_inside_it() {
         // A right-half pill at 480..560: right-aligned, a 470-wide menu would start at 90, left
         // of the box, and left-aligned it would end at 950, past it; it starts at the box's left.
-        assert_eq!(
-            strip_menu_left(rect(480.0, 80.0), chat_box(), px(470.0)),
-            px(100.0)
-        );
+        assert_eq!(strip_menu_left(rect(480.0, 80.0), chat_box(), px(470.0)), px(100.0));
         // A left-half pill at 300..480 with a 700-wide menu ends at the box's right instead.
-        assert_eq!(
-            strip_menu_left(rect(300.0, 180.0), chat_box(), px(700.0)),
-            px(200.0)
-        );
+        assert_eq!(strip_menu_left(rect(300.0, 180.0), chat_box(), px(700.0)), px(200.0));
     }
 
     #[test]
     fn a_menu_wider_than_the_box_starts_at_its_left_edge() {
-        assert_eq!(
-            strip_menu_left(rect(760.0, 80.0), chat_box(), px(1000.0)),
-            px(100.0)
-        );
+        assert_eq!(strip_menu_left(rect(760.0, 80.0), chat_box(), px(1000.0)), px(100.0));
     }
 }

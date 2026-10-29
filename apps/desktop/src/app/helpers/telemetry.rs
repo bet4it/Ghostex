@@ -184,7 +184,11 @@ pub(crate) fn record_gpui_surface_opened_telemetry(
     if throttled {
         return;
     }
-    record_gpui_client_event("surface.opened", surface.properties(), background);
+    record_gpui_client_event(
+        "surface.opened",
+        surface.properties(),
+        background,
+    );
 }
 
 fn record_gpui_client_event(

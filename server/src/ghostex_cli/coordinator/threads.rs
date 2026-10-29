@@ -227,7 +227,8 @@ pub(super) fn link(parsed: &ParsedArgs) -> CliResult<()> {
 pub(super) fn unlink(parsed: &ParsedArgs) -> CliResult<()> {
     let [reference] = parsed.rest.as_slice() else {
         return Err(CliError::Other(
-            "Usage: ghostex coordinator unlink <thread-ref> [--coordinator <ref>] [--json]".into(),
+            "Usage: ghostex coordinator unlink <thread-ref> [--coordinator <ref>] [--json]"
+                .into(),
         ));
     };
     let (coordinator, _) = target_coordinator(parsed)?;

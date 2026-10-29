@@ -366,7 +366,8 @@ fn orchestrator_playbook_rpc(
                         true,
                     )),
                     Some((
-                        "# Ghostex coordinator for this project\n\nKeep threads small.".to_string(),
+                        "# Ghostex coordinator for this project\n\nKeep threads small."
+                            .to_string(),
                         false,
                     )),
                 )

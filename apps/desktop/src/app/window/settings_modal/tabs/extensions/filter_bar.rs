@@ -14,8 +14,8 @@ use super::super::super::search::should_show_section;
 use super::ExtensionsTab;
 use super::data::{
     EXTENSION_TYPE_FILTERS, ExtensionFilter, SourceFilter, built_in_category_labels,
-    built_in_filter_subject, custom_views, extension_type_label, filter_store, official_extensions,
-    store_categories, view_order_items,
+    built_in_filter_subject, custom_views, extension_type_label, filter_store,
+    official_extensions, store_categories, view_order_items,
 };
 use gpui::prelude::FluentBuilder as _;
 use gpui::{

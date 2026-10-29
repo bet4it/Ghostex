@@ -13,9 +13,9 @@ use crate::app::helpers::ThrottledAnimationExt as _;
 use crate::app::native_chat::cursor::ChatCursor as _;
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
-    Animation, AnimationExt as _, AnyElement, Context, Hsla, InteractiveElement as _, IntoElement,
-    ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _, StyledText,
-    div, px, rgb,
+    Animation, AnimationExt as _, AnyElement, Context, Hsla, InteractiveElement as _,
+    IntoElement, ParentElement as _, SharedString, StatefulInteractiveElement as _, Styled as _,
+    StyledText, div, px, rgb,
 };
 use serde_json::Value;
 use std::time::Duration;
@@ -48,9 +48,7 @@ fn glyph_icon(glyph: &str) -> &'static str {
 
 fn hex(color: &Value) -> Option<Hsla> {
     let hex = color.as_str()?.trim_start_matches('#');
-    u32::from_str_radix(hex, 16)
-        .ok()
-        .map(|value| rgb(value).into())
+    u32::from_str_radix(hex, 16).ok().map(|value| rgb(value).into())
 }
 
 /// A tool's icon: its app's logo in white on the app's colour, or its glyph.
@@ -76,11 +74,7 @@ fn tool_icon(icon: &Value, size: f32, round: bool, p: &ChatAppearance) -> gpui::
             gpui::svg()
                 .path(glyph_icon(icon["glyph"].as_str().unwrap_or("tool")))
                 .size(px(size * if round { 0.5 } else { 0.8 } * s))
-                .text_color(if round {
-                    p.foreground.opacity(0.75)
-                } else {
-                    p.muted
-                }),
+                .text_color(if round { p.foreground.opacity(0.75) } else { p.muted }),
         ),
     }
 }
@@ -123,10 +117,7 @@ impl NativeChatView {
         p: &ChatAppearance,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
-        let card = message
-            .get("toolCard")
-            .filter(|card| card.is_object())?
-            .clone();
+        let card = message.get("toolCard").filter(|card| card.is_object())?.clone();
         let s = p.scale;
         let id = text(message, "id");
         let key = format!("tool-card:{id}");
@@ -416,18 +407,10 @@ impl NativeChatView {
         if let (Some(added), Some(removed)) = (entry["added"].as_u64(), entry["removed"].as_u64()) {
             meta = meta
                 .child(div().text_color(added_color).child(format!("+{added}")))
-                .child(
-                    div()
-                        .text_color(removed_color)
-                        .child(format!("\u{2212}{removed}")),
-                );
+                .child(div().text_color(removed_color).child(format!("\u{2212}{removed}")));
             parts += 1;
         } else if !result.is_empty() {
-            meta = meta.child(
-                div()
-                    .when(failed, |this| this.text_color(p.error()))
-                    .child(result),
-            );
+            meta = meta.child(div().when(failed, |this| this.text_color(p.error())).child(result));
             parts += 1;
         }
         if !time.is_empty() {
@@ -535,7 +518,12 @@ impl NativeChatView {
                     .flex_shrink_0()
                     .child(status_icon),
             );
-        let mut row = div().w_full().min_w_0().flex().flex_col().child(trigger);
+        let mut row = div()
+            .w_full()
+            .min_w_0()
+            .flex()
+            .flex_col()
+            .child(trigger);
         if expanded || motion.is_some() {
             let body = match kind.as_str() {
                 "file" => self.file_entry_diff(&key, &source, p, cx),

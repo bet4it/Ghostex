@@ -6,12 +6,12 @@
 // for one of them here and qualify its call sites instead.
 pub(crate) mod account_usage;
 pub(crate) mod add_project_modal;
-pub(crate) mod add_session_link_modal;
 pub(crate) mod agent_hooks_required_modal;
 pub(crate) mod agents_hub;
 pub(crate) mod browser_history_modal;
 pub(crate) mod coordinator_details_modal;
 pub(crate) mod copied_indicator;
+pub(crate) mod add_session_link_modal;
 pub(crate) mod create_linear_ticket_modal;
 pub(crate) mod create_worktree_modal;
 pub(crate) mod delayed_send_modal;
@@ -55,11 +55,11 @@ pub(crate) mod web_runtime_prompt_modal;
 pub(crate) mod work_link_picker_modal;
 
 pub(crate) use add_project_modal::*;
-pub(crate) use add_session_link_modal::*;
 pub(crate) use agent_hooks_required_modal::*;
 pub(crate) use agents_hub::*;
 pub(crate) use browser_history_modal::*;
 pub(crate) use coordinator_details_modal::*;
+pub(crate) use add_session_link_modal::*;
 pub(crate) use create_linear_ticket_modal::*;
 pub(crate) use create_worktree_modal::*;
 pub(crate) use delayed_send_modal::*;

@@ -7,8 +7,6 @@ GPUI still has schema-sized privacy-boundary serde_json::json! payloads outside 
 */
 mod app;
 mod app_icon;
-#[cfg(any(target_os = "linux", test))]
-mod appimage_signature;
 mod assets;
 mod browser_history;
 mod cef;
@@ -21,6 +19,8 @@ mod fold_motion;
 mod ghostty_kit;
 mod ghostty_vt;
 mod hotkey_label;
+#[cfg(any(target_os = "linux", test))]
+mod appimage_signature;
 #[cfg(target_os = "linux")]
 mod linux_hyprland;
 #[cfg(any(target_os = "linux", test))]

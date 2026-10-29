@@ -48,11 +48,7 @@ fn entry(blocks: &[ChatBlock]) -> Value {
 
 #[test]
 fn a_read_changes_tense_and_counts_its_lines() {
-    let read = call(
-        "c1",
-        "Read",
-        json!({"file_path": "/repo/src/notice_choices.rs"}),
-    );
+    let read = call("c1", "Read", json!({"file_path": "/repo/src/notice_choices.rs"}));
     let running = entry(&[read.clone()]);
     assert_eq!(running["label"], "Reading src/notice_choices.rs");
     assert_eq!(running["status"], "running");
@@ -98,70 +94,39 @@ fn an_undescribed_command_reads_ran_and_a_failure_says_why() {
 #[test]
 fn jest_pytest_and_bun_summaries_count() {
     let jest = "Tests:       1 failed, 213 passed, 214 total";
-    assert_eq!(
-        tool_result("Bash", Some("Ran"), jest, true),
-        "1 failed, 213 passed"
-    );
+    assert_eq!(tool_result("Bash", Some("Ran"), jest, true), "1 failed, 213 passed");
     let pytest = "============ 12 passed in 0.31s ============";
     assert_eq!(tool_result("Bash", Some("Ran"), pytest, false), "12 passed");
     let bun = " 41 pass\n 0 fail\n 120 expect() calls";
     assert_eq!(tool_result("Bash", Some("Ran"), bun, false), "41 passed");
     assert_eq!(tool_result("Bash", Some("Ran"), "ok", false), "");
     assert_eq!(
-        tool_result(
-            "exec_command",
-            Some("Ran"),
-            "Process exited with code 2\nboom",
-            true
-        ),
+        tool_result("exec_command", Some("Ran"), "Process exited with code 2\nboom", true),
         "exit 2"
     );
 }
 
 #[test]
 fn searches_and_globs_count_what_they_found() {
-    let grep = call(
-        "c1",
-        "Grep",
-        json!({"pattern": "fold_tool", "path": "/repo/src"}),
-    );
-    let found = entry(&[
-        grep.clone(),
-        result("c1", "Found 6 files\nsrc/a.rs\nsrc/b.rs", false),
-    ]);
+    let grep = call("c1", "Grep", json!({"pattern": "fold_tool", "path": "/repo/src"}));
+    let found = entry(&[grep.clone(), result("c1", "Found 6 files\nsrc/a.rs\nsrc/b.rs", false)]);
     assert_eq!(found["label"], "Searched for fold_tool in src");
     assert_eq!(found["result"], "6 files");
-    let lines = entry(&[
-        grep.clone(),
-        result("c1", "src/a.rs:1:x\nsrc/b.rs:9:y", false),
-    ]);
+    let lines = entry(&[grep.clone(), result("c1", "src/a.rs:1:x\nsrc/b.rs:9:y", false)]);
     assert_eq!(lines["result"], "2 matches");
-    assert_eq!(
-        entry(&[grep.clone()])["label"],
-        "Searching for fold_tool in src"
-    );
+    assert_eq!(entry(&[grep.clone()])["label"], "Searching for fold_tool in src");
     let none = entry(&[grep, result("c1", "No matches found", false)]);
     assert_eq!(none["result"], "No matches");
     let glob = call("c2", "Glob", json!({"pattern": "**/*.rs"}));
-    let files = entry(&[
-        glob,
-        result("c2", "/repo/a.rs\n/repo/b.rs\n/repo/c.rs", false),
-    ]);
+    let files = entry(&[glob, result("c2", "/repo/a.rs\n/repo/b.rs\n/repo/c.rs", false)]);
     assert_eq!(files["label"], "Found files matching **/*.rs");
     assert_eq!(files["result"], "3 files");
 }
 
 #[test]
 fn a_failed_fetch_says_what_failed() {
-    let fetch = call(
-        "c1",
-        "WebFetch",
-        json!({"url": "https://docs.rs/serde_json", "prompt": "x"}),
-    );
-    assert_eq!(
-        entry(&[fetch.clone()])["label"],
-        "Fetching docs.rs/serde_json"
-    );
+    let fetch = call("c1", "WebFetch", json!({"url": "https://docs.rs/serde_json", "prompt": "x"}));
+    assert_eq!(entry(&[fetch.clone()])["label"], "Fetching docs.rs/serde_json");
     let failed = entry(&[fetch, result("c1", "Request timed out after 30s", true)]);
     assert_eq!(failed["label"], "Could not fetch docs.rs/serde_json");
     assert_eq!(failed["reason"], "Request timed out after 30s");
@@ -172,10 +137,7 @@ fn a_failed_fetch_says_what_failed() {
 fn a_declined_call_says_declined() {
     let output = "The user doesn't want to proceed with this tool use. The tool use was rejected (eg. if it was a file edit, the new_string was NOT written to the file). STOP what you are doing";
     assert_eq!(failure_reason(output), "Declined");
-    assert_eq!(
-        failure_reason("<tool_use_error>File does not exist.</tool_use_error>"),
-        "File does not exist."
-    );
+    assert_eq!(failure_reason("<tool_use_error>File does not exist.</tool_use_error>"), "File does not exist.");
 }
 
 #[test]
@@ -194,24 +156,10 @@ fn an_edit_is_a_row_with_its_counts() {
     // The same counts the file change card shows (`file_change_counts`).
     assert_eq!(done["added"], 3);
     assert_eq!(done["removed"], 2);
-    let write = call(
-        "c2",
-        "Write",
-        json!({"file_path": "/repo/new.rs", "content": "x\n"}),
-    );
+    let write = call("c2", "Write", json!({"file_path": "/repo/new.rs", "content": "x\n"}));
     assert_eq!(entry(&[write.clone()])["label"], "Creating new.rs");
-    assert_eq!(
-        entry(&[write, result("c2", "ok", false)])["label"],
-        "Created new.rs"
-    );
-    let failed = entry(&[
-        edit,
-        result(
-            "c1",
-            "<tool_use_error>String to replace not found in file.</tool_use_error>",
-            true,
-        ),
-    ]);
+    assert_eq!(entry(&[write, result("c2", "ok", false)])["label"], "Created new.rs");
+    let failed = entry(&[edit, result("c1", "<tool_use_error>String to replace not found in file.</tool_use_error>", true)]);
     assert_eq!(failed["label"], "Could not edit document.rs");
     assert_eq!(failed["reason"], "String to replace not found in file.");
 }
@@ -221,11 +169,7 @@ fn rows_keep_the_order_the_calls_were_made() {
     let blocks = [
         call("c1", "Read", json!({"file_path": "/repo/a.rs"})),
         result("c1", "x", false),
-        call(
-            "c2",
-            "Edit",
-            json!({"file_path": "/repo/a.rs", "old_string": "x", "new_string": "y"}),
-        ),
+        call("c2", "Edit", json!({"file_path": "/repo/a.rs", "old_string": "x", "new_string": "y"})),
         result("c2", "ok", false),
         call("c3", "Bash", json!({"command": "cargo test"})),
     ];
@@ -234,12 +178,7 @@ fn rows_keep_the_order_the_calls_were_made() {
         .as_array()
         .unwrap()
         .iter()
-        .map(|entry| {
-            (
-                entry["kind"].as_str().unwrap().to_string(),
-                entry["index"].as_u64().unwrap(),
-            )
-        })
+        .map(|entry| (entry["kind"].as_str().unwrap().to_string(), entry["index"].as_u64().unwrap()))
         .collect();
     assert_eq!(
         kinds,
@@ -249,11 +188,7 @@ fn rows_keep_the_order_the_calls_were_made() {
 
 #[test]
 fn mcp_calls_read_as_a_verb_on_their_app() {
-    let linear = call(
-        "c1",
-        "mcp__claude_ai_Linear__get_issue",
-        json!({"id": "SPX-412"}),
-    );
+    let linear = call("c1", "mcp__claude_ai_Linear__get_issue", json!({"id": "SPX-412"}));
     let running = entry(&[linear.clone()]);
     assert_eq!(running["label"], "Reading SPX-412 in Linear");
     assert_eq!(running["app"], "linear");
@@ -266,22 +201,11 @@ fn mcp_calls_read_as_a_verb_on_their_app() {
         entry(&[linear, result("c1", "Not found", true)])["label"],
         "Could not read SPX-412 in Linear"
     );
-    let search = call(
-        "c2",
-        "mcp__github__search_issues",
-        json!({"query": "fold bug"}),
-    );
+    let search = call("c2", "mcp__github__search_issues", json!({"query": "fold bug"}));
     let searched = entry(&[search, result("c2", "[{\"n\":1},{\"n\":2}]", false)]);
-    assert_eq!(
-        searched["label"],
-        "Searched for \u{201c}fold bug\u{201d} in GitHub"
-    );
+    assert_eq!(searched["label"], "Searched for \u{201c}fold bug\u{201d} in GitHub");
     assert_eq!(searched["result"], "2 results");
-    let notion = call(
-        "c3",
-        "mcp__claude_ai_Notion__notion-fetch",
-        json!({"id": "abc123"}),
-    );
+    let notion = call("c3", "mcp__claude_ai_Notion__notion-fetch", json!({"id": "abc123"}));
     assert_eq!(entry(&[notion])["label"], "Reading abc123 in Notion");
     let list = call("c4", "mcp__linear__list_issues", json!({"team": "SPX"}));
     assert_eq!(entry(&[list])["label"], "Listing issues in Linear");
@@ -298,11 +222,7 @@ fn the_header_counts_fails_and_times_the_burst() {
     let mut spans = HashMap::new();
     for index in 0..6 {
         let id = format!("c{index}");
-        blocks.push(call(
-            &id,
-            "Read",
-            json!({"file_path": format!("/repo/{index}.rs")}),
-        ));
+        blocks.push(call(&id, "Read", json!({"file_path": format!("/repo/{index}.rs")})));
         blocks.push(result(&id, "x", index == 3));
         spans.insert(id, (1_000 + index * 10_000, 1_000 + index * 10_000 + 4_000));
     }
@@ -313,10 +233,7 @@ fn the_header_counts_fails_and_times_the_burst() {
     assert_eq!(done["failed"], 1);
     assert_eq!(done["failedLabel"], "1 failed");
     assert_eq!(done["time"], "54.0s");
-    assert_eq!(
-        done["foldedLabel"],
-        "Used 6 tools \u{b7} 1 failed \u{b7} 54.0s"
-    );
+    assert_eq!(done["foldedLabel"], "Used 6 tools \u{b7} 1 failed \u{b7} 54.0s");
     assert_eq!(done["icons"].as_array().unwrap().len(), MAX_STACKED_ICONS);
     assert_eq!(done["moreIcons"], 2);
     assert_eq!(done["entries"][0]["time"], "4.0s");
@@ -325,10 +242,7 @@ fn the_header_counts_fails_and_times_the_burst() {
     let running = card_with(&blocks, &spans, true);
     assert_eq!(running["title"], "Using 7 tools");
     assert_eq!(running["time"], "");
-    assert_eq!(
-        card_with(&blocks[..2], &HashMap::new(), true)["title"],
-        "Used 1 tool"
-    );
+    assert_eq!(card_with(&blocks[..2], &HashMap::new(), true)["title"], "Used 1 tool");
 }
 
 #[test]
@@ -349,16 +263,8 @@ fn an_unanswered_call_stops_when_the_turn_ends() {
 #[test]
 fn questions_and_sent_messages_stay_out_of_the_card() {
     let blocks = [
-        call(
-            "c1",
-            "AskUserQuestion",
-            json!({"questions": [{"question": "Which?", "options": [{"label": "A"}]}]}),
-        ),
-        result(
-            "c1",
-            "User has answered your questions: \"Which?\"=\"A\".",
-            false,
-        ),
+        call("c1", "AskUserQuestion", json!({"questions": [{"question": "Which?", "options": [{"label": "A"}]}]})),
+        result("c1", "User has answered your questions: \"Which?\"=\"A\".", false),
     ];
     let (_, tools) = split_blocks(&blocks);
     let pairs = pair_tool_blocks(tools.iter().copied());
@@ -372,11 +278,7 @@ fn a_waiting_call_says_it_waits() {
     let mut fields = serde_json::Map::new();
     fields.insert(
         "toolCard".to_string(),
-        card(&[call(
-            "c1",
-            "Bash",
-            json!({"command": "git push origin main"}),
-        )]),
+        card(&[call("c1", "Bash", json!({"command": "git push origin main"}))]),
     );
     mark_card_waiting(&mut fields, Some(0), 0..0);
     let card = &fields["toolCard"];
@@ -409,11 +311,7 @@ fn the_newest_agent_row_holds_the_live_card() {
     later.push(message("a2", "assistant", text));
     assert_eq!(live_card_id(&later, true).as_deref(), Some("a2"));
     let mut prompt = messages;
-    prompt.push(message(
-        "u2",
-        "user",
-        json!([{"type": "text", "text": "more"}]),
-    ));
+    prompt.push(message("u2", "user", json!([{"type": "text", "text": "more"}])));
     assert_eq!(live_card_id(&prompt, true), None);
 }
 
@@ -442,18 +340,11 @@ fn a_codex_exec_command_reads_ran_and_its_exit_code() {
     assert_eq!(running["label"], "Running cargo build --features nope");
     let failed = entry(&[
         call("c1", "exec", script),
-        result(
-            "c1",
-            "Exit code 101\nerror: none of the selected packages contains these features: nope",
-            true,
-        ),
+        result("c1", "Exit code 101\nerror: none of the selected packages contains these features: nope", true),
     ]);
     assert_eq!(failed["label"], "Ran cargo build --features nope");
     assert_eq!(failed["result"], "exit 101");
-    assert_eq!(
-        failed["reason"],
-        "error: none of the selected packages contains these features: nope"
-    );
+    assert_eq!(failed["reason"], "error: none of the selected packages contains these features: nope");
 }
 
 #[test]
@@ -461,22 +352,14 @@ fn codex_script_output_is_read_past_its_header() {
     let read = json!("const r=await tools.exec_command({cmd:\"sed -n 1,40p src/lib.rs\",workdir:\"/repo\"}); text(r.output);");
     let done = entry(&[
         call("c1", "exec", read),
-        result(
-            "c1",
-            "Script completed\nWall time 0.1 seconds\nOutput:\nfn a() {}\nfn b() {}\n",
-            false,
-        ),
+        result("c1", "Script completed\nWall time 0.1 seconds\nOutput:\nfn a() {}\nfn b() {}\n", false),
     ]);
     assert_eq!(done["label"], "Read src/lib.rs");
     assert_eq!(done["result"], "2 lines");
     let search = json!("const r=await tools.exec_command({cmd:\"rg -n folded src\",workdir:\"/repo\"}); text(r.output);");
     let found = entry(&[
         call("c2", "exec", search),
-        result(
-            "c2",
-            "Script completed\nWall time 0.4 seconds\nOutput:\nsrc/lib.rs:7:x\nsrc/lib.rs:8:y",
-            false,
-        ),
+        result("c2", "Script completed\nWall time 0.4 seconds\nOutput:\nsrc/lib.rs:7:x\nsrc/lib.rs:8:y", false),
     ]);
     assert_eq!(found["result"], "2 matches");
 }
@@ -489,11 +372,9 @@ fn the_phone_asks_the_core_for_an_app_logo() {
     let query = Query::from_wire("toolAppLogo").expect("a query");
     assert_eq!(query.as_str(), "toolAppLogo");
     let svg: Option<String> =
-        serde_json::from_str(&answer_query(&state, &context, query, &[json!("linear")]).unwrap())
-            .unwrap();
+        serde_json::from_str(&answer_query(&state, &context, query, &[json!("linear")]).unwrap()).unwrap();
     assert!(svg.unwrap().starts_with("<svg"));
     let unknown: Option<String> =
-        serde_json::from_str(&answer_query(&state, &context, query, &[json!("spaceo")]).unwrap())
-            .unwrap();
+        serde_json::from_str(&answer_query(&state, &context, query, &[json!("spaceo")]).unwrap()).unwrap();
     assert!(unknown.is_none());
 }

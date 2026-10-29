@@ -28,11 +28,11 @@ use crate::data::{
     SIDEBAR_COLLAPSE_ANIMATION_DURATION_STEP_MS, SIDEBAR_TOOLTIP_DELAY_STEP_MS,
     TERMINAL_VIEW_WIDTH_PERCENT_STEP,
 };
-use crate::json::{Json, ToJson, J};
-use crate::layout::{general_group, general_navigation, GENERAL_GROUPS};
+use crate::json::{J, Json, ToJson};
+use crate::layout::{GENERAL_GROUPS, general_group, general_navigation};
 use crate::rows::{SettingOption, SettingRow};
-use crate::{default_value, defaults, extra_pages, general_sections, hotkey_definitions, Platform};
-use supplemental::{Tab, ABOUT, SUPPLEMENTAL_ROWS, THEME};
+use crate::{Platform, default_value, defaults, extra_pages, general_sections, hotkey_definitions};
+use supplemental::{ABOUT, SUPPLEMENTAL_ROWS, THEME, Tab};
 
 pub use render::{hotkeys_markdown, settings_markdown};
 

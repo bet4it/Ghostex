@@ -697,10 +697,7 @@ fn agent_idle_since(session: &Value) -> Option<DateTime<Utc>> {
         .map(|stamp| stamp.with_timezone(&Utc))
 }
 
-pub(super) fn session_chat_queue_activity_is_deliverable(
-    session: &Value,
-    generated_at: &str,
-) -> bool {
+pub(super) fn session_chat_queue_activity_is_deliverable(session: &Value, generated_at: &str) -> bool {
     match presentation_activity(session, generated_at).as_str() {
         "idle" => true,
         "attention" => {

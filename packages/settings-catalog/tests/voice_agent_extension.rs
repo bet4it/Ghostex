@@ -34,10 +34,7 @@ fn voice_agent_needs_no_experimental_gate() {
 
 #[test]
 fn turning_it_off_lists_it_as_off_for_the_phone() {
-    assert!(!built_in_extensions::on_with(
-        VOICE_AGENT,
-        saved(Some(true))
-    ));
+    assert!(!built_in_extensions::on_with(VOICE_AGENT, saved(Some(true))));
     assert!(!built_in_extensions::enabled_features_with(saved(Some(true))).contains(&VOICE_AGENT));
     assert!(built_in_extensions::disabled_features_with(saved(Some(true))).contains(&VOICE_AGENT));
 }
@@ -50,10 +47,7 @@ fn turning_it_off_hides_its_hotkeys_but_not_dictate() {
             Some(VOICE_AGENT)
         );
         assert!(built_in_extensions::hotkey_shown_with(hotkey, saved(None)));
-        assert!(!built_in_extensions::hotkey_shown_with(
-            hotkey,
-            saved(Some(true))
-        ));
+        assert!(!built_in_extensions::hotkey_shown_with(hotkey, saved(Some(true))));
     }
     assert!(built_in_extensions::hotkey_shown_with(
         "toggleDictation",
@@ -64,10 +58,7 @@ fn turning_it_off_hides_its_hotkeys_but_not_dictate() {
 #[test]
 fn turning_it_off_keeps_the_page_with_dictates_key_and_history() {
     assert_eq!(built_in_extensions::feature_owning_page("voiceAgent"), None);
-    assert!(built_in_extensions::page_shown_with(
-        "voiceAgent",
-        saved(Some(true))
-    ));
+    assert!(built_in_extensions::page_shown_with("voiceAgent", saved(Some(true))));
     let hidden = built_in_extensions::hidden_setting_keys_with(saved(Some(true)));
     for call_row in [
         "voiceAgentProvider",
