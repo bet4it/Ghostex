@@ -534,7 +534,8 @@ fn synthesized_item(
             }
             if let Some(ticket) = ticket {
                 for key in ["assignee", "cycle", "labels"] {
-                    if let Some(value) = ticket.get(key) {
+                    // An unassigned or uncycled ticket leaves the key out, like the list row does.
+                    if let Some(value) = ticket.get(key).filter(|value| !value.is_null()) {
                         item[key] = value.clone();
                     }
                 }
@@ -777,11 +778,16 @@ pub(crate) fn fetch_github_issue_detail(cwd: &str, number: u64) -> Result<Value,
     .ok_or_else(|| format!("gh could not read issue #{number}."))?;
     let issue: Value = serde_json::from_str(output.trim())
         .map_err(|_| format!("gh sent an unreadable answer for issue #{number}."))?;
-    Ok(github_issue_detail_of(number, &issue))
+    Ok(github_issue_detail_of(
+        number,
+        &issue,
+        cached_github_viewer_login().as_deref(),
+    ))
 }
 
-/// The details page's GitHub issue from `gh issue view --json`.
-fn github_issue_detail_of(number: u64, issue: &Value) -> Value {
+/// The details page's GitHub issue from `gh issue view --json`. `viewer` is the signed-in
+/// GitHub login, so the first assignee carries the same `isMe` the list row does.
+fn github_issue_detail_of(number: u64, issue: &Value, viewer: Option<&str>) -> Value {
     let comments: Vec<Value> = issue
         .get("comments")
         .and_then(Value::as_array)
@@ -804,6 +810,24 @@ fn github_issue_detail_of(number: u64, issue: &Value) -> Value {
     let text = |key: &str| issue.get(key).and_then(Value::as_str).map(str::to_string);
     let state = text("state").map(|state| state.to_ascii_lowercase());
     let closed = state.as_deref() == Some("closed");
+    let assignee = issue
+        .get("assignees")
+        .and_then(Value::as_array)
+        .and_then(|people| people.first())
+        .and_then(|person| person.get("login").and_then(Value::as_str))
+        .map(|login| {
+            json!({
+                "name": login,
+                "isMe": viewer.is_some_and(|viewer| viewer.eq_ignore_ascii_case(login)),
+            })
+        });
+    let labels: Vec<&str> = issue
+        .get("labels")
+        .and_then(Value::as_array)
+        .into_iter()
+        .flatten()
+        .filter_map(|label| label.get("name").and_then(Value::as_str))
+        .collect();
     ticket_detail_value(TicketDetail {
         ticket: &TicketRef::new(WorkSourceId::Github, number.to_string()),
         title: text("title"),
@@ -817,6 +841,8 @@ fn github_issue_detail_of(number: u64, issue: &Value) -> Value {
         fields: json!({
             "author": issue.pointer("/author/login"),
             "updatedAt": issue.get("updatedAt"),
+            "assignee": assignee,
+            "labels": labels,
         })
         .as_object()
         .cloned()
@@ -1204,7 +1230,7 @@ mod tests {
             "assignees": [{ "login": "octo-me" }], "labels": [{ "name": "bug" }, { "name": "rtl" }],
             "comments": comments, "updatedAt": "2026-10-21T09:00:00Z",
         });
-        let mut detail = github_issue_detail_of(218, &issue);
+        let mut detail = github_issue_detail_of(218, &issue, Some("octo-me"));
         let comments = detail["comments"].as_array().unwrap().clone();
         assert_eq!(comments.len(), MAX_COMMENTS);
         assert_eq!(
@@ -1218,6 +1244,8 @@ mod tests {
             json!({
               "author": "yahia",
               "updatedAt": "2026-10-21T09:00:00Z",
+              "assignee": { "name": "octo-me", "isMe": true },
+              "labels": ["bug", "rtl"],
               "source": "github",
               "id": "218",
               "label": "#218",
@@ -1285,7 +1313,7 @@ mod tests {
 
     #[test]
     fn the_team_flow_names_a_ticket_state_as_its_tracker_does() {
-        let github = github_issue_detail_of(218, &json!({ "state": "OPEN" }));
+        let github = github_issue_detail_of(218, &json!({ "state": "OPEN" }), None);
         let linear = linear_issue_detail_of("ACM-1", &linear_answer("ACM-1", json!([]))).unwrap();
         let facts = |ticket: &Value, id: TicketRef| {
             let facts = team_flow_facts(&WorkItemRef::Ticket(id), 0, Some(ticket), None);
@@ -1330,6 +1358,7 @@ mod tests {
         let github_issue = github_issue_detail_of(
             218,
             &json!({ "number": 218, "title": "Arabic plan cards", "url": "https://github.com/acme/web/issues/218", "state": "CLOSED" }),
+            None,
         );
         let ticket = |source, id: &str| WorkItemRef::Ticket(TicketRef::new(source, id));
         let rows = json!({
@@ -1620,6 +1649,7 @@ mod tests {
                 "comments": [{ "author": { "login": "ana" }, "body": "Repro on 17.2", "createdAt": "2026-10-02T09:00:00Z" }],
                 "updatedAt": "2026-10-21T09:00:00Z",
             }),
+            Some("octo-me"),
         );
         // What the page read a moment ago, so nothing asks GitHub.
         cached_detail(format!("issue:{cwd}#218"), true, || Ok(issue)).unwrap();
@@ -1651,8 +1681,9 @@ mod tests {
             json!({
               "item": {
                 "sessions": [],
-                "labels": [],
-                "assignedToMe": false,
+                "labels": ["bug"],
+                "assignee": { "name": "octo-me", "isMe": true },
+                "assignedToMe": true,
                 "noTicket": false,
                 "projectId": "PCharReadGh",
                 "projectName": "Read web",
@@ -1672,6 +1703,8 @@ mod tests {
               "ticket": {
                 "author": "yahia",
                 "updatedAt": "2026-10-21T09:00:00Z",
+                "assignee": { "name": "octo-me", "isMe": true },
+                "labels": ["bug"],
                 "source": "github",
                 "id": "218",
                 "label": "#218",

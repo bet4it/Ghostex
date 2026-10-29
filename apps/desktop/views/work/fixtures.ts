@@ -917,6 +917,7 @@ export async function answerFromFixtures(action: string, params: Record<string, 
           (candidate) =>
             (params.ticketId != null &&
               candidate.source === params.source &&
+              candidate.projectId === params.projectId &&
               candidate.ticketId === String(params.ticketId)) ||
             (params.pullRequest && candidate.pullRequestRef === params.pullRequest)
         ) ?? ITEMS[0];

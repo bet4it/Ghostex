@@ -72,7 +72,8 @@ fn a_linear_branch_links_its_ticket_and_the_card_shows_its_linear_project() {
               "stateName": "In Progress",
               "stateGroup": "progress",
               "url": "https://linear.app/acme/issue/ACM-12",
-              "source": "branch"
+              "source": "branch",
+              "sourceLabel": "From branch"
             }
           ],
           "linearProject": {
@@ -149,7 +150,8 @@ fn hand_set_linear_and_github_links_publish_what_is_known_about_each() {
               "stateName": "In Progress",
               "stateGroup": "progress",
               "url": "https://linear.app/acme/issue/ACM-12",
-              "source": "user"
+              "source": "user",
+              "sourceLabel": "You added"
             },
             {
               "key": "linear:ACM-13",
@@ -158,14 +160,16 @@ fn hand_set_linear_and_github_links_publish_what_is_known_about_each() {
               "state": "notFound",
               "stateName": "Not found",
               "finished": true,
-              "source": "user"
+              "source": "user",
+              "sourceLabel": "You added"
             },
             {
               "key": "linear:ACM-14",
               "kind": "linear",
               "label": "ACM-14",
               "loading": true,
-              "source": "user"
+              "source": "user",
+              "sourceLabel": "You added"
             },
             {
               "key": "issue:acme/app#3",
@@ -176,7 +180,8 @@ fn hand_set_linear_and_github_links_publish_what_is_known_about_each() {
               "stateName": "Open",
               "stateGroup": "todo",
               "url": "https://github.com/acme/app/issues/3",
-              "source": "user"
+              "source": "user",
+              "sourceLabel": "You added"
             }
           ],
           "linearProject": {
@@ -289,7 +294,8 @@ fn a_github_branch_links_its_issue_and_no_linear_project() {
               "stateGroup": "closed",
               "url": "https://github.com/acme/web/issues/7",
               "finished": true,
-              "source": "branch"
+              "source": "branch",
+              "sourceLabel": "From branch"
             }
           ]
         }),
@@ -337,7 +343,8 @@ fn a_hand_set_github_issue_nobody_has_read_yet_publishes_its_number_and_a_loadin
               "kind": "issue",
               "label": "#9",
               "loading": true,
-              "source": "user"
+              "source": "user",
+              "sourceLabel": "You added"
             }
           ]
         }),
@@ -433,7 +440,8 @@ fn a_branch_with_a_pr_shows_the_pr_in_the_sessions_work_and_links() {
               "stateName": "Open",
               "stateGroup": "todo",
               "url": "https://github.com/acme/web/issues/7",
-              "source": "branch"
+              "source": "branch",
+              "sourceLabel": "From branch"
             }
           ]
         }),

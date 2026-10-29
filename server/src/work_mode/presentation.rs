@@ -228,6 +228,7 @@ pub(crate) fn presentation_session_work(project: &Value, session: &Value) -> Opt
             let mut link =
                 ticket_link_value(&ticket, repo.as_deref().unwrap_or(scope.project_id), &read);
             link["source"] = json!(if by_hand { "user" } else { "branch" });
+            link["sourceLabel"] = json!(if by_hand { "You added" } else { "From branch" });
             link
         })
         .collect();
