@@ -53,45 +53,55 @@ fn linear_identifiers_are_normalized() {
 }
 
 #[test]
-fn a_request_names_a_linear_issue_a_github_issue_or_a_pr() {
+fn a_request_names_a_ticket_of_a_source_or_a_pr() {
+    let linear = |id: &str| {
+        Ok(WorkItemRef::Ticket(TicketRef::new(
+            WorkSourceId::Linear,
+            id,
+        )))
+    };
+    let github = |id: &str| {
+        Ok(WorkItemRef::Ticket(TicketRef::new(
+            WorkSourceId::Github,
+            id,
+        )))
+    };
+    let pull_request = |selector: &str| Ok(WorkItemRef::PullRequest(selector.to_string()));
     let cases = [
-        (
-            json!({ "linearIssue": "acm-1" }),
-            Some(WorkItemRef::Linear("ACM-1".to_string())),
-        ),
-        (
-            json!({ "githubIssue": 218 }),
-            Some(WorkItemRef::GithubIssue(218)),
-        ),
-        (
-            json!({ "githubIssue": "#218" }),
-            Some(WorkItemRef::GithubIssue(218)),
-        ),
-        (
-            json!({ "pullRequest": 41 }),
-            Some(WorkItemRef::PullRequest("41".to_string())),
-        ),
-        (
-            json!({ "pullRequest": " #41 " }),
-            Some(WorkItemRef::PullRequest("41".to_string())),
-        ),
+        (json!({ "source": "linear", "ticketId": "acm-1" }), linear("ACM-1")),
+        (json!({ "source": "github", "ticketId": 218 }), github("218")),
+        (json!({ "source": "github", "ticketId": "#218" }), github("218")),
+        (json!({ "pullRequest": 41 }), pull_request("41")),
+        (json!({ "pullRequest": " #41 " }), pull_request("41")),
         (
             json!({ "pullRequest": "https://github.com/acme/app/pull/41" }),
-            Some(WorkItemRef::PullRequest(
-                "https://github.com/acme/app/pull/41".to_string(),
-            )),
+            pull_request("https://github.com/acme/app/pull/41"),
         ),
-        // The Linear issue wins when a request names several.
+        // The ticket wins when a request names a PR too.
         (
-            json!({ "linearIssue": "ACM-1", "githubIssue": 2, "pullRequest": 3 }),
-            Some(WorkItemRef::Linear("ACM-1".to_string())),
+            json!({ "source": "linear", "ticketId": "ACM-1", "pullRequest": 3 }),
+            linear("ACM-1"),
         ),
         (
-            json!({ "linearIssue": "not a ticket", "githubIssue": 2 }),
-            Some(WorkItemRef::GithubIssue(2)),
+            json!({ "source": "linear", "ticketId": "not a ticket" }),
+            Err("\"not a ticket\" is not a Linear issue ID like SPX-1245.".to_string()),
         ),
-        (json!({ "pullRequest": "" }), None),
-        (json!({}), None),
+        (
+            json!({ "source": "jira", "ticketId": "X-1" }),
+            Err("source must be linear or github.".to_string()),
+        ),
+        (
+            json!({ "source": "github", "ticketId": 0 }),
+            Err("ticketId must be a GitHub issue number.".to_string()),
+        ),
+        (
+            json!({ "pullRequest": "abc" }),
+            Err("pullRequest must be a PR number or URL.".to_string()),
+        ),
+        (
+            json!({}),
+            Err("Pass source and ticketId (linear SPX-1245, github 218) or pullRequest (412 or its URL).".to_string()),
+        ),
     ];
     for (request, expected) in cases {
         assert_eq!(

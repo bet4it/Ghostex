@@ -78,6 +78,7 @@ pub(crate) fn session_link_glyph_icon(glyph: SessionLinkGlyph) -> &'static str {
         SessionLinkGlyph::Branch => "titlebar/git-branch.svg",
         SessionLinkGlyph::Github => "titlebar/brand-github.svg",
         SessionLinkGlyph::Linear => "titlebar/brand-linear.svg",
+        SessionLinkGlyph::Ticket => "titlebar/circle-dot.svg",
         SessionLinkGlyph::ChecksPassing => "titlebar/circle-check.svg",
         SessionLinkGlyph::ChecksFailing => "titlebar/circle-x.svg",
         SessionLinkGlyph::ChecksPending => "titlebar/loader2.svg",

@@ -6,6 +6,7 @@ use crate::session_git_status::{set_cached_session_git_status_for_test, SessionG
 pub(super) const VIEWER_LOGIN: &str = "octo-me";
 
 /// Fails with the whole published value pretty-printed, so a changed field is easy to spot.
+#[track_caller]
 pub(super) fn assert_published(actual: &Value, expected: Value) {
     assert!(
         *actual == expected,
@@ -122,7 +123,7 @@ pub(super) fn work_project(
     sessions: Vec<Value>,
     linear_api_key: Option<&str>,
     repo: &str,
-    tracker: WorkTracker,
+    tracker: WorkSourceId,
 ) -> WorkProjectInput {
     WorkProjectInput {
         project_id: project["projectId"].as_str().unwrap().to_string(),

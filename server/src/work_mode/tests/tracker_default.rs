@@ -49,7 +49,7 @@ fn a_team_choice_wins_then_this_computers_then_linear_when_a_key_applies() {
     // The workspace's own pick still beats the key.
     assert_eq!(tracker("ws-char-picked"), ("github", "workspace"));
 
-    remember_team_work_tracker("ws-char-team", Some(WorkTracker::Linear));
+    remember_team_work_tracker("ws-char-team", Some(WorkSourceId::Linear));
     assert_eq!(tracker("ws-char-team"), ("linear", "team"));
     remember_team_work_tracker("ws-char-team", None);
     assert_eq!(tracker("ws-char-team"), ("github", "workspace"));
@@ -57,18 +57,18 @@ fn a_team_choice_wins_then_this_computers_then_linear_when_a_key_applies() {
 
 #[test]
 fn trackers_read_and_write_their_wire_names() {
-    assert_eq!(WorkTracker::Linear.as_wire(), "linear");
-    assert_eq!(WorkTracker::Github.as_wire(), "github");
-    for tracker in [WorkTracker::Linear, WorkTracker::Github] {
+    assert_eq!(WorkSourceId::Linear.as_wire(), "linear");
+    assert_eq!(WorkSourceId::Github.as_wire(), "github");
+    for tracker in [WorkSourceId::Linear, WorkSourceId::Github] {
         assert_eq!(
-            WorkTracker::from_wire(Some(&json!(tracker.as_wire()))),
+            WorkSourceId::from_wire(Some(&json!(tracker.as_wire()))),
             Some(tracker)
         );
     }
     assert_eq!(
-        WorkTracker::from_wire(Some(&json!(" linear "))),
-        Some(WorkTracker::Linear)
+        WorkSourceId::from_wire(Some(&json!(" linear "))),
+        Some(WorkSourceId::Linear)
     );
-    assert_eq!(WorkTracker::from_wire(Some(&json!("jira"))), None);
-    assert_eq!(WorkTracker::from_wire(None), None);
+    assert_eq!(WorkSourceId::from_wire(Some(&json!("jira"))), None);
+    assert_eq!(WorkSourceId::from_wire(None), None);
 }

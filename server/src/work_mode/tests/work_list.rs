@@ -19,7 +19,7 @@ fn linear_workspace_list() -> Value {
         sessions,
         Some(api_key),
         "acme/app",
-        WorkTracker::Linear,
+        WorkSourceId::Linear,
     );
     let projects = vec![input];
     let plan = work_feed_plan(&projects);
@@ -113,7 +113,7 @@ fn github_workspace_list() -> Value {
     let cwd = "/gx-char/list/github-app";
     let project = project("PCharGhList", cwd);
     let sessions = vec![session("PCharGhList", "S3", json!({ "githubIssues": [5] }))];
-    let input = work_project(project, sessions, None, "acme/web", WorkTracker::Github);
+    let input = work_project(project, sessions, None, "acme/web", WorkSourceId::Github);
     let projects = vec![input];
     let plan = work_feed_plan(&projects);
     let roadmap = GithubListProject {
@@ -174,7 +174,8 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
           "items": [
             {
               "key": "linear:ACM-1",
-              "kind": "linearIssue",
+              "kind": "ticket",
+              "source": "linear",
               "id": "ACM-1",
               "title": "Title of ACM-1",
               "url": "https://linear.app/acme/issue/ACM-1",
@@ -211,11 +212,12 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
               "noTicket": false,
               "branchName": "leandro/acm-1-work",
               "sessions": [],
-              "linearIssue": "ACM-1"
+              "ticketId": "ACM-1"
             },
             {
               "key": "linear:ACM-2",
-              "kind": "linearIssue",
+              "kind": "ticket",
+              "source": "linear",
               "id": "ACM-2",
               "title": "Title of ACM-2",
               "url": "https://linear.app/acme/issue/ACM-2",
@@ -239,7 +241,7 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
               "noTicket": false,
               "branchName": "leandro/acm-2-work",
               "sessions": [],
-              "linearIssue": "ACM-2"
+              "ticketId": "ACM-2"
             },
             {
               "key": "pr:acme/app#43",
@@ -275,7 +277,8 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
             },
             {
               "key": "linear:ACM-7",
-              "kind": "linearIssue",
+              "kind": "ticket",
+              "source": "linear",
               "id": "ACM-7",
               "title": "Title of ACM-7",
               "url": "https://linear.app/acme/issue/ACM-7",
@@ -308,7 +311,7 @@ fn a_linear_workspace_lists_its_tickets_with_their_prs_folded_in() {
                   "agentId": "claude"
                 }
               ],
-              "linearIssue": "ACM-7"
+              "ticketId": "ACM-7"
             }
           ],
           "projects": [
@@ -337,7 +340,8 @@ fn a_github_workspace_lists_its_issues_with_their_prs_folded_in() {
           "items": [
             {
               "key": "issue:acme/web#6",
-              "kind": "githubIssue",
+              "kind": "ticket",
+              "source": "github",
               "id": "#6",
               "title": "Issue 6",
               "url": "https://github.com/acme/web/issues/6",
@@ -366,11 +370,12 @@ fn a_github_workspace_lists_its_issues_with_their_prs_folded_in() {
               },
               "noTicket": false,
               "sessions": [],
-              "githubIssue": 6
+              "ticketId": "6"
             },
             {
               "key": "issue:acme/web#5",
-              "kind": "githubIssue",
+              "kind": "ticket",
+              "source": "github",
               "id": "#5",
               "title": "Issue 5",
               "url": "https://github.com/acme/web/issues/5",
@@ -413,7 +418,7 @@ fn a_github_workspace_lists_its_issues_with_their_prs_folded_in() {
                   "agentId": "claude"
                 }
               ],
-              "githubIssue": 5
+              "ticketId": "5"
             },
             {
               "key": "pr:acme/web#10",

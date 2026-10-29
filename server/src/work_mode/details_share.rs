@@ -11,8 +11,11 @@ use super::*;
 /// changed, so the caller republishes the cards now instead of on the next pass.
 pub(crate) fn share_work_item_with_sidebar(projects: &[WorkProjectInput], details: &Value) -> bool {
     let mut changed = false;
-    if let Some(linear) = details.get("linear") {
-        let identifier = linear.get("identifier").and_then(Value::as_str);
+    if let Some(linear) = details
+        .get("ticket")
+        .filter(|ticket| ticket.get("source").and_then(Value::as_str) == Some("linear"))
+    {
+        let identifier = linear.get("id").and_then(Value::as_str);
         let urls: Vec<String> = linear
             .get("pullRequestUrls")
             .and_then(Value::as_array)
