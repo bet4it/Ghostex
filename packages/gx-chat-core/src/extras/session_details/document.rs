@@ -151,24 +151,18 @@ fn shorten_email(email: &str, max: usize) -> String {
 
 /// CDXC:SessionDetails 2026-10-25 DECISION:
 /// User: the account row shows the account's email with its short tag ("sharptabs.com@gmail.com (ST)") instead of "account 5 (ST)", which stays only while Ghostex knows no email for that account. A long email loses the middle of its name so the row stays one line with its tag, and the tooltip holds the whole email. Hide Account Emails masks it, like the chat's other account text.
+///
+/// CDXC:SessionDetails 2026-10-29 DECISION:
+/// User: "pls remove (ST) here". The row shows the email alone, using the whole line; "account 5 (ST)" stays only while Ghostex knows no email for that account.
 fn account_row(environment: &Value, hide_emails: bool) -> Option<Value> {
     let Some(email) = text(environment, "/accountEmail") else {
         return text(environment, "/account")
             .map(|account| json!({"icon": "user", "text": account}));
     };
-    let tag = text(environment, "/accountName").filter(|name| !name.eq_ignore_ascii_case(&email));
     let email = crate::menus::native_accounts::account_text(hide_emails, &email);
-    let room = match &tag {
-        Some(tag) => ACCOUNT_ROW_CHARS.saturating_sub(tag.chars().count() + 3),
-        None => ACCOUNT_ROW_CHARS,
-    };
-    let shown = shorten_email(&email, room.max(12));
     Some(json!({
         "icon": "user",
-        "text": match tag {
-            Some(tag) => format!("{shown} ({tag})"),
-            None => shown,
-        },
+        "text": shorten_email(&email, ACCOUNT_ROW_CHARS),
         "tooltip": email,
     }))
 }
