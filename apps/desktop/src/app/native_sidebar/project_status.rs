@@ -5,6 +5,19 @@ use gpui::{AnyElement, IntoElement, ParentElement, Styled, div, px, rgb};
 use gpui_component::h_flex;
 use serde_json::Value;
 
+/// The project header's "+N" (added lines) and "-N" (removed lines) colours, which the sidebar's
+/// link badge and the chat's Links pill take too (link_chips.rs `session_link_badge_color`).
+pub(crate) fn project_diff_additions_color() -> gpui::Rgba {
+    chrome_color(0x9cc894, 0x2a7a3a)
+}
+
+pub(crate) fn project_diff_deletions_color() -> gpui::Rgba {
+    chrome_color(0xdca8a4, 0xc43a42)
+}
+
+/// The opacity the project header draws its diff numbers at (the 2026-09-22 decision below).
+pub(crate) const PROJECT_DIFF_OPACITY: f32 = 0.7;
+
 pub(crate) fn project_status(
     group: &NativeSidebarGroup,
     hud: &Value,
@@ -88,13 +101,13 @@ pub(crate) fn project_status(
     // CDXC:Theming 2026-09-22 DECISION: User: make the text have 70% opacity.
     // This supersedes the earlier same-day instruction not to use opacity on these numbers. The theme colors stay solid underneath.
     // SEE-ALSO: packages/core-ui/styles/groups.css `.group-project-diff-stats`, packages/core-ui/styles/sidebar-light.css.
-    let additions_color = chrome_color(0x9cc894, 0x2a7a3a);
-    let deletions_color = chrome_color(0xdca8a4, 0xc43a42);
+    let additions_color = project_diff_additions_color();
+    let deletions_color = project_diff_deletions_color();
     Some(
         h_flex()
             .gap(px(8.0 * scale))
             .text_size(px(13.55 * scale))
-            .opacity(0.7)
+            .opacity(PROJECT_DIFF_OPACITY)
             .when(
                 hud["settings"]["showProjectEditorDiffFileCount"] == true,
                 |row| {

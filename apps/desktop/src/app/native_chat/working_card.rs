@@ -40,16 +40,6 @@ const LINE_HEIGHT: f32 = 22.0;
 pub(super) struct WorkingCardCells {
     /// The label did not fit its line, so hovering it shows the whole text.
     label_truncated: Rc<Cell<bool>>,
-    /// The card's top edge at its last paint, `None` while it isn't drawn: the pills' menus open
-    /// above it (pills_strip.rs).
-    top: Rc<Cell<Option<gpui::Pixels>>>,
-}
-
-impl WorkingCardCells {
-    /// The card's top edge, while it shows.
-    pub(super) fn top(&self) -> Option<gpui::Pixels> {
-        self.top.get()
-    }
 }
 
 impl NativeChatView {
@@ -72,11 +62,9 @@ impl NativeChatView {
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         if !self.working_card_shown() {
-            self.working_card.top.set(None);
             return None;
         }
         let card = self.snapshot["workingCard"].clone();
-        let top = self.working_card.top.clone();
         let left_bottom = super::scroll_bottom::transcript_left_bottom(&self.list);
         let header = self.working_card_header(&card, p, cx);
         let card = div()
@@ -101,14 +89,6 @@ impl NativeChatView {
                     .on_click(cx.listener(|chat, _, _, cx| chat.jump_to_bottom(cx)))
             })
             .child(header)
-            .child(
-                canvas(
-                    move |bounds, _, _| top.set(Some(bounds.top())),
-                    |_, _, _, _| {},
-                )
-                .absolute()
-                .inset_0(),
-            )
             .into_any_element();
         Some(card)
     }

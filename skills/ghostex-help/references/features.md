@@ -3770,10 +3770,12 @@ ticket you later type yourself still links. The + in the list's header (Add on t
 phone) links one by hand: type `SPX-123`, `#123` or `owner/repo#123`, or paste a
 GitHub or Linear link, and press Enter; Ghostex asks GitHub whether a bare number is
 a PR or an issue, and says so under the field when it can't read it or GitHub doesn't
-know it. The chat's bar above the composer has a Links pill (between Workers and
-Tasks) that reads like the sidebar's badge: a link icon, one link's number or ID and
-+N for the others (`#123`, `SPX-123 +2`); with no links yet but suggestions it says
-`3 suggested`, muted and dashed. Click it for the whole list:
+know it. The strip of pills along the top of the chat box ends with a Links pill
+that reads like the sidebar's badge, in the softer colours of the project header's
++/- line counts: a link icon and one link's number or ID, with a + after it when
+there are more (`#123`, `SPX-123+`); with no links yet but suggestions it says
+`3 suggested`, muted and dashed. Click it for the whole list, which opens above the
+chat box:
 each link with its icon (a branch for a pull request, the
 GitHub mark for an issue, the Linear logo for a Linear ticket, coloured by its
 state; rest the pointer on the icon to see the state in words, with a pull request's
@@ -3809,9 +3811,10 @@ join by itself again. In the sidebar, **Session links in the sidebar**
 (Settings > Session Cards) picks how a card shows them: Always (a line of chips
 under every card that has links), Selected session (that line only under the
 session you have open), Badge (the default: a small badge on the card with one link's
-number or ID, the pinned one, else the only one, else the most pressing, and +N for the
-others, such as `SPX-123 +2`, coloured by the most pressing link: red for failing checks or changes asked for, amber for a
-review asked for or checks still running, grey once every link is merged or closed), Open work only (a line of the ones
+number or ID, the pinned one, else the only one, else the most pressing, with a + after it
+when there are more, such as `SPX-123+`, coloured by the most pressing link in the soft tones of the project
+header's +/- line counts: green for open work, red for failing checks or changes asked for, amber for a
+review asked for or checks still running, purple once merged or closed), Open work only (a line of the ones
 still open, none once they are all merged or closed), or Off. A session with no
 links yet but links the chat mentioned shows a muted, dashed badge counting those
 suggestions on a line under its name, with every choice but Off. Rest the pointer on a

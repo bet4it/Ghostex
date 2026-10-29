@@ -1,13 +1,16 @@
-//! The Links pill on the working card: the session's links in the sidebar badge's look (gx-core
-//! `SessionLinks::chat_pill`, where the user's decision lives), between the Workers and Tasks
-//! pills. A click opens the session's links list (the desktop's header dropdown, the web build's
-//! card), which the app owns.
+//! The Links pill in the chat box's pill strip (pills_strip.rs): the session's links in the sidebar
+//! badge's text (gx-core `SessionLinks::chat_pill`, where the user's decision lives), drawn faintly,
+//! the strip's last pill. A click opens the session's links list above the chat box (the desktop's
+//! links popup, the web build's card), which the app owns.
+//!
+//! CDXC:SessionLinks 2026-10-29 DECISION:
+//! User, of the Links pill in the strip: "let's please make the green here much more faint" and "move this pill to be rightmost one of the pills (the Links one)". It is the strip's last pill, after Background, the ID in a medium weight. Supersedes its place between Workers and Tasks (2026-10-28). Its colours are the sidebar badge's, muted to the project header's diff numbers (`session_link_badge_color` in native_sidebar/link_chips.rs, where the user's 2026-10-29 words on that green live), and it reads "#270+" with more links.
 //!
 //! CDXC:SessionLinks 2026-10-28 SEE-ALSO:
 //! The phone draws the same pill in apps/mobile/app/src/chat/native/cards/ChatPills.tsx (`LinksPill`), from apps/mobile/app/src/chat/native/sessionLinks.ts `sessionLinksChatPill`.
 
 use super::{appearance::ChatAppearance, cursor::ChatCursor as _, state::NativeChatView};
-use crate::app::native_sidebar::link_chips::session_link_tone_color;
+use crate::app::native_sidebar::link_chips::session_link_badge_color;
 use ghostex_gx_core::{SessionKey, SessionLinks, SessionLinksChatPill};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
@@ -15,17 +18,6 @@ use gpui::{
     StatefulInteractiveElement as _, Styled as _, div, px, svg,
 };
 use serde_json::json;
-
-/// The chat pill ids the Links pill goes before: it follows Resources and Workers.
-const AFTER_LINKS: [&str; 3] = ["tasks", "subagents", "background"];
-
-/// Where the Links pill goes among the core's pill ids: before the first of Tasks, Subagents or
-/// Background, else last.
-pub(super) fn links_pill_index(ids: &[&str]) -> usize {
-    ids.iter()
-        .position(|id| AFTER_LINKS.contains(id))
-        .unwrap_or(ids.len())
-}
 
 impl NativeChatView {
     /// The gxserver session this chat shows, as the sidebar store keys it.
@@ -86,7 +78,7 @@ impl NativeChatView {
         let color = if pill.suggested {
             p.card_muted
         } else {
-            session_link_tone_color(pill.tone)
+            session_link_badge_color(pill.tone)
         };
         div()
             .id("chat-pill-links")
@@ -118,46 +110,29 @@ impl NativeChatView {
             .child(
                 div()
                     .when(!pill.suggested, |id| {
-                        id.font_weight(gpui::FontWeight::SEMIBOLD)
+                        id.font_weight(gpui::FontWeight::MEDIUM)
                     })
-                    .child(pill.label.clone()),
+                    // "#270+" with more links (link_chips.rs has the user's words).
+                    .child(if pill.more > 0 {
+                        format!("{}+", pill.label)
+                    } else {
+                        pill.label.clone()
+                    }),
             )
-            .when(pill.more > 0, |this| {
-                this.child(
-                    div()
-                        .text_color(color.opacity(0.75))
-                        .child(format!("+{}", pill.more)),
-                )
-            })
-            .on_click(cx.listener(|this, event: &gpui::ClickEvent, _, cx| {
+            .on_click(cx.listener(|this, _: &gpui::ClickEvent, _, cx| {
                 cx.stop_propagation();
-                // The list opens against the pill strip (flipping above it for lack of room below), lined up
-                // with the click.
-                let card = this.pills_strip.bounds();
+                // The list opens above the chat box at its left edge, as the other pills' menus do
+                // (`PillsStripCells::menu_anchor`; the popup's geometry keeps it above).
+                let anchor = this.pills_strip.box_anchor();
                 let anchor = json!({
-                    "x": f32::from(event.position().x),
-                    "y": f32::from(card.top()),
+                    "x": f32::from(anchor.left()),
+                    // The popup's 4px gap above the box, as the other menus keep.
+                    "y": f32::from(anchor.top()) - 4.0,
                     "width": 1.0,
-                    "height": f32::from(card.size.height),
+                    "height": 1.0,
                 });
                 this.host("sessionLinks", json!({ "anchor": anchor }), cx);
             }))
             .into_any_element()
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::links_pill_index;
-
-    #[test]
-    fn links_sit_between_workers_and_tasks() {
-        assert_eq!(
-            links_pill_index(&["resources", "threads", "tasks", "subagents"]),
-            2
-        );
-        assert_eq!(links_pill_index(&["resources", "subagents"]), 1);
-        assert_eq!(links_pill_index(&["threads"]), 1);
-        assert_eq!(links_pill_index(&[]), 0);
     }
 }

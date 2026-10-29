@@ -45,28 +45,17 @@ pub(super) struct PillsStripCells {
 }
 
 impl PillsStripCells {
-    /// Where a pill's menu opens against: the pill's left and right edges with the working card's top
-    /// while it shows (`card_top`), else the strip's (the chat box's top edge), so the menu's bottom
-    /// sits its 4px gap above them, covering neither.
+    /// Where a pill's menu opens against: the chat box's top-left corner, so the menu opens upward
+    /// with its bottom edge its 4px gap above the box and its left edge on the box's (chat_pills.rs
+    /// opens every strip menu on that side).
     ///
-    /// CDXC:SessionChat 2026-10-18 DECISION:
-    /// User: "please make these floating menus appear with 4px gap from the working card itself, not from the pill". The pills now sit in the chat box's strip under the card, so the menus still open 4px above the card (above the box when no card shows), keeping their horizontal placement against the pill (chat_pills.rs).
-    pub(super) fn menu_anchor(
-        &self,
-        pill: Bounds<Pixels>,
-        card_top: Option<Pixels>,
-    ) -> Bounds<Pixels> {
+    /// CDXC:SessionChat 2026-10-29 DECISION:
+    /// User, of the strip's menus: "please make the menus always appear above the composer not below and to the top left ... but it shouldn't be above the bar above the composer anymore, should be above the composer itself instead". Every menu the strip opens (Resources, Workers, Tasks, Subagents, Background and Links) opens upward from the chat box's top edge, over the working bar rather than above it, aligned to the box's left edge, never below. Supersedes the 2026-10-18 menus 4px above the working card.
+    pub(super) fn box_anchor(&self) -> Bounds<Pixels> {
         let strip = self.bounds.get();
-        if strip.size.height <= px(0.0) {
-            return pill;
-        }
-        let top = card_top.map_or(strip.top(), |card| card.min(strip.top()));
-        Bounds::new(point(pill.left(), top), pill.size)
-    }
-
-    /// The strip's border box at its last paint.
-    pub(super) fn bounds(&self) -> Bounds<Pixels> {
-        self.bounds.get()
+        // The strip sits inside the box's 1px border.
+        let corner = point(strip.left() - px(1.0), strip.top() - px(1.0));
+        Bounds::new(corner, gpui::size(px(1.0), px(1.0)))
     }
 }
 
@@ -89,9 +78,9 @@ impl NativeChatView {
             })
             .map(|pill| self.chat_pill(pill, p, cx))
             .collect();
+        // The Links pill is the last one (links_pill.rs has the user's words).
         if let Some(links) = &self.links_pill {
-            let at = super::links_pill::links_pill_index(&ids).min(panel_pills.len());
-            panel_pills.insert(at, self.links_pill_element(links, p, cx));
+            panel_pills.push(self.links_pill_element(links, p, cx));
         }
         let mut pills = self.armed_action_items(p, cx);
         pills.extend(self.previous_question_icon_pill(p, cx));

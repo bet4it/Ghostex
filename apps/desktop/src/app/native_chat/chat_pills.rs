@@ -439,9 +439,7 @@ impl NativeChatView {
             })
             .on_click(cx.listener(move |this, _, window, cx| {
                 cx.stop_propagation();
-                let anchor = this
-                    .pills_strip
-                    .menu_anchor(bounds.get(), this.working_card.top());
+                let anchor = this.pills_strip.box_anchor();
                 this.toggle_pill_menu(&id, anchor, window, cx);
                 if id == super::questions_list::QUESTIONS_MENU
                     && this.chat_menu_is_open(trigger)
@@ -450,8 +448,8 @@ impl NativeChatView {
                 }
             }))
             .child(
-                // The pill's own border box, which its menu lines up with (right edges equal; it
-                // opens 4px above the chat box, `PillsStripCells::menu_anchor`). An absolute child with no insets sits at the content start (border plus
+                // The pill's own border box (its menu opens from the chat box's top-left corner,
+                // `PillsStripCells::box_anchor`). An absolute child with no insets sits at the content start (border plus
                 // padding in) at the padding box's size, so it measured the pill 7px too far right
                 // and 1px too low; insets on the padding box, one border width out, give the border
                 // box (the composer measures its card the same way, composer.rs).
@@ -477,16 +475,9 @@ impl NativeChatView {
         let Some(height) = self.pill_menu_height(id) else {
             return;
         };
-        // Its right edge on the pill's, as the pills sat at the card's right end; a pill too far
-        // left for that (the bottom row of a two-row card starts at its left) opens rightward
-        // instead of squeezing the menu.
-        let scale = ChatAppearance::current(&self.snapshot).scale;
-        let room_left = trigger.right() - self.bounds.get().left();
-        self.menu_side = Some(if room_left >= px((menu_width(id) + 24.0) * scale) {
-            super::option_menu::MenuSide::Right
-        } else {
-            super::option_menu::MenuSide::Left
-        });
+        // Upward from the chat box's top-left corner (`PillsStripCells::box_anchor` has the user's
+        // words).
+        self.menu_side = Some(super::option_menu::MenuSide::Left);
         self.show_chat_menu(
             vec![json!({"pillMenu": {"id": id, "height": height}})],
             trigger,

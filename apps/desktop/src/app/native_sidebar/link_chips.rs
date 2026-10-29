@@ -100,6 +100,30 @@ pub(crate) fn session_link_tone_color(tone: SessionLinkTone) -> Hsla {
     .into()
 }
 
+/// A link badge's colour (the sidebar's Badge option and the chat's Links pill, links_pill.rs): the
+/// state's colour muted to the project header's diff numbers. An open link takes the header's "+N"
+/// green and failing checks or changes asked for its "-N" red, at the header's 70%; every other
+/// state takes the same softness in its own hue (merged and closed a soft purple, a draft grey).
+///
+/// CDXC:SessionLinks 2026-10-29 DECISION:
+/// User, of the link tag in the sidebar and the Links pill: "the green here is too much fam for the links tag. let's please make it match the color of the + lines that we have there in project header. also same here. also please same for the purple we have for merged or closed". The badge and the pill take `project_diff_additions_color` for open work (the header's own value, light and dark), and a purple of the same saturation and lightness (dark #aa94c8, light #4b2a7a) for merged and closed; pending, started, review, done and Linear keep their hues at that softness, a draft is grey, failing checks or changes asked for take the header's deletions red; all at the header's 70%. Supersedes the 2026-10-29 "much more faint" pill (60% of the vivid colour). A row's links line (its chips) takes the same muted colours, which is where a merged or closed link's purple shows (the badge itself turns grey once every link is finished, the 2026-10-27 decision in gx-core); the links lists' row icons keep the vivid colours.
+pub(crate) fn session_link_badge_color(tone: SessionLinkTone) -> Hsla {
+    use super::project_status::{
+        PROJECT_DIFF_OPACITY, project_diff_additions_color, project_diff_deletions_color,
+    };
+    let color = match tone {
+        SessionLinkTone::Open => project_diff_additions_color(),
+        SessionLinkTone::Closed => project_diff_deletions_color(),
+        SessionLinkTone::Merged => chrome_color(0xaa94c8, 0x4b2a7a),
+        SessionLinkTone::Draft => chrome_color(0xaeaeae, 0x525252),
+        SessionLinkTone::Pending => chrome_color(0xc8b794, 0x7a5f2a),
+        SessionLinkTone::Started => chrome_color(0xc8be94, 0x7a6a2a),
+        SessionLinkTone::Review => chrome_color(0x94c8ae, 0x2a7a52),
+        SessionLinkTone::Done | SessionLinkTone::Linear => chrome_color(0x9497c8, 0x2a2f7a),
+    };
+    Hsla::from(color).opacity(PROJECT_DIFF_OPACITY)
+}
+
 /// What clicking a chip of session `session_id` (a sidebar session id) sends: the link opens where
 /// Settings says, in that session's project (gx_store/session_links.rs).
 pub(crate) fn open_session_link_command(
@@ -111,7 +135,8 @@ pub(crate) fn open_session_link_command(
         .map(|url| json!({ "type": "openSessionLink", "url": url, "sessionId": session_id }))
 }
 
-/// One chip: the state glyph, the number or ID, and a PR's checks mark.
+/// One chip on a sidebar row's links line: the state glyph, the number or ID, and a PR's checks
+/// mark, in the badge's muted colours (`session_link_badge_color`).
 pub(crate) fn session_link_chip_body(
     link: &SessionLink,
     scale: f32,
@@ -130,21 +155,24 @@ pub(crate) fn session_link_chip_body(
         .child(titlebar_svg_icon(
             session_link_glyph_icon(glyph),
             12.0 * scale,
-            session_link_tone_color(tone),
+            session_link_badge_color(tone),
         ))
         .child(link.label.clone())
         .when_some(link.checks_mark(), |chip, (glyph, tone)| {
             chip.child(titlebar_svg_icon(
                 session_link_glyph_icon(glyph),
                 12.0 * scale,
-                session_link_tone_color(tone),
+                session_link_badge_color(tone),
             ))
         })
 }
 
-/// The Badge option's badge: a link icon, the named link's ID (or the suggestion count) and "+N" for
-/// the other links in a lighter weight, in `color`; dashed for suggestions (gx-core
+/// The Badge option's badge: a link icon, the named link's ID (or the suggestion count) and a "+"
+/// glued to it when there are other links, in `color`; dashed for suggestions (gx-core
 /// `SessionLinks::badge_label`).
+///
+/// CDXC:SessionLinks 2026-10-29 DECISION:
+/// User, of the badge's "#270 +30": "i wanna remove the +30 thingy here in the links tag, just make it show + (same font and no space after the #id)". With more than one link the badge and the chat's Links pill read "#270+" (the "+" in the ID's font, weight and colour, no space, no count); one link reads "#270". The hover card and the links list still list them all. Supersedes the lighter "+N" of 2026-10-28.
 fn session_links_badge_body(
     label: &str,
     more: usize,
@@ -169,15 +197,12 @@ fn session_links_badge_body(
         .child(
             div()
                 .when(!dashed, |id| id.font_weight(gpui::FontWeight::SEMIBOLD))
-                .child(label.to_string()),
+                .child(if more > 0 {
+                    format!("{label}+")
+                } else {
+                    label.to_string()
+                }),
         )
-        .when(more > 0, |badge| {
-            badge.child(
-                div()
-                    .text_color(color.opacity(0.75))
-                    .child(format!("+{more}")),
-            )
-        })
 }
 
 /// The "+N" pill: the links that did not fit, with a red dot when one of them has failing checks.
@@ -281,7 +306,7 @@ impl GhostexGpuiApp {
         let color = if badge.suggested {
             appearance.muted
         } else {
-            session_link_tone_color(badge.tone)
+            session_link_badge_color(badge.tone)
         };
         let body = session_links_badge_body(
             &badge.label,
