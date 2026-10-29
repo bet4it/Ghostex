@@ -167,12 +167,16 @@ pub(crate) fn session_link_chip_body(
         })
 }
 
-/// The Badge option's badge: a link icon, the named link's ID (or the suggestion count) and a "+"
-/// glued to it when there are other links, in `color`; dashed for suggestions (gx-core
-/// `SessionLinks::badge_label`).
+/// The Badge option's badge: the named link's ID (or the suggestion count) and a "+" glued to it
+/// when there are other links, in `color` (gx-core `SessionLinks::badge_label`). A linked badge is
+/// bare text in the workers count's size and weight; suggestions keep the link icon and a dashed
+/// pill, so their count doesn't read as a link ID.
 ///
 /// CDXC:SessionLinks 2026-10-29 DECISION:
 /// User, of the badge's "#270 +30": "i wanna remove the +30 thingy here in the links tag, just make it show + (same font and no space after the #id)". With more than one link the badge and the chat's Links pill read "#270+" (the "+" in the ID's font, weight and colour, no space, no count); one link reads "#270". The hover card and the links list still list them all. Supersedes the lighter "+N" of 2026-10-28.
+///
+/// CDXC:SessionLinks 2026-10-29 DECISION:
+/// User, of the row "Main Coordinator  (🔗 #348)  👥1": "please make the link pill font size and font and font weight same as the font for the number 1 there and also please remove the border around it and the link icon; need t make links look similar to elements next to it". The linked badge drops its pill border, padding and link icon and draws "#348" in the coordinator badge's text size (threads.rs `BADGE_TEXT_SIZE`) at the regular weight, keeping its colour. The phone's SessionRow.tsx follows.
 fn session_links_badge_body(
     label: &str,
     more: usize,
@@ -180,6 +184,21 @@ fn session_links_badge_body(
     dashed: bool,
     scale: f32,
 ) -> gpui::Div {
+    let text = if more > 0 {
+        format!("{label}+")
+    } else {
+        label.to_string()
+    };
+    if !dashed {
+        return div()
+            .flex()
+            .flex_shrink_0()
+            .items_center()
+            .text_size(px(super::threads::BADGE_TEXT_SIZE * scale))
+            .text_color(color)
+            .whitespace_nowrap()
+            .child(text);
+    }
     div()
         .flex()
         .flex_shrink_0()
@@ -189,20 +208,12 @@ fn session_links_badge_body(
         .px(px(5.0 * scale))
         .rounded_full()
         .border_1()
-        .when(dashed, |badge| badge.border_dashed())
+        .border_dashed()
         .border_color(color.opacity(0.45))
         .text_size(px(10.5 * scale))
         .text_color(color)
         .child(titlebar_svg_icon("titlebar/link.svg", 10.0 * scale, color))
-        .child(
-            div()
-                .when(!dashed, |id| id.font_weight(gpui::FontWeight::SEMIBOLD))
-                .child(if more > 0 {
-                    format!("{label}+")
-                } else {
-                    label.to_string()
-                }),
-        )
+        .child(text)
 }
 
 /// The "+N" pill: the links that did not fit, with a red dot when one of them has failing checks.
