@@ -7,6 +7,7 @@
 **Ghostex 10.40.0 is out.** Settings split General into six pages under App, Setup and More, the chat's pills move into a strip along the chat box, full-window Claude takes over the whole window, dialogs and menus turn to frosted glass on macOS, and tool call cards arrive as a preview. Update Ghostex on your remote computers too: the Work page's tickets changed in the background service.
 
 ### ⚙️ Settings
+
 - **General is split into six pages:** Chat, Sidebar & Sessions, Terminal, Notifications, Files & Links, and Power & Sleep, and the Settings sidebar lists every page under App, Setup and More. Sleeping Sessions moved to Sidebar & Sessions, and Experimental and Reset to defaults moved to About.
 - **Show Advanced never hides a page:** Workspaces, Cloud Boxes, Open In, OS Integration and Debugging always stay in the Settings sidebar, and Show Advanced only shows or hides rows inside pages.
 - **Settings > Integrations has a Web runtime row** for the Chromium runtime with its status, Install, Reinstall and Uninstall; the Extensions store no longer lists it.
@@ -14,6 +15,7 @@
 - **A Session tooltips switch** (Sidebar & Sessions > Session Cards, on by default) turns off the hover tooltip on sidebar session rows.
 
 ### 💬 Chat
+
 - **The pills move into a soft strip along the top of the chat box,** the bar above it keeps only the working line, and each pill's menu opens right above the pill you clicked.
 - **Tool call cards (preview, Settings > Chat, off by default):** one card per burst of tool calls with stacked icons, results and times, failures that say why and app logos for MCP tools; they fold once done and show on the phone too. A Codex command that failed inside a script shows its exit code.
 - **Chat Resources has two groups,** Unanswered (For later included) and Earlier (answered questions, pages, charts and withdrawn ones, told apart by icon and colour), and long chats load it a page at a time.
@@ -27,26 +29,31 @@
 - **The working bar drops the elapsed time,** and Claude Code's own update notices no longer reach the chat.
 
 ### 🧭 Coordinators
+
 - **Thread reports arrive on their own:** a report held for an idle Claude coordinator whose input box can't be read gets its screen redrawn, so it no longer waits until someone opens the coordinator. Copy Report masks session refs, names, paths, emails and ids.
 - **The sidebar row reads at a glance:** the links badge is a plain #348 before the workers count, and the crew icon shows only while a thread works, waits on you or waits for approval.
 - **The Workers menu header reads "2 active · 429 total".**
 
 ### 🖥️ Full-window Claude
+
 - **Turning Claude on fills the window:** it hides the sidebar, side panel and Commands pane, the header keeps the sidebar's top-row buttons, and turning it off restores the layout.
 - **Opening any session turns Claude off,** and showing the sidebar returns to the Space, project, session and layout you came from.
 - **The Claude button moves to the sidebar's top row** in its grey; the Issues briefcase leaves that row (Issues stays in Open a view, its hotkey and the session chips).
 
 ### 🪟 Frosted glass and tooltips
+
 - **macOS, with transparency on:** Settings, Search by Prompt, Agents Hub, Quick Access, Browser History and the New Thread picker get a darker frosted fill, and Send Bug / Feedback and 20 other dialogs, the Notifications, Tips & Tricks, Resources and Dev servers dropdowns, and the terminal bar's ⋯ menu and flyouts are frosted too, with a quarter more blur and a 45% dark tint.
 - **Every plain tooltip uses the same roomy look,** centred with a gap, with shortcuts as key caps.
 - **The sidebar's icons and machine tab names take the header's colours,** and a machine tab shows a tooltip only when it has an error or a waiting update.
 - **The Files sidebar drops the Project Docs label** above the tree.
 
 ### 📱 On the phone
+
 - **Chat improvements reach phones over the air** without a new app install, starting with this release.
 - **Tool call cards, the plain links badge and the quieter crew icon** match the computer.
 
 ### 🩹 Fixes and polish
+
 - **Antigravity:** messages no longer fail with "The terminal draft could not be cleared" while its Accept edits, Auto, Plan or Best-of-N hint shows in the input box (#349).
 - **Adding a second Claude account no longer says "Login did not complete"** after it was saved, and a real failure shows its reason (#347).
 - **Windows: Ghostex no longer closes when a monitor is plugged in or unplugged** (#346), thanks to @Dev-Mriganka.

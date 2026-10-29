@@ -154,34 +154,76 @@ mod tests {
             .map(|pill| pill.id)
             .collect();
         assert_eq!(ids, ["resources", "threads", "tasks"]);
-        let pill = &chat_pills(&resources, &Value::Null, &Value::Null, &Value::Null, &Value::Null)[0];
-        assert_eq!((pill.label.as_str(), pill.count.as_str()), ("Resources", "4"));
+        let pill = &chat_pills(
+            &resources,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        )[0];
+        assert_eq!(
+            (pill.label.as_str(), pill.count.as_str()),
+            ("Resources", "4")
+        );
         assert_eq!(pill.aria_label, "Resources, 2 unanswered");
 
-        let empty = chat_pills(&OpenQuestions::default(), &threads, &Value::Null, &Value::Null, &Value::Null);
-        assert_eq!(empty[0].id, "threads", "an empty list has no Resources pill");
+        let empty = chat_pills(
+            &OpenQuestions::default(),
+            &threads,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        );
+        assert_eq!(
+            empty[0].id, "threads",
+            "an empty list has no Resources pill"
+        );
     }
 
     #[test]
     fn subagents_count_the_running_ones_while_any_run() {
         let fleet = json!({"rows": [{"working": true}, {"working": false}, {"working": false}]});
-        let pill = &chat_pills(&OpenQuestions::default(), &Value::Null, &Value::Null, &fleet, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &Value::Null,
+            &Value::Null,
+            &fleet,
+            &Value::Null,
+        )[0];
         assert_eq!((pill.count.as_str(), pill.running), ("1", true));
 
         let finished = json!({"rows": [{"working": false}, {"working": false}]});
-        let pill = &chat_pills(&OpenQuestions::default(), &Value::Null, &Value::Null, &finished, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &Value::Null,
+            &Value::Null,
+            &finished,
+            &Value::Null,
+        )[0];
         assert_eq!((pill.count.as_str(), pill.running), ("2", false));
     }
 
     #[test]
     fn threads_run_only_while_one_is_working() {
         let waiting = json!({"inFlight": 1, "working": 0, "attention": true});
-        let pill = &chat_pills(&OpenQuestions::default(), &waiting, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &waiting,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        )[0];
         assert_eq!((pill.count.as_str(), pill.running), ("1", false));
         assert_eq!(pill.waiting, "approval");
 
         let working = json!({"inFlight": 2, "working": 2});
-        let pill = &chat_pills(&OpenQuestions::default(), &working, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &working,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        )[0];
         assert!(pill.running);
         assert_eq!(pill.waiting, "");
     }
@@ -191,11 +233,23 @@ mod tests {
     #[test]
     fn threads_waiting_tone() {
         let both = json!({"inFlight": 3, "working": 1, "attention": true, "question": true});
-        let pill = &chat_pills(&OpenQuestions::default(), &both, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &both,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        )[0];
         assert_eq!((pill.running, pill.waiting.as_str()), (true, "approval"));
 
         let asking = json!({"inFlight": 2, "working": 1, "question": true});
-        let pill = &chat_pills(&OpenQuestions::default(), &asking, &Value::Null, &Value::Null, &Value::Null)[0];
+        let pill = &chat_pills(
+            &OpenQuestions::default(),
+            &asking,
+            &Value::Null,
+            &Value::Null,
+            &Value::Null,
+        )[0];
         assert_eq!((pill.running, pill.waiting.as_str()), (true, "question"));
     }
 }

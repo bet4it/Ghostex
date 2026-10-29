@@ -6,8 +6,8 @@ mod terminal;
 mod theme;
 mod tools;
 
-use crate::Platform;
 use crate::rows::Section;
+use crate::Platform;
 
 pub fn sections(platform: Platform) -> Vec<Section> {
     vec![

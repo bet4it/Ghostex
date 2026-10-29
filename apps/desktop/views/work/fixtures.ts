@@ -505,7 +505,12 @@ function cloudDraft(params: Record<string, unknown>): CloudDraft {
 
 function details(item: WorkItem): WorkItemDetails {
   const isLinear = item.source === 'linear';
-  const ticketBase = { source: item.source ?? 'linear', id: item.ticketId ?? item.id, label: item.id, title: item.title };
+  const ticketBase = {
+    source: item.source ?? 'linear',
+    id: item.ticketId ?? item.id,
+    label: item.id,
+    title: item.title,
+  };
   return {
     item,
     ticket: isLinear
@@ -518,7 +523,11 @@ function details(item: WorkItem): WorkItemDetails {
               : item.id === 'SPX-1245'
                 ? MARKDOWN_DESCRIPTION
                 : 'People want to copy a share link without opening the share dialog. Add “Copy link” to the share menu, and show a short “Link copied” toast.',
-          state: { group: item.status.group, name: item.status.name, type: item.status.group === 'todo' ? 'unstarted' : 'started' },
+          state: {
+            group: item.status.group,
+            name: item.status.name,
+            type: item.status.group === 'todo' ? 'unstarted' : 'started',
+          },
           labels: item.labels,
           comments: [
             {

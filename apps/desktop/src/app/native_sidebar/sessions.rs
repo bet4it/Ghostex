@@ -91,8 +91,9 @@ impl GhostexGpuiApp {
         let stale = group.is_stale && !session.is_browser();
         let sleeping = session.lifecycle_state.as_deref() == Some("sleeping");
         // CDXC:SessionSleep 2026-09-29 DECISION: User (issue 177): by default a sleeping row dims only its last-active time; Advanced > Dim sleeping sessions fades the whole row, and hovering it brings the row back to full strength so its hover buttons stay readable.
-        let dim_sleeping =
-            sleeping && !buttons_shown && hud["settings"]["dimSleepingSessions"].as_bool() == Some(true);
+        let dim_sleeping = sleeping
+            && !buttons_shown
+            && hud["settings"]["dimSleepingSessions"].as_bool() == Some(true);
         let icon = super::icons::session_icon(session, hud, appearance, buttons_shown, hovered);
         let double_click_rename = hud["settings"]["renameSessionOnDoubleClick"].as_bool()
             == Some(true)
@@ -119,7 +120,8 @@ impl GhostexGpuiApp {
             .unwrap_or(session.title())
             .to_owned();
         // CDXC:Tooltips 2026-10-29 DECISION: User: "please let me disable the tooltip for sessions in the sidebar with a toggle (advanced setting)". `showSidebarSessionTooltips` (on unless saved off) gates only this title tooltip; this one row renderer draws every sidebar session row (project lists, a coordinator's thread rows, the peek), and the Running Agents panel has no session tooltip. Chip, badge, hover-button and project-row tooltips stay.
-        let session_tooltips = hud["settings"]["showSidebarSessionTooltips"].as_bool() != Some(false);
+        let session_tooltips =
+            hud["settings"]["showSidebarSessionTooltips"].as_bool() != Some(false);
         let question = session
             .details
             .get("pendingQuestionCount")

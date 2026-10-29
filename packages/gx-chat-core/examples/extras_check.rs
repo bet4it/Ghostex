@@ -77,10 +77,7 @@ fn panels(checks: &mut Checks) {
     );
 
     // A fresh plan closes the done pile again.
-    core.act(
-        ActionKind::ToggleAgentTasksCompleted,
-        json!({ "step": 2 }),
-    );
+    core.act(ActionKind::ToggleAgentTasksCompleted, json!({ "step": 2 }));
     checks.eq(
         "the done list shows more",
         core.document()["agentTasksPanel"]["doneStep"].clone(),

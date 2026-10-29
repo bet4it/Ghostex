@@ -442,9 +442,7 @@ impl NativeChatView {
             .on_click(cx.listener(move |this, _, window, cx| {
                 cx.stop_propagation();
                 this.toggle_pill_menu(&id, bounds.get(), window, cx);
-                if id == super::questions_list::QUESTIONS_MENU
-                    && this.chat_menu_is_open(trigger)
-                {
+                if id == super::questions_list::QUESTIONS_MENU && this.chat_menu_is_open(trigger) {
                     this.keep_question_ages_current(cx);
                 }
             }))

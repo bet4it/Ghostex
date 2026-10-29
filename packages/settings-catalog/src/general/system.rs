@@ -1,6 +1,6 @@
 use crate::data::*;
 use crate::json::opt;
-use crate::rows::{Section, option, row, section};
+use crate::rows::{option, row, section, Section};
 
 pub(crate) fn auto_sleep() -> Section {
     section(

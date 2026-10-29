@@ -191,7 +191,8 @@ impl SidebarMenuPanel {
         {
             // No margin against the sidebar's sides: the owner sits inside them, and the panel's
             // edge has to meet the owner's exactly.
-            let left = menu_left_at_button(from, align_right, sidebar.left(), sidebar.right(), width);
+            let left =
+                menu_left_at_button(from, align_right, sidebar.left(), sidebar.right(), width);
             let below = owner.bottom() + gap;
             let above = owner.top() - gap - height;
             let top = if below + height <= sidebar.bottom() - margin {

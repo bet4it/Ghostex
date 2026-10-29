@@ -163,7 +163,10 @@ mod tests {
         ]);
         let (output, failed) = result_of(&linked, "c1");
         assert_eq!(failed, Some(true));
-        assert_eq!(output, "Exit code 101\nScript completed\nOutput:\nerror: no feature nope");
+        assert_eq!(
+            output,
+            "Exit code 101\nScript completed\nOutput:\nerror: no feature nope"
+        );
     }
 
     #[test]
@@ -176,7 +179,10 @@ mod tests {
             result("c2", ""),
         ]);
         assert_eq!(result_of(&linked, "c1").1, None);
-        assert_eq!(result_of(&linked, "c2"), ("Exit code 1\n".to_string(), Some(true)));
+        assert_eq!(
+            result_of(&linked, "c2"),
+            ("Exit code 1\n".to_string(), Some(true))
+        );
     }
 
     #[test]
@@ -186,14 +192,21 @@ mod tests {
             exit_row("e1", 1, "false"),
             result("c1", "Exit code 1\n"),
         ]);
-        assert_eq!(result_of(&linked, "c1"), ("Exit code 1\n".to_string(), Some(true)));
+        assert_eq!(
+            result_of(&linked, "c1"),
+            ("Exit code 1\n".to_string(), Some(true))
+        );
     }
 
     #[test]
     fn the_exit_row_is_hidden_and_an_unmatched_one_changes_nothing() {
         let row = exit_row("e1", 2, "make");
         assert!(crate::transcript::noise::is_hidden_message(&row));
-        let rows = vec![call("c1", "tools.exec_command({cmd:\"ls\"})"), row, result("c1", "a\nb")];
+        let rows = vec![
+            call("c1", "tools.exec_command({cmd:\"ls\"})"),
+            row,
+            result("c1", "a\nb"),
+        ];
         let linked = link_command_exits(rows.clone());
         assert_eq!(linked, rows);
     }

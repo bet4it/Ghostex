@@ -43,7 +43,7 @@ const LIST_ROW_TOOLTIP_DROP: f32 = 20.0;
 /// the room beside the pointer instead of cut at the list's edge, and dropped below the pointer.
 ///
 /// CDXC:Tooltips 2026-10-09 DECISION:
-/// User, of the files list's path tooltips: "the tooltip here should appear below the button of the current element so I can't hover on it (it blocks clicks)" and "this tooltip is showing cut off when the files list is not floating". A row's tooltip opens below the pointer, clear of its arrow, and wraps to the room it has (the floating list's own window, or the space beside a native pane) instead of running one line past the edge; its window never takes the pointer (CDXC:Tooltips 2026-10-09 in titlebar_popup_chrome.rs). 
+/// User, of the files list's path tooltips: "the tooltip here should appear below the button of the current element so I can't hover on it (it blocks clicks)" and "this tooltip is showing cut off when the files list is not floating". A row's tooltip opens below the pointer, clear of its arrow, and wraps to the room it has (the floating list's own window, or the space beside a native pane) instead of running one line past the edge; its window never takes the pointer (CDXC:Tooltips 2026-10-09 in titlebar_popup_chrome.rs).
 pub(crate) fn list_row_tooltip(
     text: impl Into<gpui_component::text::Text>,
     window: &mut Window,
