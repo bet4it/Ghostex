@@ -201,7 +201,7 @@ fn create(parsed: &ParsedArgs) -> CliResult<()> {
         .as_object()
         .map(|object| {
             let mut object = object.clone();
-            // CDXC:Coordinators 2026-10-17 SEE-ALSO: packages/gx-chat-core/src/menus/orchestrator_effort.rs (the user's High/XHigh decision); without --effort an orchestrator starts on its agent's highest orchestrator level where its launch takes an effort. ZCode takes no effort choice; its --model rides agentModel and gxserver queues it as a `/model` line ahead of the first message.
+            // CDXC:Coordinators 2026-10-17 SEE-ALSO: packages/gx-chat-core/src/menus/orchestrator_effort.rs (the user's Medium/High/XHigh decision, 2026-10-29); without --effort an orchestrator starts on High where its launch takes an effort. ZCode takes no effort choice; its --model rides agentModel and gxserver queues it as a `/model` line ahead of the first message.
             let effort = flag_text(&parsed.flags, "effort").or_else(|| {
                 family
                     .and_then(crate::coordinators::default_orchestrator_effort)
@@ -314,7 +314,7 @@ fn promote(parsed: &ParsedArgs) -> CliResult<()> {
 /// the efforts each model accepts.
 ///
 /// CDXC:Coordinators 2026-10-03 WHY:
-/// The phone's New Coordinator form reads its choices here instead of parsing the model catalog itself, so its lineup is the one gxserver serves and its defaults are the ones `create` applies (Opus 5.5 for Claude, XHigh effort, the orchestrator levels only, and the locked skill line each agent's first message starts with).
+/// The phone's New Coordinator form reads its choices here instead of parsing the model catalog itself, so its lineup is the one gxserver serves and its defaults are the ones `create` applies (Opus 5.5 for Claude, High effort, the orchestrator levels only, and the locked skill line each agent's first message starts with).
 /// SEE-ALSO: apps/desktop/src/app/gx_store/create/coordinator.rs (the desktop dialog's lineup), apps/mobile/app/src/screens/sessions-screen/NewCoordinatorSheet.tsx (the phone's form).
 fn options(parsed: &ParsedArgs) -> CliResult<()> {
     let flags = server_flags(&parsed.flags);
@@ -403,8 +403,8 @@ fn options(parsed: &ParsedArgs) -> CliResult<()> {
     let agents: Vec<Value> = agents.into_iter().map(|(_, agent)| agent).collect();
     let result = json!({
         "agents": agents,
-        // CDXC:Coordinators 2026-10-17 SEE-ALSO: packages/gx-chat-core/src/menus/orchestrator_effort.rs (the user's High/XHigh decision); each model's own `defaultEffort` is its highest offered level, and this is the level where the model has it.
-        "defaultEffort": "xhigh",
+        // CDXC:Coordinators 2026-10-17 SEE-ALSO: packages/gx-chat-core/src/menus/orchestrator_effort.rs (the user's Medium/High/XHigh decision, 2026-10-29); each model's own `defaultEffort` is High (or its highest level at or below High), and this is the level where the model has it.
+        "defaultEffort": "high",
     });
     if parsed.flags.truthy("json") {
         print_json(&result);

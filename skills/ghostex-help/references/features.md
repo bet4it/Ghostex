@@ -2730,8 +2730,8 @@ version of the Projects features in Cursor and Claude Code.
   from the Agent dropdown (Claude, Codex, ZCode, Cursor, Grok, Copilot,
   Antigravity, Pi, OMP or OpenCode, whichever you have set up), its model where the agent
   lets Ghostex choose one (Opus 5.5 on Claude; otherwise each agent starts on its
-  own default) and its effort: High or XHigh, XHigh by default (an agent without
-  XHigh offers its two highest levels). Use a very good model: the coordinator
+  own default) and its effort: Medium, High or XHigh, High by default (an agent without
+  XHigh offers its levels from Medium up to its highest). Use a very good model: the coordinator
   is the agent you talk to all day, and the main way Ghostex itself is built.
   Its first message is always "Read and adhere to this skill:
   /ghostex-orchestrator" (`$ghostex-orchestrator` on agents other than Claude
@@ -2742,9 +2742,9 @@ version of the Projects features in Cursor and Claude Code.
   sessions it is not renamed from your first message (Rename in the sidebar
   still changes it; left blank, it is named once from its first conversation).
   A project can have several coordinators, one per stream of work. In an
-  coordinator's chat the effort picker offers the same High and XHigh only.
+  coordinator's chat the effort picker offers the same Medium, High and XHigh only.
   To pick from every level the agent has, turn on **Show all effort levels**
-  (an advanced setting in Settings > Chat); anything below High
+  (an advanced setting in Settings > Chat); anything below Medium
   isn't recommended for a coordinator. From a terminal: `ghostex coordinator
   create [--agent <id>] [--goal <text>] [--task <first request>]`.
 - **Turn a session into a coordinator**: right-click a session of one of

@@ -303,7 +303,7 @@
     {
       "key": "orchestratorAllEfforts",
       "title": "Show all effort levels",
-      "subtitle": "Lists every effort level in the coordinator effort pickers. Anything below High isn't recommended for coordinators.",
+      "subtitle": "Lists every effort level in the coordinator effort pickers. Anything below Medium isn't recommended for coordinators.",
       "tab": "chat",
       "tabTitle": "Chat",
       "section": "chat",

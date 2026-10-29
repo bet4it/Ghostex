@@ -101,12 +101,11 @@ pub use ghostex_gx_chat_core::protocol::{
 };
 
 /// The effort `ghostex orchestrator create` starts an orchestrator on when none is named, for the
-/// families whose launch takes one: xhigh where the agent has it, else its highest level.
+/// families whose launch takes one: high (CDXC:Coordinators 2026-10-29 DECISION: User: "allow picking medium here but default to high"; the picker offers Medium, High and XHigh).
 /// SEE-ALSO: `orchestrator_efforts` in packages/gx-chat-core/src/menus/orchestrator_effort.rs (the dialog and the chat composer).
 pub fn default_orchestrator_effort(family: &str) -> Option<&'static str> {
     match family {
-        "claude" | "codex" => Some("xhigh"),
-        "antigravity" => Some("high"),
+        "claude" | "codex" | "antigravity" => Some("high"),
         _ => None,
     }
 }

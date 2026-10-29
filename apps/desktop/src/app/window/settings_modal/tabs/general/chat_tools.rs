@@ -129,7 +129,7 @@ fn chat_section(
     rows.extend(page.toggle(g, s, "markedHandovers", "Marked handovers in every session", "Coordinators and their threads start each part of the message they hand back with a marker such as ❓ Needs you, ✅ Done, ⚠️ Read this, 🧪 Untested or 🛑 Blocked, so a quick skim shows what needs you. Turn this on to have every other agent session do the same. Applies to sessions started or resumed after you change it.", false, cx));
     rows.extend(page.marked_sections_style_row(g, s, window, cx));
     rows.extend(page.toggle(g, s, "orchestratorPlainReplies", "Coordinators answer without markers", "Coordinators answer normally, without marking the sections of their handovers. Their threads still mark the reports they send to the coordinator. Applies to coordinators started or resumed after you change it.", false, cx));
-    rows.extend(page.toggle(g, s, "orchestratorAllEfforts", "Show all effort levels", "Lists every effort level in the coordinator effort pickers. Anything below High isn't recommended for coordinators.", false, cx));
+    rows.extend(page.toggle(g, s, "orchestratorAllEfforts", "Show all effort levels", "Lists every effort level in the coordinator effort pickers. Anything below Medium isn't recommended for coordinators.", false, cx));
     rows.extend(orchestrator_playbook_row(page, g, s, cx));
     rows.extend(read_aloud_rows(page, g, s, window, cx));
     rows.extend(page.toggle(g, s, "sessionDetailsClaudeTaskTools", "Claude task list", "Turn on Claude's task list tools, so Claude can keep a checklist that the Session details panel shows. Recent Claude models only get them when Ghostex asks. Applies to Claude sessions started or woken after you change it.", false, cx));
