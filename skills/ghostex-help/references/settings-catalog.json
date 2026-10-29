@@ -194,35 +194,6 @@
       "agentWritable": true
     },
     {
-      "key": "sessionStatusSource",
-      "title": "Session status from",
-      "subtitle": "Choose how Ghostex knows a session is working, needs you or is done. Ghostex detection reads each agent's hooks, terminal title and screen. Combined keeps that detection and adds the status a program reports about itself (OSC 7501, sent by Claude Code 2.1.295 and newer, recent Codex betas and your own scripts): failures, what it is waiting for, its message and progress on hover, and waiting or finished the moment the program says so. Program status only uses the program's own status alone.",
-      "tab": "settings",
-      "tabTitle": "General",
-      "group": "sidebar",
-      "groupTitle": "Sidebar",
-      "section": "sidebar",
-      "sectionTitle": "Sidebar",
-      "type": "enum",
-      "default": "detection",
-      "options": [
-        {
-          "label": "Ghostex detection",
-          "value": "detection"
-        },
-        {
-          "label": "Combined",
-          "value": "auto"
-        },
-        {
-          "label": "Program status only",
-          "value": "programStatus"
-        }
-      ],
-      "advanced": true,
-      "agentWritable": true
-    },
-    {
       "key": "hideProjectHeaderDiffStats",
       "title": "Hide project git stats",
       "subtitle": "Hide +added/-removed line counts in sidebar project rows.",
@@ -9499,6 +9470,17 @@
           "value": "glab"
         }
       ],
+      "agentWritable": false
+    },
+    {
+      "key": "webRuntime",
+      "title": "Chromium runtime (CEF)",
+      "subtitle": "Install, reinstall or uninstall the optional web runtime used by the Browser, the VS Code view, website and extension views, and HTML files in Files. It also installs from the first view that needs it.",
+      "tab": "integrations",
+      "tabTitle": "Integrations",
+      "section": "integrations",
+      "sectionTitle": "Integrations",
+      "type": "ui",
       "agentWritable": false
     },
     {

@@ -199,7 +199,7 @@ impl ExtensionsTab {
     /// User: the built-in extensions are grouped by category, each category a labelled grid of cards. The Refresh action (component status for the Code editor) stays on the Built-in section header.
     ///
     /// CDXC:Extensions 2026-10-29 DECISION:
-    /// User: "remove this extension from being shown in extensions store". The Chromium runtime (CEF) card and its "Shared runtime" group are gone from Built-in, from the filter bar's count and categories, and from Settings search; CEF installs from the first view that needs it (CDXC:CefRuntime 2026-09-28 in app/helpers/web_runtime.rs).
+    /// User: "remove this extension from being shown in extensions store". The Chromium runtime (CEF) card and its "Shared runtime" group are gone from Built-in, from the filter bar's count and categories, and from Settings search; CEF installs from the first view that needs it (CDXC:CefRuntime 2026-09-28 in app/helpers/web_runtime.rs) and is managed from Settings > Integrations (tabs/integrations/web_runtime.rs).
     pub(crate) fn render_built_in_section(
         &mut self,
         p: &SettingsPalette,

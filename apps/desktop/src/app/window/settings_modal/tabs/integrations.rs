@@ -34,6 +34,7 @@ mod remote_machine;
 mod spaceo;
 mod tools;
 mod updates;
+mod web_runtime;
 
 const SKILLS_MODULE: &str = super::super::catalog::module::AGENT_SKILLS;
 
@@ -395,6 +396,7 @@ impl IntegrationsTab {
             remote: remote_machine::RemoteIntegrations::default(),
         };
         page.start_permission_polling(cx);
+        page.request_web_runtime_status_if_missing(cx);
         page
     }
 
@@ -1532,6 +1534,12 @@ impl Render for IntegrationsTab {
                 blocks.extend(
                     self.managed_tools_section(&p, cx)
                         .map(|element| PageBlock::section("managedTools", element)),
+                );
+            }
+            if search.row_visible(section, "webRuntime") {
+                blocks.extend(
+                    self.web_runtime_section(&p, cx)
+                        .map(|element| PageBlock::section("webRuntime", element)),
                 );
             }
         }
