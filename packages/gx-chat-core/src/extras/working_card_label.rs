@@ -1,8 +1,11 @@
-//! What the working card's top row shows when it takes two rows: the action's label with any file
-//! path shortened to its file name (its folders dimmed and cut to the last one).
+//! The working card's label in runs: any file path in it shortened to its file name (its folders
+//! dimmed and cut to the last one).
 //!
 //! CDXC:SessionChat 2026-10-28 DECISION:
-//! User, of the two-row working bar: "i think there's not enough space between the 2 rows there but think we could do something better also", then picked option C of the mockup (Q724 "divider"): the top row is the working icon and the action; a hairline divider in the card's border colour runs across the bar between the rows; the bottom row is the pills, left-aligned, a touch smaller (24px tall, 12px text) with even padding above and below. A file path in the action keeps its file name and dims and shortens its folders ("Reading …/Screenshots/2026-10-28_Ghostex_20-09-21@2x.png"), so the part that matters is not the part cut off. The one-row card stays as it was. User (2026-10-29), of the action's elapsed time that option C put at the top row's right end ("3s"): "dont show the time here, no need". The top row has no time; this supersedes that part of option C.
+//! User, of the two-row working bar: "i think there's not enough space between the 2 rows there but think we could do something better also", then picked option C of the mockup (Q724 "divider"): the top row is the working icon and the action; a hairline divider in the card's border colour runs across the bar between the rows; the bottom row is the pills, left-aligned, a touch smaller (24px tall, 12px text) with even padding above and below. A file path in the action keeps its file name and dims and shortens its folders ("Reading …/Screenshots/2026-10-28_Ghostex_20-09-21@2x.png"), so the part that matters is not the part cut off. User (2026-10-29), of the action's elapsed time that option C put at the top row's right end ("3s"): "dont show the time here, no need". The top row has no time; this supersedes that part of option C.
+//!
+//! CDXC:SessionChat 2026-10-29 SEE-ALSO:
+//! The two-row bar is gone (the pills moved into the chat box, extras/chat_pills.rs); the bar is one row, and its label keeps the shortened path.
 //!
 //! CDXC:SessionChat 2026-10-28 SEE-ALSO:
 //! extras/working_card.rs publishes `labelParts`; apps/desktop/src/app/native_chat/working_card.rs (desktop and web) and apps/mobile/app/src/chat/native/cards/WorkingCard.tsx (phone) draw them.

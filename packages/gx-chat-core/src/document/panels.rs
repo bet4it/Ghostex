@@ -28,7 +28,8 @@ pub struct WorkingStrip {
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct WorkingCard {
-    /// The row above the composer shows the card.
+    /// The row above the composer shows the card: it has a working (or worked) line. The pills
+    /// show in the chat box's strip whether or not the card does.
     pub visible: bool,
     /// `working`, `worked` (the turn ended and its Worked line shows) or `idle`.
     pub phase: String,
@@ -43,7 +44,7 @@ pub struct WorkingCard {
     /// A live activity's clock and progress (compaction): `elapsedLabel`, `tokens`, `percent`,
     /// `indeterminate`, `hint`, as `workingStrip.presentation` carried them.
     pub activity: Option<Value>,
-    /// The pill ids (`chatPills`) on the card, in the pills' order.
+    /// The pill ids (`chatPills`) for the chat box's pill strip, in the pills' order.
     pub pills: Vec<String>,
     /// What a screen reader says for the card.
     pub aria_label: String,

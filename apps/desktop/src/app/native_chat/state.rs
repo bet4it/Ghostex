@@ -70,6 +70,8 @@ pub(crate) struct NativeChatView {
     pub(super) pill_bounds: super::chat_pills::ChatPillBounds,
     /// What the working card measured at its last paint (`working_card.rs`).
     pub(super) working_card: super::working_card::WorkingCardCells,
+    /// The chat box's pill strip (pills_strip.rs).
+    pub(super) pills_strip: super::pills_strip::PillsStripCells,
     pub(super) save_markdown_window: super::save_markdown::SaveMarkdownWindowState,
     pub(super) rewind_window: super::rewind::RewindWindowState,
     pub(super) image_viewer: super::image_viewer::ImageViewerState,
@@ -384,6 +386,7 @@ impl NativeChatView {
             menu_toggle: Default::default(),
             pill_bounds: Default::default(),
             working_card: Default::default(),
+            pills_strip: Default::default(),
             context_editor_window: Default::default(),
             save_markdown_window: Default::default(),
             rewind_window: Default::default(),

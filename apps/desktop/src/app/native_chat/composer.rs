@@ -611,6 +611,13 @@ impl NativeChatView {
         };
         footer = footer.children(waiting);
         // CDXC:SessionChat 2026-09-18 WHY: React's inline composer had a zero-height notification section before its field, contributing one grid gap even while idle. Reserve that same gap here when nothing stacks above the box.
+        // The chat's pills ride in a strip along the box's top edge, inside its border
+        // (pills_strip.rs); what the box holds under it is unchanged.
+        let pills_strip = if maximized {
+            None
+        } else {
+            self.render_pills_strip(p, cx)
+        };
         footer = footer.child(
             div()
                 .relative()
@@ -624,16 +631,26 @@ impl NativeChatView {
                 .border_1()
                 .border_color(p.composer_border)
                 .bg(p.composer_background)
-                .px(px(16.0 * s))
-                .py(px(padding_block))
                 .when(maximized, |this| this.flex_1().min_h_0())
-                .when_some(frame.height.filter(|_| !maximized), |this, height| {
-                    this.h(px(height)).overflow_hidden()
-                })
-                .child(content)
-                // Dictate's pill floats just above the microphone, over the text field
-                // (dictation.rs), drawn last so it is on top.
-                .children(self.render_dictation_pill(p, cx)),
+                .children(pills_strip)
+                .child(
+                    div()
+                        .relative()
+                        .flex()
+                        .flex_col()
+                        .w_full()
+                        .min_w_0()
+                        .px(px(16.0 * s))
+                        .py(px(padding_block))
+                        .when(maximized, |this| this.flex_1().min_h_0())
+                        .when_some(frame.height.filter(|_| !maximized), |this, height| {
+                            this.h(px(height)).overflow_hidden()
+                        })
+                        .child(content)
+                        // Dictate's pill floats just above the microphone, over the text field
+                        // (dictation.rs), drawn last so it is on top.
+                        .children(self.render_dictation_pill(p, cx)),
+                ),
         );
         if self.status_line_reserved() {
             footer = footer.child(self.render_context_status(p, cx));

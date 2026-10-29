@@ -131,9 +131,9 @@ impl NativeChatView {
             })
             .on_click(cx.listener(|this, event: &gpui::ClickEvent, _, cx| {
                 cx.stop_propagation();
-                // The list opens above the card (flipping there for lack of room below), lined up
+                // The list opens against the pill strip (flipping above it for lack of room below), lined up
                 // with the click.
-                let card = this.working_card.card_bounds();
+                let card = this.pills_strip.bounds();
                 let anchor = json!({
                     "x": f32::from(event.position().x),
                     "y": f32::from(card.top()),

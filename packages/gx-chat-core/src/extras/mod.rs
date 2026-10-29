@@ -32,7 +32,6 @@ pub mod transcript_search;
 pub mod welcome;
 pub mod working_card;
 pub mod working_card_label;
-pub mod working_card_rows;
 pub mod working_strip;
 pub mod working_words;
 
