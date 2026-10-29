@@ -44,8 +44,14 @@ pub(crate) fn screen_wants_redraw(
     agent: Option<&str>,
     detection: &SessionChatTerminalDetection,
 ) -> bool {
+    // A background shell or monitor left running after the turn is not work (CDXC:SessionStatus
+    // 2026-09-22 DECISION in presentation/session_attributes.rs), and its "· 1 shell still running"
+    // line stays on an idle coordinator's screen for as long as the shell runs.
     detection.notice.is_none()
-        && detection.activity.is_none()
+        && (detection.activity.is_none()
+            || crate::session_chat_terminal_activity::is_session_chat_background_work_activity(
+                detection.activity.as_ref(),
+            ))
         && frame_wants_redraw(agent, &detection.composer)
 }
 
@@ -350,6 +356,44 @@ mod tests {
             crate::session_chat_composer::session_composer_verdict(Some("claude"), &repaired);
         assert!(!verdict.is_not_ready());
         assert!(!frame_wants_redraw(Some("claude"), &verdict));
+    }
+
+    /// An idle coordinator whose finished turn left a background shell running: the footer's
+    /// "· 1 shell still running" is not work, so its unreadable box is still redrawn. A compaction
+    /// on screen is, and is left alone.
+    #[test]
+    fn a_background_shell_line_does_not_stop_the_redraw() {
+        let screen = format!(
+            "\u{273b} Crunched for 18s \u{b7} done 2:19 PM \u{b7} 1 shell still running\n\n{}",
+            copy_report_frame()
+        );
+        let mut seen = detection(&screen);
+        seen.activity =
+            crate::session_chat_terminal_activity::detect_session_chat_terminal_activity(
+                Some("claude"),
+                &screen,
+            );
+        assert!(
+            crate::session_chat_terminal_activity::is_session_chat_background_work_activity(
+                seen.activity.as_ref()
+            ),
+            "{:?}",
+            seen.activity
+        );
+        assert!(screen_wants_redraw(Some("claude"), &seen));
+
+        let compacting = format!(
+            "\u{273b} Compacting conversation\u{2026}\n\n{}",
+            copy_report_frame()
+        );
+        let mut seen = detection(&compacting);
+        seen.activity =
+            crate::session_chat_terminal_activity::detect_session_chat_terminal_activity(
+                Some("claude"),
+                &compacting,
+            );
+        assert!(seen.activity.is_some(), "{compacting}");
+        assert!(!screen_wants_redraw(Some("claude"), &seen));
     }
 
     #[test]

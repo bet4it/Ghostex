@@ -58,6 +58,42 @@ struct SessionQueueGate {
     /// `None` means the window has not started (or was just reset).
     stopped_since: Option<DateTime<Utc>>,
     transcript: SessionChatTranscriptGate,
+    /// The head row held for a missing input box, since when, and whether that was logged.
+    input_box_hold: Option<InputBoxHold>,
+}
+
+/// How long a head row waits on a missing input box before the wait is logged with its screen.
+const INPUT_BOX_HOLD_LOG_AFTER_MS: i64 = 60_000;
+
+#[derive(Clone, Debug, PartialEq, Eq)]
+struct InputBoxHold {
+    prompt_id: String,
+    since: DateTime<Utc>,
+    logged: bool,
+}
+
+/// Starts or continues `hold` for `prompt_id`; answers true exactly once per row, when it has
+/// waited [`INPUT_BOX_HOLD_LOG_AFTER_MS`].
+fn input_box_hold_log_due(
+    hold: &mut Option<InputBoxHold>,
+    prompt_id: &str,
+    now: DateTime<Utc>,
+) -> bool {
+    let hold = match hold {
+        Some(hold) if hold.prompt_id == prompt_id => hold,
+        _ => hold.insert(InputBoxHold {
+            prompt_id: prompt_id.to_string(),
+            since: now,
+            logged: false,
+        }),
+    };
+    if hold.logged
+        || now.signed_duration_since(hold.since).num_milliseconds() < INPUT_BOX_HOLD_LOG_AFTER_MS
+    {
+        return false;
+    }
+    hold.logged = true;
+    true
 }
 
 /// CDXC:DelayedSend 2026-09-16 WHY:
@@ -497,17 +533,28 @@ impl SessionChatQueueRuntime {
 
             Grok requires positive readiness; unmeasured agents retain their
             existing Unknown behavior.
+
+            CDXC:SessionChat 2026-10-29 DECISION:
+            User: "i came back to my pc all these were paused and waiting since yesterday.... and as soon as i switched to terminal on your session then things started flowing. this is crazy bad. please fix this." The coordinator (S90:P3lv0:G1pif) sat idle from 02:14 to 10:09 UTC with page answers, a message and thread reports queued. The head row was an ordinary queued row, and this gate read only the cached screen verdict, which (by everything logged) said Claude's input box was unreadable (Claude repaints only cells it thinks changed, so a frame damaged by a grid resize stays damaged on an idle Claude). Only a held startup send got a fresh look and the redraw (held_redraw.rs); no capture, redraw or write reached the session for eight hours, until the terminal view's resize repainted Claude. Every head row held here now gets the same fresh look on the startup send's backoff and the same guarded Ctrl+L, whether or not anyone views the session, and a row held a minute is logged with the screen it waits on (`sessionChatQueueHeldForInputBox` in session-chat-send-failures.jsonl).
             */
             if !pending_box
-                && composer.blocks_message_for(
-                    crate::session_chat_composer::session_chat_composer_agent_id(&session)
-                        .as_deref(),
-                )
+                && composer.blocks_message_for(composer_agent.as_deref())
                 && !composer.should_dismiss()
             {
                 self.reset_gate(&key);
+                self.hold_for_input_box(&project_id, &session_id, &head.id, &composer, now);
+                // A fresh look on the startup send's backoff; the refresher also asks an idle
+                // Claude whose box stays unreadable to redraw (held_redraw.rs).
+                if self.composer_holds.screen_read_due(&key, &head.id, now) {
+                    (self.compacting_refresher)(
+                        &project_id,
+                        &session_id,
+                        composer_agent.as_deref(),
+                    );
+                }
                 continue;
             }
+            self.clear_input_box_hold(&key);
             ready.push(ReadyDelivery {
                 project_id,
                 session_id,
@@ -644,6 +691,44 @@ impl SessionChatQueueRuntime {
         if let Ok(mut gates) = self.gates.lock() {
             if let Some(gate) = gates.get_mut(key) {
                 gate.stopped_since = None;
+            }
+        }
+    }
+
+    /// Records that the head row waits on a missing input box, and logs it once with the reason
+    /// and the screen when it has waited a minute, so a stuck row says what it waits for.
+    fn hold_for_input_box(
+        &self,
+        project_id: &str,
+        session_id: &str,
+        prompt_id: &str,
+        composer: &crate::session_chat_composer::SessionChatComposerReadiness,
+        now: DateTime<Utc>,
+    ) {
+        let due = self.gates.lock().is_ok_and(|mut gates| {
+            let gate = gates
+                .entry(session_queue_key(project_id, session_id))
+                .or_default();
+            input_box_hold_log_due(&mut gate.input_box_hold, prompt_id, now)
+        });
+        if due {
+            crate::session_chat_send_diagnostics::record_send_recovery_from_worker(
+                "sessionChatQueueHeldForInputBox",
+                project_id,
+                session_id,
+                composer
+                    .reason
+                    .as_deref()
+                    .unwrap_or("The agent's input box could not be read."),
+                &composer.screen_tail,
+            );
+        }
+    }
+
+    fn clear_input_box_hold(&self, key: &str) {
+        if let Ok(mut gates) = self.gates.lock() {
+            if let Some(gate) = gates.get_mut(key) {
+                gate.input_box_hold = None;
             }
         }
     }
@@ -818,6 +903,36 @@ mod tests {
             created_at: created.clone(),
             updated_at: created,
         }
+    }
+
+    #[test]
+    fn a_row_held_for_the_input_box_is_logged_once_after_a_minute() {
+        let start = Utc::now();
+        let mut hold = None;
+        assert!(!input_box_hold_log_due(&mut hold, "Q1", start));
+        assert!(!input_box_hold_log_due(
+            &mut hold,
+            "Q1",
+            start + chrono::Duration::seconds(59)
+        ));
+        assert!(input_box_hold_log_due(
+            &mut hold,
+            "Q1",
+            start + chrono::Duration::seconds(60)
+        ));
+        assert!(!input_box_hold_log_due(
+            &mut hold,
+            "Q1",
+            start + chrono::Duration::hours(8)
+        ));
+        // The next head row starts its own minute.
+        let next = start + chrono::Duration::hours(8);
+        assert!(!input_box_hold_log_due(&mut hold, "Q2", next));
+        assert!(input_box_hold_log_due(
+            &mut hold,
+            "Q2",
+            next + chrono::Duration::seconds(60)
+        ));
     }
 
     #[test]
