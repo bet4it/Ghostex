@@ -29,7 +29,9 @@ mod pages;
 pub mod platform_text;
 pub mod rows;
 
-pub use hotkey_chords::{customized_normal_hotkey, hotkey_keystroke, platform_hotkey, terminal_hotkey};
+pub use hotkey_chords::{
+    customized_normal_hotkey, hotkey_keystroke, platform_hotkey, terminal_hotkey,
+};
 pub use hotkey_label::hotkey_label;
 pub use hotkeys::{
     default_hotkeys, hotkey_definition, hotkey_definitions, hotkey_has_normal_binding,

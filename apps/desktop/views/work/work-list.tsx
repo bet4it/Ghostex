@@ -531,7 +531,9 @@ function WorkRow({
               </span>
             </RowLink>
           ) : (
-            <span className='w-placeholder'>{item.kind === 'ticket' && item.source !== 'github' ? 'No repo yet' : 'No repo'}</span>
+            <span className='w-placeholder'>
+              {item.kind === 'ticket' && item.source !== 'github' ? 'No repo yet' : 'No repo'}
+            </span>
           )}
         </span>
         <span className='w-slot w-slot-pr work-slot-pr'>

@@ -102,9 +102,15 @@ mod tests {
     #[test]
     fn server_names_find_their_app() {
         assert_eq!(tool_app_for_server("linear").unwrap().name, "Linear");
-        assert_eq!(tool_app_for_server("claude_ai_Linear").unwrap().key, "linear");
+        assert_eq!(
+            tool_app_for_server("claude_ai_Linear").unwrap().key,
+            "linear"
+        );
         assert_eq!(tool_app_for_server("github-mcp").unwrap().key, "github");
-        assert_eq!(tool_app_for_server("Google-Drive").unwrap().key, "googledrive");
+        assert_eq!(
+            tool_app_for_server("Google-Drive").unwrap().key,
+            "googledrive"
+        );
         assert_eq!(
             tool_app_for_server("google_calendar").unwrap().key,
             "googlecalendar"

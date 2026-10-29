@@ -101,7 +101,12 @@ export function resolveSessionChatTranscriptAgent(
     if (normalized === 'pi' || normalized === 'omp') return 'pi';
     if (normalized === 'zcode' || normalized === 'zcode-cli') return 'zcode';
     if (normalized === 'freebuff') return 'freebuff';
-    if (normalized === 'dsh' || normalized === 'dsh-tui' || normalized === 'deepseek' || normalized === 'deepseek harness')
+    if (
+      normalized === 'dsh' ||
+      normalized === 'dsh-tui' ||
+      normalized === 'deepseek' ||
+      normalized === 'deepseek harness'
+    )
       return 'dsh';
   }
   return null;

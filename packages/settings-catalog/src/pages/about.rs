@@ -1,4 +1,4 @@
-use crate::rows::{Page, Section, row, section};
+use crate::rows::{row, section, Page, Section};
 
 pub(crate) fn page() -> Page {
     Page {

@@ -128,11 +128,16 @@ pub fn tool_card(
                     continue;
                 }
                 // Conversation and runs with cards of their own stay out of the card.
-                if row["exchange"] == true || row["sentMessage"] == true || row.get("workflow").is_some()
+                if row["exchange"] == true
+                    || row["sentMessage"] == true
+                    || row.get("workflow").is_some()
                 {
                     continue;
                 }
-                (pair, tool_entry(index, &pair, row, working_directory, working))
+                (
+                    pair,
+                    tool_entry(index, &pair, row, working_directory, working),
+                )
             }
             Slot::File(index, pair) => {
                 let Some(file) = files.get(index) else {
@@ -162,7 +167,10 @@ pub fn tool_card(
     let count = entries.len();
     let running = entries.iter().any(|entry| entry["status"] == "running");
     let stopped = entries.iter().any(|entry| entry["status"] == "stopped");
-    let failed = entries.iter().filter(|entry| entry["status"] == "failed").count();
+    let failed = entries
+        .iter()
+        .filter(|entry| entry["status"] == "failed")
+        .count();
     let time = match (running, started, ended) {
         (false, Some(start), Some(end)) if end > start => tool_duration_label(end - start),
         _ => String::new(),
@@ -224,7 +232,9 @@ fn tool_entry(
     let input = pair.call_input().unwrap_or(&Value::Null);
     let output = pair.result_output().unwrap_or_default();
     let status = Status::of(pair.result.is_some(), pair.result_is_error(), working);
-    let mcp = name.strip_prefix("mcp__").and_then(|rest| mcp_call(rest, input));
+    let mcp = name
+        .strip_prefix("mcp__")
+        .and_then(|rest| mcp_call(rest, input));
     let label_in = |tense: LabelTense| -> Option<(String, Option<&'static str>)> {
         if let Some(call) = &mcp {
             return Some((call.label(tense), None));
@@ -236,7 +246,10 @@ fn tool_entry(
     let (label, verb) = if description.is_empty() {
         label_in(status.tense()).unwrap_or_else(|| (text(row, "label"), None))
     } else {
-        (description.clone(), label_in(LabelTense::Done).and_then(|(_, verb)| verb))
+        (
+            description.clone(),
+            label_in(LabelTense::Done).and_then(|(_, verb)| verb),
+        )
     };
     let mut entry = Map::new();
     entry.insert("kind".to_string(), "tool".into());
@@ -456,7 +469,12 @@ fn mcp_call(server_tool: &str, input: &Value) -> Option<McpCall> {
             _ => None,
         })
     };
-    let noun = tool_words.iter().skip(1).cloned().collect::<Vec<_>>().join(" ");
+    let noun = tool_words
+        .iter()
+        .skip(1)
+        .cloned()
+        .collect::<Vec<_>>()
+        .join(" ");
     let object = if created {
         noun
     } else if searched {
@@ -465,8 +483,18 @@ fn mcp_call(server_tool: &str, input: &Value) -> Option<McpCall> {
             .unwrap_or(noun)
     } else {
         field(&[
-            "identifier", "issueId", "issue_id", "id", "key", "number", "pageId", "page_id",
-            "channel", "repo", "title", "name",
+            "identifier",
+            "issueId",
+            "issue_id",
+            "id",
+            "key",
+            "number",
+            "pageId",
+            "page_id",
+            "channel",
+            "repo",
+            "title",
+            "name",
         ])
         .map(|id| short(&id))
         .unwrap_or(noun)
@@ -565,7 +593,8 @@ fn read_lines(output: &str) -> Option<usize> {
             let trimmed = line.trim_start();
             let digits = trimmed.bytes().take_while(u8::is_ascii_digit).count();
             digits > 0
-                && (trimmed[digits..].starts_with('\u{2192}') || trimmed[digits..].starts_with('\t'))
+                && (trimmed[digits..].starts_with('\u{2192}')
+                    || trimmed[digits..].starts_with('\t'))
         })
         .count();
     let count = if numbered > 0 {
@@ -615,9 +644,11 @@ fn json_count(output: &str) -> Option<usize> {
     let value: Value = serde_json::from_str(js_trim(output)).ok()?;
     match &value {
         Value::Array(items) => Some(items.len()),
-        Value::Object(fields) => ["issues", "items", "results", "nodes", "data", "pages", "messages"]
-            .iter()
-            .find_map(|key| fields.get(*key).and_then(Value::as_array).map(Vec::len)),
+        Value::Object(fields) => [
+            "issues", "items", "results", "nodes", "data", "pages", "messages",
+        ]
+        .iter()
+        .find_map(|key| fields.get(*key).and_then(Value::as_array).map(Vec::len)),
         _ => None,
     }
 }
@@ -703,7 +734,9 @@ fn test_counts(output: &str) -> Option<(u64, u64)> {
 /// The numbers before `passed` and `failed` words in one summary line.
 fn counts_in(line: &str, pass_words: &[&str], fail_words: &[&str]) -> (Option<u64>, Option<u64>) {
     let words: Vec<&str> = line
-        .split(|character: char| character.is_whitespace() || matches!(character, ',' | ';' | '|' | '(' | ')'))
+        .split(|character: char| {
+            character.is_whitespace() || matches!(character, ',' | ';' | '|' | '(' | ')')
+        })
         .filter(|word| !word.is_empty())
         .collect();
     let mut passed = None;
@@ -736,9 +769,7 @@ pub fn failure_reason(output: &str) -> String {
             )
         })
         .filter(|line| {
-            !line.is_empty()
-                && !line.starts_with("<system-reminder>")
-                && !is_wrapper_line(line)
+            !line.is_empty() && !line.starts_with("<system-reminder>") && !is_wrapper_line(line)
         })
         .collect();
     let lower_first = lines.first().map(|line| line.to_ascii_lowercase());

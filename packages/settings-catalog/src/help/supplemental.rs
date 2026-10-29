@@ -3,7 +3,7 @@
 //! source of the copy; these rows only place the key on the right page.
 
 use crate::data::{DEFAULT_EDITOR_COMMAND_OPTIONS, SESSION_TITLE_GENERATION_AGENT_OPTIONS};
-use crate::json::{Opt, opt};
+use crate::json::{opt, Opt};
 
 /// A Settings page as the Help files name it: its id and title.
 pub(crate) type Tab = (&'static str, &'static str);

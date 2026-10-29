@@ -122,9 +122,12 @@ function bucketOf(item: WorkItem, groupBy: WorkGroupBy, tracker: WorkTracker, no
         rank: 1,
       };
     case 'type':
-      if (item.kind === 'ticket' && item.source === 'linear') return { key: 'linearIssue', label: 'Linear tickets', rank: 0 };
-      if (item.kind === 'ticket' && item.source === 'github') return { key: 'githubIssue', label: 'GitHub issues', rank: 1 };
-      if (item.kind === 'ticket') return { key: `ticket:${item.source}`, label: sourceText(item.source).group, rank: 1 };
+      if (item.kind === 'ticket' && item.source === 'linear')
+        return { key: 'linearIssue', label: 'Linear tickets', rank: 0 };
+      if (item.kind === 'ticket' && item.source === 'github')
+        return { key: 'githubIssue', label: 'GitHub issues', rank: 1 };
+      if (item.kind === 'ticket')
+        return { key: `ticket:${item.source}`, label: sourceText(item.source).group, rank: 1 };
       return { key: 'pullRequest', label: 'PRs without a ticket', rank: 2 };
     case 'pullRequest':
       return pullRequestBucket(item);

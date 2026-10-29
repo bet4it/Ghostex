@@ -177,6 +177,10 @@ mod age_tests {
         assert_eq!(ago(47 * 3_600_000), "yesterday");
         assert_eq!(ago(48 * 3_600_000), "2d");
         assert_eq!(ago(10 * 86_400_000), "10d");
-        assert_eq!(age_label(at - 5_000, at), "now", "a clock behind the stamp reads now");
+        assert_eq!(
+            age_label(at - 5_000, at),
+            "now",
+            "a clock behind the stamp reads now"
+        );
     }
 }

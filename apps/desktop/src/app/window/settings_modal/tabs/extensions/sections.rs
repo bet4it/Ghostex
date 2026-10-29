@@ -18,12 +18,12 @@ use super::cards::{
     empty_state, extension_icon_tile, grid_card, grid_columns, page_column_width, tabler_tile,
 };
 use super::data::{
-    InstalledExtension, OfficialExtension,
-    built_in_filter_subject, custom_views, extension_view_scope_key,
-    filter_store, is_official_enabled, is_version_newer, merged_view_order, move_id,
-    normalize_custom_views, official_blocked_by, official_categories, official_extensions,
-    official_icon, official_switch_value, official_view_scope_key, scope_projects_and_spaces,
-    titlebar_view_order, view_order_items, view_scope, view_scope_description,
+    InstalledExtension, OfficialExtension, built_in_filter_subject, custom_views,
+    extension_view_scope_key, filter_store, is_official_enabled, is_version_newer,
+    merged_view_order, move_id, normalize_custom_views, official_blocked_by, official_categories,
+    official_extensions, official_icon, official_switch_value, official_view_scope_key,
+    scope_projects_and_spaces, titlebar_view_order, view_order_items, view_scope,
+    view_scope_description,
 };
 use gpui::{
     AnyElement, ClickEvent, Context, FontWeight, InteractiveElement as _, IntoElement,

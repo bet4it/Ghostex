@@ -1109,7 +1109,9 @@ pub(crate) fn gpui_spawn_local_gxserver_daemon(binary: &Path) -> Result<Vec<Stri
         .map_err(|error| format!("gxserver failed to launch: {error}"))?;
     gpui_note_gxserver_launch(log_offset);
     gpui_watch_gxserver_exit(child, launch_log, log_offset);
-    Ok(vec!["launcher: detached process start accepted".to_string()])
+    Ok(vec![
+        "launcher: detached process start accepted".to_string(),
+    ])
 }
 
 /// CDXC:PlatformSupport 2026-09-28 WHY:

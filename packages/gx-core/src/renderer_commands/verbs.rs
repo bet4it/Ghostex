@@ -20,8 +20,8 @@ use serde_json::{Map, Value};
 use super::errors::RendererCommandError;
 use super::project_step::ProjectStepDirection;
 use super::targets::{
-    RendererSession, known_project_id, local_project_at_path, local_project_named,
-    resolve_renderer_group_project, resolve_renderer_session,
+    known_project_id, local_project_at_path, local_project_named, resolve_renderer_group_project,
+    resolve_renderer_session, RendererSession,
 };
 use crate::core::Core;
 use crate::keys::MachineId;

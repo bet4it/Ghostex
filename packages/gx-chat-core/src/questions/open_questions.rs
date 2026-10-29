@@ -975,7 +975,10 @@ mod tests {
             "answered and withdrawn in one list, newest first; one without a time goes last"
         );
         assert_eq!(with_status(&pill, "withdrawn"), vec!["withdrawn"]);
-        assert_eq!(with_status(&pill, "answered"), vec!["new-answer", "old-answer", "undated"]);
+        assert_eq!(
+            with_status(&pill, "answered"),
+            vec!["new-answer", "old-answer", "undated"]
+        );
         assert_eq!(
             pill.total, 6,
             "an unanswered question from before a fork is the parent's"
@@ -995,7 +998,13 @@ mod tests {
         settled.transcript_view.askers.push(done);
         let pill = project(&settled, &ChatContext::default());
         assert_eq!(pill.sections.len(), 1);
-        assert_eq!((pill.sections[0].id.as_str(), pill.sections[0].title.as_str()), ("earlier", ""));
+        assert_eq!(
+            (
+                pill.sections[0].id.as_str(),
+                pill.sections[0].title.as_str()
+            ),
+            ("earlier", "")
+        );
     }
 
     #[test]
@@ -1132,7 +1141,11 @@ mod tests {
             0,
         );
         assert_eq!(paged[0].rows.len(), 3 * LIST_PAGE);
-        assert_eq!(paged[1].rows.len(), 5, "the Earlier rows still get their page");
+        assert_eq!(
+            paged[1].rows.len(),
+            5,
+            "the Earlier rows still get their page"
+        );
         assert_eq!(left, 0);
     }
 

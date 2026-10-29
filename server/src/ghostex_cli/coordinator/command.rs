@@ -494,9 +494,7 @@ fn list(parsed: &ParsedArgs) -> CliResult<()> {
         .cloned()
         .unwrap_or_default();
     if rows.is_empty() {
-        println!(
-            "No coordinators. Create one with: ghostex coordinator create --title \"<name>\""
-        );
+        println!("No coordinators. Create one with: ghostex coordinator create --title \"<name>\"");
         return Ok(());
     }
     for row in rows {
