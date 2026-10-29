@@ -734,6 +734,7 @@ pub(crate) fn gpui_normalized_user_tool_path(current_path: Option<&str>) -> Stri
         entries.push(format!("/etc/profiles/per-user/{user}/bin"));
     }
     entries.extend([
+        "/run/wrappers/bin".to_string(),
         "/run/current-system/sw/bin".to_string(),
         "/nix/var/nix/profiles/default/bin".to_string(),
         "/usr/bin".to_string(),

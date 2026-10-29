@@ -418,6 +418,7 @@ pub(crate) fn gpui_project_beads_title_generation_path(existing: Option<&str>) -
         format!("{home}/.asdf/shims"),
         format!("{home}/.nix-profile/bin"),
         format!("/etc/profiles/per-user/{user}/bin"),
+        "/run/wrappers/bin".to_string(),
         "/run/current-system/sw/bin".to_string(),
         "/nix/var/nix/profiles/default/bin".to_string(),
         "/opt/homebrew/bin".to_string(),
