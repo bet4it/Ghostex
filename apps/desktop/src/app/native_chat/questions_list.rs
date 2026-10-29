@@ -35,9 +35,9 @@ const LIST_MAX: f32 = 380.0;
 /// How often an open list redraws so its ages stay current.
 const AGE_REFRESH: std::time::Duration = std::time::Duration::from_secs(30);
 
-/// The sections that start folded: the withdrawn ones need nothing.
-fn folded_by_default(section: &str) -> bool {
-    section == "withdrawn"
+/// The groups that start folded: none (the list has two, Unanswered and Earlier).
+fn folded_by_default(_section: &str) -> bool {
+    false
 }
 
 /// A row's hover tooltip: its title and the full date and time it was asked. No Q numbers
@@ -62,14 +62,14 @@ fn row_age(row: &Value, now_ms: i64) -> String {
 
 /// The button a row offers: "For later" on a form or page still waiting, "Back to open" on one
 /// put off. It sends the action the question cards' own button sends (`questionForLater`), so
-/// the cards and the list agree. Other rows (answered, withdrawn, pages and charts that ask
-/// nothing) offer none.
-fn later_action(section: &str, kind: &str, id: &str) -> Option<(&'static str, Value)> {
+/// the cards and the list agree. `status` is the row's (gx-chat-core `QuestionListRow::status`);
+/// other rows (answered, withdrawn, pages and charts that ask nothing) offer none.
+fn later_action(status: &str, kind: &str, id: &str) -> Option<(&'static str, Value)> {
     if kind == "chart" {
         return None;
     }
-    match section {
-        "unanswered" => Some(("For later", json!({"type": "questionForLater", "id": id, "later": true}))),
+    match status {
+        "waiting" => Some(("For later", json!({"type": "questionForLater", "id": id, "later": true}))),
         "later" => Some((
             "Back to open",
             json!({"type": "questionForLater", "id": id, "later": false}),
@@ -134,7 +134,13 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
             } else {
                 section["rows"].as_array().map_or(0, Vec::len)
             };
-            SECTION_HEIGHT + shown as f32 * ROW_HEIGHT
+            // A group with no title (Earlier, alone) has no header line.
+            let header = if text(section, "title").is_empty() {
+                0.0
+            } else {
+                SECTION_HEIGHT
+            };
+            header + shown as f32 * ROW_HEIGHT
         })
         .sum::<f32>();
     Some(
@@ -145,8 +151,8 @@ pub(super) fn questions_menu_height(open: &Value, list: &QuestionList) -> Option
 }
 
 /// The glyph of a row's For later button: a clock to put it off, the way back once it is.
-fn later_icon(section: &str) -> &'static str {
-    if section == "later" {
+fn later_icon(status: &str) -> &'static str {
+    if status == "later" {
         "titlebar/arrow-back-up.svg"
     } else {
         "titlebar/clock.svg"
@@ -192,17 +198,25 @@ impl NativeChatView {
         cx.notify();
     }
 
-    /// The list's section a form or page is in (`unanswered`, `later`, `answered`, `withdrawn`).
+    /// Where a form or page stands in the list (`unanswered`, `later`, or its group's id): the
+    /// question cards read it to offer For later or Back to unanswered.
     pub(super) fn question_section_of(&self, id: &str) -> Option<String> {
         self.snapshot["openQuestions"]["sections"]
             .as_array()?
             .iter()
-            .find(|section| {
+            .flat_map(|section| {
                 section["rows"]
                     .as_array()
-                    .is_some_and(|rows| rows.iter().any(|row| row["id"] == id))
+                    .into_iter()
+                    .flatten()
+                    .map(move |row| (section, row))
             })
-            .map(|section| text(section, "id"))
+            .find(|(_, row)| row["id"] == id)
+            .map(|(section, row)| match text(row, "status").as_str() {
+                "waiting" => "unanswered".to_string(),
+                "later" => "later".to_string(),
+                _ => text(section, "id"),
+            })
     }
 
     pub(super) fn questions_menu_height(&self) -> Option<f32> {
@@ -375,10 +389,13 @@ impl NativeChatView {
         for section in &sections {
             let id = text(section, "id");
             let folded = self.question_list.folded(&id);
-            list = list.child(self.question_section_header(section, folded, p, cx));
+            let headed = !text(section, "title").is_empty();
+            if headed {
+                list = list.child(self.question_section_header(section, folded, p, cx));
+            }
             if !folded {
                 for row in section["rows"].as_array().into_iter().flatten() {
-                    list = list.child(self.question_list_row(&id, row, p, cx));
+                    list = list.child(self.question_list_row(headed, row, p, cx));
                 }
             }
         }
@@ -546,7 +563,7 @@ impl NativeChatView {
 
     fn question_list_row(
         &self,
-        section: &str,
+        headed: bool,
         row: &Value,
         p: &ChatAppearance,
         cx: &Context<Self>,
@@ -556,12 +573,14 @@ impl NativeChatView {
         let title = text(row, "title");
         let age = row_age(row, crate::app::gx_chat::now_millis());
         let kind = text(row, "kind");
-        let later = later_action(section, &kind, &id);
+        let status = text(row, "status");
+        let later = later_action(&status, &kind, &id);
         let icon = kind_icon(&kind);
         let group = SharedString::from(format!("chat-questions-row-group:{id}"));
-        let (icon_color, title_color) = match section {
+        // Answered forms and pages are green, withdrawn ones dimmed; the rest are the usual grey.
+        let (icon_color, title_color) = match status.as_str() {
             "answered" => (p.success(), p.foreground),
-            "withdrawn" => (p.muted, p.card_muted),
+            "withdrawn" => (p.muted.opacity(0.6), p.card_muted),
             _ => (p.card_muted, p.foreground),
         };
         let tooltip = row_tooltip(row);
@@ -578,7 +597,7 @@ impl NativeChatView {
             .min_w_0()
             .flex_shrink_0()
             .h(px(ROW_HEIGHT * s))
-            .pl(px(20.0 * s))
+            .pl(px(if headed { 20.0 } else { 6.0 } * s))
             .pr(px(4.0 * s))
             .rounded(px(5.0 * s))
             .text_size(px(12.0 * s))
@@ -600,9 +619,17 @@ impl NativeChatView {
                     .min_w_0()
                     .truncate()
                     .text_color(title_color)
-                    .when(section == "withdrawn", |title| title.line_through())
                     .child(title),
             )
+            .when(status == "later", |this| {
+                this.child(
+                    div()
+                        .flex_shrink_0()
+                        .text_size(px(11.0 * s))
+                        .text_color(p.card_muted)
+                        .child("For later"),
+                )
+            })
             .when(!age.is_empty(), |this| {
                 this.child(
                     div()
@@ -614,7 +641,7 @@ impl NativeChatView {
                 )
             })
             .children(later.map(|(label, action)| {
-                self.later_row_button(&id, label, action, group.clone(), later_icon(section), p, cx)
+                self.later_row_button(&id, label, action, group.clone(), later_icon(&status), p, cx)
             }))
             .on_click(cx.listener(move |this, _, _, cx| {
                 cx.stop_propagation();
@@ -663,18 +690,18 @@ mod tests {
 
     #[test]
     fn the_for_later_button_toggles_by_section() {
-        let (label, action) = later_action("unanswered", "form", "f1").unwrap();
+        let (label, action) = later_action("waiting", "form", "f1").unwrap();
         assert_eq!(label, "For later");
         assert_eq!(action, json!({"type": "questionForLater", "id": "f1", "later": true}));
         let (label, action) = later_action("later", "page", "p1").unwrap();
         assert_eq!(label, "Back to open");
         assert_eq!(action, json!({"type": "questionForLater", "id": "p1", "later": false}));
-        for section in ["answered", "withdrawn", "pages", "charts"] {
-            assert!(later_action(section, "form", "x").is_none(), "{section}");
+        for status in ["answered", "withdrawn", "other"] {
+            assert!(later_action(status, "form", "x").is_none(), "{status}");
         }
-        assert!(later_action("unanswered", "chart", "c").is_none());
+        assert!(later_action("waiting", "chart", "c").is_none());
         assert_eq!(later_icon("later"), "titlebar/arrow-back-up.svg");
-        assert_eq!(later_icon("unanswered"), "titlebar/clock.svg");
+        assert_eq!(later_icon("waiting"), "titlebar/clock.svg");
     }
 
     #[test]
@@ -694,6 +721,21 @@ mod tests {
             super::super::chat_pills::MENU_HEADER_HEIGHT
                 + super::super::chat_pills::MENU_SECTION_GAP
                 + LIST_MAX
+        );
+    }
+
+    #[test]
+    fn a_group_without_a_title_has_no_header_line() {
+        let list = QuestionList::default();
+        let row = json!({"id": "a"});
+        let headed = json!({"total": 1, "remaining": 0,
+            "sections": [{"id": "earlier", "title": "Earlier", "rows": [row.clone()], "count": 1}]});
+        let bare = json!({"total": 1, "remaining": 0,
+            "sections": [{"id": "earlier", "title": "", "rows": [row], "count": 1}]});
+        assert_eq!(
+            questions_menu_height(&headed, &list).unwrap()
+                - questions_menu_height(&bare, &list).unwrap(),
+            SECTION_HEIGHT
         );
     }
 }

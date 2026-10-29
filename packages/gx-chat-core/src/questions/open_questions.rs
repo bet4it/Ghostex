@@ -97,6 +97,11 @@ pub struct QuestionListRow {
     /// `form` (Q&A), `page` (HTML) or `chart`.
     pub kind: String,
     pub title: String,
+    /// Where it stands: `waiting` (unanswered), `later` (put off For later, still unanswered),
+    /// `answered`, `withdrawn`, or `other` for a page or chart that asks nothing. The renderers
+    /// tell rows apart by it (the icon's colour, the For later marker and button).
+    #[serde(default)]
+    pub status: String,
     /// The Q-tags it asks.
     pub tags: Vec<String>,
     /// When it was asked, as a message's time reads ("14:03", "yesterday at 09:12"); empty when
@@ -158,14 +163,14 @@ fn filter_shows(filter: &str, kind: &str) -> bool {
     }
 }
 
-/// How many rows of the long sections one page of the list shows: about one panel of rows (the
-/// desktop panel is 380 px of 26 px rows, the phone's 520 pt of 40 pt rows).
-pub const LIST_PAGE: usize = 15;
+/// How many rows of the long group one page of the list shows (user, 2026-10-29: "show 12 here when
+/// first opened please"; the desktop panel is 380 px of 26 px rows, the phone's 520 pt of 40 pt).
+pub const LIST_PAGE: usize = 12;
 
-/// The sections whose rows are always all listed: what waits on the reader, which is few, and which
-/// the cards and the phone's flags read whole.
+/// The group whose rows are always all listed: what waits on the reader (waiting and For later),
+/// which is few, and which the cards and the phone's flags read whole.
 fn always_whole(section: &str) -> bool {
-    matches!(section, "unanswered" | "later")
+    section == "unanswered"
 }
 
 /// The list paged: Unanswered and For later whole, then the other sections' rows in their order
@@ -264,9 +269,9 @@ pub fn later_waiting(state: &ChatState) -> Vec<String> {
         .collect()
 }
 
-/// Which section of the list an asker belongs in, or `None` for one this chat does not list (an
+/// Where an asker stands (`QuestionListRow::status`), or `None` for one this chat does not list (an
 /// unanswered question inherited from the session this one was forked from).
-fn section_of(
+fn status_of(
     asker: &Asker,
     waiting: &[&Asker],
     later: &std::collections::BTreeSet<String>,
@@ -276,7 +281,7 @@ fn section_of(
         return Some(if later.contains(&asker.id) {
             "later"
         } else {
-            "unanswered"
+            "waiting"
         });
     }
     if asker.answered || on_the_way.contains(&asker.id) {
@@ -294,16 +299,14 @@ fn section_of(
     }
 }
 
-const SECTIONS: [(&str, &str); 6] = [
-    ("unanswered", "Unanswered"),
-    ("later", "For later"),
-    ("answered", "Answered"),
-    ("withdrawn", "Withdrawn"),
-    ("pages", "Pages"),
-    ("charts", "Charts"),
-];
+/// The list's two groups: what waits on the reader (Unanswered, then those put off For later), and
+/// everything else.
+///
+/// CDXC:SessionChat 2026-10-29 DECISION:
+/// User, of the Chat Resources list: "show 12 here when first opened please. and don't split pages from answered from withdrawn, just different icon or icon color is enough. Just split unanswered from the others". The list has two groups only: Unanswered (the waiting questions, then the For later ones, which still need an answer and carry their own marker and button) and "Earlier", every answered form, page, chart and withdrawn question in one list, newest first, told apart by the row's icon and `status` (a withdrawn row's icon is dimmed). "Earlier" has no header while nothing is unanswered. The first page is 12 rows (`LIST_PAGE`). Supersedes the 2026-10-27 sections (Unanswered, For later, Answered, Withdrawn, Pages, Charts).
+const GROUPS: [(&str, &str); 2] = [("unanswered", "Unanswered"), ("earlier", "Earlier")];
 
-/// The pill's list: every form, page and chart in its section, newest first, all kinds.
+/// The pill's list: every form, page and chart in its group, newest first, all kinds.
 pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection> {
     let waiting = waiting(state);
     let later = crate::questions::later::later_ids(state);
@@ -311,43 +314,44 @@ pub fn list(state: &ChatState, context: &ChatContext) -> Vec<QuestionListSection
         .into_iter()
         .map(|answers| answers.page_id)
         .collect();
-    let placed: Vec<(&'static str, usize, &Asker)> = state
+    let mut placed: Vec<(Option<i64>, usize, QuestionListRow)> = state
         .transcript_view
         .askers
         .iter()
         .enumerate()
         .filter_map(|(index, asker)| {
-            Some((
-                section_of(asker, &waiting, &later, &on_the_way)?,
-                index,
-                asker,
-            ))
+            let status = status_of(asker, &waiting, &later, &on_the_way)?;
+            let mut row = list_row(asker, context);
+            row.status = status.to_string();
+            Some((asker.at, index, row))
         })
-        .collect();
-    let mut placed: Vec<(&'static str, Option<i64>, usize, QuestionListRow)> = placed
-        .into_iter()
-        .map(|(section, index, asker)| (section, asker.at, index, list_row(asker, context)))
         .collect();
     let askers = state.transcript_view.askers.len();
     for (index, item) in state.questions.content.items.iter().enumerate() {
-        let section = match item.kind {
-            crate::transcript::question_forms::ContentKind::Chart => "charts",
-            _ => "pages",
-        };
-        placed.push((section, item.at, askers + index, content_row(item, context)));
+        let mut row = content_row(item, context);
+        row.status = "other".to_string();
+        placed.push((item.at, askers + index, row));
     }
     // Newest first; a row the transcript gave no time sorts by its place.
-    placed.sort_by(|(_, a_at, a_index, _), (_, b_at, b_index, _)| {
+    placed.sort_by(|(a_at, a_index, _), (b_at, b_index, _)| {
         b_at.cmp(a_at).then(b_index.cmp(a_index))
     });
-    SECTIONS
+    let rows: Vec<QuestionListRow> = placed.into_iter().map(|(_, _, row)| row).collect();
+    // Waiting first, then the put-off ones, each newest first.
+    let unanswered: Vec<QuestionListRow> = ["waiting", "later"]
         .iter()
-        .filter_map(|(id, title)| {
-            let rows: Vec<QuestionListRow> = placed
-                .iter()
-                .filter(|(section, _, _, _)| section == id)
-                .map(|(_, _, _, row)| row.clone())
-                .collect();
+        .flat_map(|status| rows.iter().filter(move |row| row.status == *status))
+        .cloned()
+        .collect();
+    let earlier: Vec<QuestionListRow> = rows
+        .iter()
+        .filter(|row| row.status != "waiting" && row.status != "later")
+        .cloned()
+        .collect();
+    GROUPS
+        .iter()
+        .zip([unanswered, earlier])
+        .filter_map(|((id, title), rows)| {
             (!rows.is_empty()).then(|| QuestionListSection {
                 id: id.to_string(),
                 title: title.to_string(),
@@ -382,6 +386,7 @@ fn list_row(asker: &Asker, context: &ChatContext) -> QuestionListRow {
         }
         .to_string(),
         title,
+        status: String::new(),
         tags: asker.tags.clone(),
         time: time["label"].as_str().unwrap_or_default().to_string(),
         age: age_of(asker.at, context),
@@ -408,6 +413,7 @@ fn content_row(
         } else {
             item.title.clone()
         },
+        status: String::new(),
         tags: Vec::new(),
         time: time["label"].as_str().unwrap_or_default().to_string(),
         age: age_of(item.at, context),
@@ -461,14 +467,11 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
     let filter = state.questions.open_questions.filter.as_str();
     let all = list(state, context);
     let total = all.iter().map(|section| section.count).sum();
-    let sections = &all;
-    let in_section = |id: &str| {
-        sections
-            .iter()
-            .find(|section| section.id == id)
-            .map_or(0, |section| section.count)
-    };
-    let later = in_section("later");
+    let later = all
+        .iter()
+        .flat_map(|section| &section.rows)
+        .filter(|row| row.status == "later")
+        .count();
     let summary = [
         Some(format!("{count} unanswered")),
         (later > 0).then(|| format!("{later} for later")),
@@ -495,6 +498,13 @@ pub fn project(state: &ChatState, context: &ChatContext) -> OpenQuestions {
             .collect(),
         state.questions.open_questions.pages,
     );
+    // "Earlier" has a header only under an Unanswered group.
+    let mut sections = sections;
+    if !sections.iter().any(|section| section.id == "unanswered") {
+        for section in &mut sections {
+            section.title.clear();
+        }
+    }
     OpenQuestions {
         count,
         text: "Previous question \u{2191}".to_string(),
@@ -689,6 +699,16 @@ mod tests {
             .unwrap_or_default()
     }
 
+    /// The rows of `pill` with this `status`, across both groups, in the list's order.
+    fn with_status<'a>(pill: &'a OpenQuestions, status: &str) -> Vec<&'a str> {
+        pill.sections
+            .iter()
+            .flat_map(|section| &section.rows)
+            .filter(|row| row.status == status)
+            .map(|row| row.id.as_str())
+            .collect()
+    }
+
     fn pool_ids(state: &ChatState) -> Vec<String> {
         unanswered(state)
             .iter()
@@ -821,7 +841,7 @@ mod tests {
     }
 
     #[test]
-    fn the_for_later_button_moves_a_row_between_sections_and_back() {
+    fn the_for_later_button_marks_a_row_and_unmarks_it() {
         let mut state = ChatState::default();
         state
             .transcript_view
@@ -832,14 +852,17 @@ mod tests {
         // The row's button sends `questionForLater {id, later: true}`: it shows at once.
         crate::questions::later::set(&mut state, "a", true);
         let pill = list(&state);
-        assert!(section(&pill, "unanswered").is_empty());
-        assert_eq!(section(&pill, "later"), vec!["a"]);
+        // It stays in the Unanswered group, now marked For later.
+        assert_eq!(section(&pill, "unanswered"), vec!["a"]);
+        assert_eq!(with_status(&pill, "later"), vec!["a"]);
+        assert!(with_status(&pill, "waiting").is_empty());
         assert_eq!(pill.count, 0, "a put-off question leaves the count");
         // "Back to open": `later: false`.
         crate::questions::later::set(&mut state, "a", false);
         let pill = list(&state);
         assert_eq!(section(&pill, "unanswered"), vec!["a"]);
-        assert!(section(&pill, "later").is_empty());
+        assert_eq!(with_status(&pill, "waiting"), vec!["a"]);
+        assert!(with_status(&pill, "later").is_empty());
     }
 
     #[test]
@@ -882,8 +905,9 @@ mod tests {
         assert_eq!(pill.count, 1, "only b waits");
         assert_eq!(pill.newest.as_deref(), Some("b"));
         assert_eq!(pill.summary, "1 unanswered \u{b7} 1 for later");
-        assert_eq!(section(&pill, "unanswered"), vec!["b"]);
-        assert_eq!(section(&pill, "later"), vec!["a"]);
+        // Waiting first, then the put-off ones, in one Unanswered group.
+        assert_eq!(section(&pill, "unanswered"), vec!["b", "a"]);
+        assert_eq!(with_status(&pill, "later"), vec!["a"]);
         assert_eq!(later_waiting(&state), vec!["a".to_string()]);
         // Everything put off: no count, no ping, but the list stays reachable.
         state.session.later_question_ids.push("b".to_string());
@@ -897,15 +921,16 @@ mod tests {
     }
 
     #[test]
-    fn answering_a_for_later_question_moves_it_to_answered() {
+    fn answering_a_for_later_question_moves_it_to_the_earlier_group() {
         let mut state = ChatState::default();
         let mut answered = asker("a", AskerKind::Page, Some(1_000));
         answered.answered = true;
         state.transcript_view.askers.push(answered);
         state.session.later_question_ids = vec!["a".to_string()];
         let pill = project(&state, &ChatContext::default());
-        assert_eq!(section(&pill, "answered"), vec!["a"]);
-        assert!(section(&pill, "later").is_empty());
+        assert_eq!(section(&pill, "earlier"), vec!["a"]);
+        assert_eq!(with_status(&pill, "answered"), vec!["a"]);
+        assert!(section(&pill, "unanswered").is_empty());
         assert!(
             later_waiting(&state).is_empty(),
             "its card no longer says For later"
@@ -913,7 +938,7 @@ mod tests {
     }
 
     #[test]
-    fn sections_come_in_order_with_their_rows_newest_first() {
+    fn two_groups_unanswered_then_everything_else_newest_first() {
         let mut state = ChatState::default();
         let mut old_answer = asker("old-answer", AskerKind::Form, Some(1_000));
         old_answer.answered = true;
@@ -942,30 +967,35 @@ mod tests {
             .iter()
             .map(|section| section.id.as_str())
             .collect();
-        assert_eq!(
-            order,
-            vec!["unanswered", "answered", "withdrawn"],
-            "empty sections are left out"
-        );
+        assert_eq!(order, vec!["unanswered", "earlier"], "two groups only");
         assert_eq!(section(&pill, "unanswered"), vec!["open-new", "open-old"]);
         assert_eq!(
-            section(&pill, "answered"),
-            vec!["new-answer", "old-answer", "undated"],
-            "newest first; one without a time goes last"
+            section(&pill, "earlier"),
+            vec!["new-answer", "withdrawn", "old-answer", "undated"],
+            "answered and withdrawn in one list, newest first; one without a time goes last"
         );
-        assert_eq!(section(&pill, "withdrawn"), vec!["withdrawn"]);
+        assert_eq!(with_status(&pill, "withdrawn"), vec!["withdrawn"]);
+        assert_eq!(with_status(&pill, "answered"), vec!["new-answer", "old-answer", "undated"]);
         assert_eq!(
             pill.total, 6,
             "an unanswered question from before a fork is the parent's"
         );
-        let answered = &pill.sections[1];
-        assert_eq!(answered.title, "Answered");
-        assert_eq!(answered.count, 3);
-        let row = &answered.rows[0];
+        let earlier = &pill.sections[1];
+        assert_eq!((earlier.title.as_str(), earlier.count), ("Earlier", 4));
+        let row = &earlier.rows[0];
         assert_eq!(row.kind, "page");
+        assert_eq!(row.status, "answered");
         assert_eq!(row.title, "About new-answer");
         assert_eq!(row.tags, vec!["Q-new-answer".to_string()]);
         assert_eq!(row.time, "12:00 AM");
+        // Nothing unanswered: the one group has no header.
+        let mut settled = ChatState::default();
+        let mut done = asker("done", AskerKind::Form, Some(1_000));
+        done.answered = true;
+        settled.transcript_view.askers.push(done);
+        let pill = project(&settled, &ChatContext::default());
+        assert_eq!(pill.sections.len(), 1);
+        assert_eq!((pill.sections[0].id.as_str(), pill.sections[0].title.as_str()), ("earlier", ""));
     }
 
     #[test]
@@ -1008,13 +1038,25 @@ mod tests {
             "only the question page waits; pages and charts never count"
         );
         let order: Vec<&str> = pill.sections.iter().map(|s| s.id.as_str()).collect();
-        assert_eq!(order, vec!["unanswered", "answered", "pages", "charts"]);
-        assert_eq!(pill.sections[2].rows[0].kind, "page");
+        assert_eq!(order, vec!["unanswered", "earlier"]);
+        // Forms, pages and charts share the Earlier list, newest first, told apart by kind.
+        let earlier: Vec<(&str, &str, &str)> = pill.sections[1]
+            .rows
+            .iter()
+            .map(|row| (row.id.as_str(), row.kind.as_str(), row.status.as_str()))
+            .collect();
         assert_eq!(
-            pill.sections[2].rows[0].title, "Page",
+            earlier,
+            vec![
+                ("plain-page", "page", "other"),
+                ("form", "form", "answered"),
+                ("chart-1", "chart", "other"),
+            ]
+        );
+        assert_eq!(
+            pill.sections[1].rows[0].title, "Page",
             "a page without a title still reads as one"
         );
-        assert_eq!(pill.sections[3].rows[0].kind, "chart");
 
         pick_filter(&mut state, "html");
         let pill = project(&state, &ChatContext::default());
@@ -1033,7 +1075,7 @@ mod tests {
 
         pick_filter(&mut state, "qa");
         let pill = project(&state, &ChatContext::default());
-        assert_eq!(section(&pill, "answered"), vec!["form"]);
+        assert_eq!(section(&pill, "earlier"), vec!["form"]);
         assert_eq!(pill.sections.len(), 1);
 
         pick_filter(&mut state, "bogus");
@@ -1048,5 +1090,78 @@ mod tests {
         assert_eq!(link_tag("#gx-question=Q80"), Some("Q80"));
         assert_eq!(link_tag("#gx-question=Q80;answered"), Some("Q80"));
         assert_eq!(link_tag("https://example.com"), None);
+    }
+
+    fn sized(id: &str, count: usize) -> QuestionListSection {
+        QuestionListSection {
+            id: id.to_string(),
+            title: id.to_string(),
+            count: count as u32,
+            rows: (0..count)
+                .map(|index| QuestionListRow {
+                    id: format!("r{index}"),
+                    ..QuestionListRow::default()
+                })
+                .collect(),
+        }
+    }
+
+    #[test]
+    fn the_list_shows_twelve_rows_then_a_page_per_click() {
+        assert_eq!(LIST_PAGE, 12, "user, 2026-10-29: show 12 when first opened");
+        let long = || vec![sized("unanswered", 3), sized("earlier", 40)];
+        let (first, left) = page_sections(long(), 0);
+        // Unanswered whole, the Earlier list fills the first page, counts stay full.
+        let shown: Vec<(usize, u32)> = first.iter().map(|s| (s.rows.len(), s.count)).collect();
+        assert_eq!(shown, vec![(3, 3), (12, 40)]);
+        assert_eq!(left, 28);
+        // Each click adds one more page of 12.
+        let (second, left) = page_sections(long(), 1);
+        assert_eq!((second[1].rows.len(), left), (24, 16));
+        let (third, left) = page_sections(long(), 2);
+        assert_eq!((third[1].rows.len(), left), (36, 4));
+        // Enough pages shows everything and leaves nothing out.
+        let (all, left) = page_sections(long(), 10);
+        assert_eq!((all[1].rows.len(), left), (40, 0));
+    }
+
+    #[test]
+    fn many_unanswered_are_never_cut() {
+        let (paged, left) = page_sections(
+            vec![sized("unanswered", 3 * LIST_PAGE), sized("earlier", 5)],
+            0,
+        );
+        assert_eq!(paged[0].rows.len(), 3 * LIST_PAGE);
+        assert_eq!(paged[1].rows.len(), 5, "the Earlier rows still get their page");
+        assert_eq!(left, 0);
+    }
+
+    #[test]
+    fn more_reset_and_the_filter_move_the_page() {
+        let mut state = ChatState::default();
+        for index in 0..40 {
+            let mut done = asker(&format!("a{index}"), AskerKind::Form, Some(1_000 + index));
+            done.answered = true;
+            state.transcript_view.askers.push(done);
+        }
+        let list = |state: &ChatState| project(state, &ChatContext::default());
+        let pill = list(&state);
+        assert_eq!(section(&pill, "earlier").len(), LIST_PAGE);
+        assert_eq!(pill.remaining as usize, 40 - LIST_PAGE);
+        assert_eq!(pill.total, 40, "the totals stay full");
+        assert_eq!(pill.sections[0].count, 40);
+        more(&mut state);
+        assert_eq!(section(&list(&state), "earlier").len(), 2 * LIST_PAGE);
+        more(&mut state);
+        more(&mut state);
+        let pill = list(&state);
+        assert_eq!((section(&pill, "earlier").len(), pill.remaining), (40, 0));
+        // Reopening starts again from one page; so does a new filter.
+        reset_pages(&mut state);
+        assert_eq!(section(&list(&state), "earlier").len(), LIST_PAGE);
+        more(&mut state);
+        pick_filter(&mut state, "qa");
+        assert_eq!(state.questions.open_questions.pages, 0);
+        assert_eq!(section(&list(&state), "earlier").len(), LIST_PAGE);
     }
 }
