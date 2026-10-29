@@ -69,8 +69,9 @@ pub struct PanelsState {
     /// "I want the plan out of the way" is a preference, not a per-session view state, so this is
     /// restored from client storage and written back on every change.
     pub tasks_collapsed: bool,
-    /// Whether the done pile is unfolded, which a fresh plan resets.
-    pub tasks_show_completed: bool,
+    /// How many "Show more" presses the pill's done list has had, which a fresh plan or the
+    /// popover closing resets.
+    pub tasks_done_step: u32,
     /// The task list length the fold was last reset against; `-1` before the first projection.
     pub task_signature: i64,
     /// How far the list is unfolded: 0 in flight only, 1 with the recent ones ("Show recent"),
@@ -92,7 +93,7 @@ impl Default for PanelsState {
         Self {
             fleet_open: None,
             tasks_collapsed: false,
-            tasks_show_completed: false,
+            tasks_done_step: 0,
             task_signature: -1,
             threads_step: 0,
             threads_all: None,

@@ -79,21 +79,21 @@ fn panels(checks: &mut Checks) {
     // A fresh plan closes the done pile again.
     core.act(
         ActionKind::ToggleAgentTasksCompleted,
-        json!({ "expanded": true }),
+        json!({ "step": 2 }),
     );
     checks.eq(
-        "the done pile opens",
-        core.document()["agentTasksPanel"]["showCompleted"].clone(),
-        json!(true),
+        "the done list shows more",
+        core.document()["agentTasksPanel"]["doneStep"].clone(),
+        json!(2),
     );
     core.state_mut().session.agent_tasks = Some(json!({
         "tasks": [{ "id": "1", "subject": "Only", "status": "pending" }]
     }));
     core.tick();
     checks.eq(
-        "a fresh plan closes the done pile",
-        core.document()["agentTasksPanel"]["showCompleted"].clone(),
-        json!(false),
+        "a fresh plan closes the done list",
+        core.document()["agentTasksPanel"]["doneStep"].clone(),
+        json!(0),
     );
 
     core.act(ActionKind::ToggleAgentFleet, json!({ "open": true }));

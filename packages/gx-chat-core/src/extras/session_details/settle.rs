@@ -53,6 +53,8 @@ pub fn set_visible(
     details.visible = visible;
     state.core.request_publish();
     if !visible {
+        // The Tasks card comes back in its short form the next time the panel is shown.
+        state.extras.session_details.tasks_step = 0;
         state.core.timers.cancel(SESSION_DETAILS_POLL);
         return Vec::new();
     }

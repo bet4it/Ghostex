@@ -10,6 +10,7 @@
 use serde_json::{json, Map, Value};
 
 use crate::extras::activity::format_activity_elapsed;
+use crate::extras::agent_tasks::agent_task_panel;
 use crate::extras::session_details::settle::{claude, enabled};
 use crate::extras::time::parse_iso_millis;
 use crate::menus::context::usage::{format_context_percentage, format_context_tokens};
@@ -396,34 +397,19 @@ fn context_card(
     })
 }
 
+/// The Tasks card: the Tasks pill's list (`extras/agent_tasks.rs`), so both show the same rows,
+/// the same header line and the same "Show more".
 fn tasks(state: &ChatState) -> Option<Value> {
-    let list = state
-        .session
-        .agent_tasks
-        .as_ref()?
-        .get("tasks")?
-        .as_array()?;
-    if list.is_empty() {
-        return None;
-    }
-    let rows: Vec<Value> = list
-        .iter()
-        .map(|task| {
-            let status = match task["status"].as_str() {
-                Some("completed") => "done",
-                Some("in_progress") => "running",
-                _ => "todo",
-            };
-            json!({
-                "id": task["id"],
-                "text": task["subject"].as_str().unwrap_or_default(),
-                "status": status,
-                "detail": (status == "running").then(|| task["activeForm"].as_str()).flatten(),
-            })
-        })
-        .collect();
-    let done = rows.iter().filter(|row| row["status"] == "done").count();
-    Some(json!({ "meta": format!("{done}/{}", rows.len()), "rows": rows }))
+    let step = state.extras.session_details.tasks_step;
+    let panel = agent_task_panel(state.session.agent_tasks.as_ref(), false, step)?;
+    let fold = (panel.folded_count > 0)
+        .then(|| json!({"type": "sessionDetailsList", "list": "tasks", "step": step + 1}));
+    Some(json!({
+        "meta": panel.meta,
+        "rows": panel.rows,
+        "foldLabel": panel.fold_label,
+        "foldAction": fold,
+    }))
 }
 
 fn connectors(data: &Value) -> Option<Value> {

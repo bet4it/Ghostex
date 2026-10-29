@@ -552,6 +552,10 @@ impl NativeChatView {
     /// A pill's menu went away. The Threads list goes back to its first step, as folding the panel
     /// did (CDXC:Coordinators 2026-10-18 in gx-chat-core's coordinator_threads.rs).
     pub(super) fn pill_menu_closed(&mut self, trigger: &'static str, cx: &mut Context<Self>) {
+        if trigger == "chat-pill-tasks" {
+            // The done list comes back in its short form the next time the menu opens.
+            self.invoke(json!({"type":"toggleAgentTasksCompleted","step":0}), cx);
+        }
         if trigger == "chat-pill-threads" {
             self.invoke(json!({"type":"toggleCoordinatorThreadsMore","step":0}), cx);
         }

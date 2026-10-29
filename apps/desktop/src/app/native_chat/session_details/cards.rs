@@ -20,6 +20,8 @@ const CARD_GAP: f32 = 8.0;
 const CARD_PADDING_Y: f32 = 8.0;
 const HEADER_HEIGHT: f32 = 24.0;
 const ROW_HEIGHT: f32 = 24.0;
+/// A task row (22) and the gap the pill leaves under it (2), as `agent_tasks.rs` draws them.
+const TASK_ROW_PITCH: f32 = 24.0;
 const SUBTITLE_HEIGHT: f32 = 20.0;
 const BAR_HEIGHT: f32 = 14.0;
 const SUMMARY_HEIGHT: f32 = 24.0;
@@ -123,6 +125,10 @@ pub(super) fn panel_height(details: &Value, open: &mut dyn FnMut(&str, bool) -> 
                     (len(section, "running") + toggle) as f32 * ROW_HEIGHT + finished * ROW_HEIGHT
                 }
                 "changes" => ROW_HEIGHT,
+                "tasks" => {
+                    let fold = usize::from(section["foldAction"].is_object());
+                    (len(section, "rows") + fold) as f32 * ROW_HEIGHT
+                }
                 _ => len(section, "rows") as f32 * ROW_HEIGHT,
             };
         total += body * fold;
@@ -262,7 +268,7 @@ impl NativeChatView {
             let body = match id.as_str() {
                 _ if loading => skeleton_rows(&id, section, p),
                 "context" => self.context_body(section, details, p, cx),
-                "tasks" => tasks_body(section, p),
+                "tasks" => self.tasks_body(section, p, cx),
                 "connectors" => self.connectors_body(section, p, cx),
                 "skills" => self.skills_body(section, p, cx),
                 "changes" => self.changes_body(section, p, cx),
@@ -1208,55 +1214,49 @@ impl NativeChatView {
     }
 }
 
-fn tasks_body(section: &Value, p: &ChatAppearance) -> AnyElement {
-    let s = p.scale;
-    let mut column = div().flex().flex_col().min_w_0();
-    for (index, row) in section["rows"].as_array().into_iter().flatten().enumerate() {
-        let status = row["status"].as_str().unwrap_or("todo");
-        let (icon, icon_color, text_color) = match status {
-            "done" => ("titlebar/circle-check.svg", p.muted, p.card_muted),
-            "running" => ("titlebar/loader2.svg", swatch("running", p), p.foreground),
-            _ => ("titlebar/circle-dashed.svg", p.card_muted, p.foreground),
-        };
-        // The running task reads as Claude words it ("Building the app"); its subject is the tooltip.
-        let running_form = row["detail"]
-            .as_str()
-            .filter(|detail| status == "running" && !detail.is_empty())
-            .map(str::to_string);
-        let text = running_form.clone().unwrap_or_else(|| str_of(row, "text"));
-        column = column.child(
-            div()
-                .id(SharedString::from(format!("session-details-task-{index}")))
-                .flex()
-                .items_center()
-                .gap(px(8.0 * s))
-                .h(px(ROW_HEIGHT * s))
-                .min_w_0()
-                .px(px(2.0 * s))
-                .child(
-                    svg()
-                        .path(icon)
-                        .size(px(13.0 * s))
-                        .flex_shrink_0()
-                        .text_color(icon_color),
-                )
-                .child(
-                    div()
-                        .flex_1()
-                        .min_w_0()
-                        .truncate()
-                        .text_color(text_color)
-                        .child(text),
-                )
-                .when(running_form.is_some(), |line| {
-                    let subject = str_of(row, "text");
-                    line.tooltip(move |window, cx| {
-                        gpui_component::tooltip::Tooltip::new(subject.clone()).build(window, cx)
-                    })
-                }),
-        );
+impl NativeChatView {
+    /// The Tasks card: the Tasks pill's rows (`agent_tasks.rs`) and its "Show more" line.
+    fn tasks_body(
+        &mut self,
+        section: &Value,
+        p: &ChatAppearance,
+        cx: &mut Context<Self>,
+    ) -> AnyElement {
+        let s = p.scale;
+        let mut column = div().flex().flex_col().min_w_0();
+        for row in section["rows"].as_array().into_iter().flatten() {
+            column = column.child(
+                div()
+                    .h(px(TASK_ROW_PITCH * s))
+                    .flex()
+                    .items_center()
+                    .child(self.task_row("session-details-task", row, p)),
+            );
+        }
+        let label = str_of(section, "foldLabel");
+        if !label.is_empty() && section["foldAction"].is_object() {
+            let action = section["foldAction"].clone();
+            column = column.child(
+                div()
+                    .id("session-details-tasks-more")
+                    .role(gpui::Role::Button)
+                    .aria_label(label.clone())
+                    .h(px(ROW_HEIGHT * s))
+                    .flex()
+                    .items_center()
+                    .chat_cursor_pointer()
+                    .text_size(px(12.0 * s))
+                    .text_color(p.card_muted)
+                    .hover(|line| line.text_color(p.foreground))
+                    .child(label)
+                    .on_click(cx.listener(move |this, _, _, cx| {
+                        cx.stop_propagation();
+                        this.session_details_action(&action, cx);
+                    })),
+            );
+        }
+        column.into_any_element()
     }
-    column.into_any_element()
 }
 
 #[cfg(test)]
@@ -1267,16 +1267,16 @@ mod tests {
     fn details() -> Value {
         json!({"sections": [
             {"id": "environment", "collapsed": false, "rows": [{}, {}]},
-            {"id": "tasks", "collapsed": true, "rows": [{}, {}, {}]},
+            {"id": "connectors", "collapsed": true, "groups": [{"rows": [{}, {}, {}]}]},
         ]})
     }
 
     #[test]
     fn a_folding_card_counts_the_part_of_its_body_still_showing() {
-        let height = |tasks: f32| {
+        let height = |connectors: f32| {
             panel_height(&details(), &mut |key, open| {
-                if key == "session-details:tasks" {
-                    tasks
+                if key == "session-details:connectors" {
+                    connectors
                 } else if open {
                     1.0
                 } else {
@@ -1285,7 +1285,22 @@ mod tests {
             })
         };
         let shut = height(0.0);
-        assert_eq!(height(1.0) - shut, 3.0 * ROW_HEIGHT);
-        assert_eq!(height(0.5) - shut, 1.5 * ROW_HEIGHT);
+        let body = SUBTITLE_HEIGHT + 3.0 * ROW_HEIGHT;
+        assert_eq!(height(1.0) - shut, body);
+        assert_eq!(height(0.5) - shut, body * 0.5);
+    }
+
+    #[test]
+    fn the_tasks_card_counts_its_rows_and_its_show_more_line() {
+        let tasks = |more: bool| {
+            let mut section = json!({"id": "tasks", "collapsed": false, "rows": [{}, {}, {}]});
+            if more {
+                section["foldAction"] = json!({"type": "sessionDetailsList"});
+            }
+            panel_height(&json!({"sections": [section]}), &mut |_, open| {
+                f32::from(open)
+            })
+        };
+        assert_eq!(tasks(true) - tasks(false), ROW_HEIGHT);
     }
 }
