@@ -28,11 +28,11 @@ use crate::data::{
     SIDEBAR_COLLAPSE_ANIMATION_DURATION_STEP_MS, SIDEBAR_TOOLTIP_DELAY_STEP_MS,
     TERMINAL_VIEW_WIDTH_PERCENT_STEP,
 };
-use crate::json::{Json, ToJson, J};
-use crate::layout::{general_group, general_navigation, GENERAL_GROUPS};
+use crate::json::{J, Json, ToJson};
+use crate::layout::{GENERAL_GROUPS, general_group, general_navigation};
 use crate::rows::{SettingOption, SettingRow};
-use crate::{default_value, defaults, extra_pages, general_sections, hotkey_definitions, Platform};
-use supplemental::{Tab, GENERAL, SUPPLEMENTAL_ROWS, THEME};
+use crate::{Platform, default_value, defaults, extra_pages, general_sections, hotkey_definitions};
+use supplemental::{ABOUT, SUPPLEMENTAL_ROWS, THEME, Tab};
 
 pub use render::{hotkeys_markdown, settings_markdown};
 
@@ -211,7 +211,7 @@ fn value_type(key: &str, has_options: bool) -> ValueType {
     }
 }
 
-/// Where a row sits: page, General group, section.
+/// Where a row sits: page, group (only the Theme page's `appearance` group), section.
 struct Location {
     tab: Tab,
     group: Option<(&'static str, &'static str)>,
@@ -277,30 +277,33 @@ pub fn catalog() -> Catalog {
 
     let sections = general_sections(platform);
     let section = |id: &str| sections.iter().find(|section| section.id == id);
-    let mut place_group = |tab: Tab, group_id: &'static str, entries: &mut Vec<CatalogEntry>| {
-        let Some(group) = general_group(group_id) else {
-            return;
-        };
-        for section_id in group.sections {
-            let Some(section) = section(section_id) else {
-                continue;
+    let mut place_group =
+        |tab: Option<Tab>, group_id: &'static str, entries: &mut Vec<CatalogEntry>| {
+            let Some(group) = general_group(group_id) else {
+                return;
             };
-            let location = Location {
-                tab,
-                group: Some((group.id, group.title)),
-                section: section.id.to_string(),
-                section_title: section.title.to_string(),
-            };
-            for row in &section.settings {
-                push(catalog_entry(row, &location), entries);
+            for section_id in group.sections {
+                let Some(section) = section(section_id) else {
+                    continue;
+                };
+                // A General page is its own tab (CDXC:Settings 2026-10-29 in layout.rs); only the
+                // Theme page still renders a group of this catalog.
+                let location = Location {
+                    tab: tab.unwrap_or((group.id, group.title)),
+                    group: tab.map(|_| (group.id, group.title)),
+                    section: section.id.to_string(),
+                    section_title: section.title.to_string(),
+                };
+                for row in &section.settings {
+                    push(catalog_entry(row, &location), entries);
+                }
             }
-        }
-    };
+        };
     for item in general_navigation() {
-        place_group(GENERAL, item.id, &mut entries);
+        place_group(None, item.id, &mut entries);
     }
-    // The `appearance` group left General's rail for its own Theme page, after General.
-    place_group(THEME, "appearance", &mut entries);
+    // The `appearance` group renders on the Theme page, after the General pages.
+    place_group(Some(THEME), "appearance", &mut entries);
 
     let grouped: HashSet<&str> = GENERAL_GROUPS
         .iter()
@@ -310,11 +313,11 @@ pub fn catalog() -> Catalog {
         .iter()
         .filter(|section| !grouped.contains(section.id))
     {
-        // A section outside the navigation groups still renders inside one of
-        // them; find the group by the keys it lists so the reference matches the
-        // Settings page layout.
+        // A section outside the navigation groups still renders on one of the
+        // General pages; find the page by the keys it lists so the reference matches the
+        // Settings layout. A section no page lists goes under About.
         let first_key = section.settings.first().map(|row| row.key);
-        let group = first_key.and_then(|key| {
+        let page = first_key.and_then(|key| {
             GENERAL_GROUPS.iter().find(|group| {
                 MAIN_SETTINGS_SECTION_SETTING_KEYS
                     .iter()
@@ -322,8 +325,8 @@ pub fn catalog() -> Catalog {
             })
         });
         let location = Location {
-            tab: GENERAL,
-            group: group.map(|group| (group.id, group.title)),
+            tab: page.map_or(ABOUT, |page| (page.id, page.title)),
+            group: None,
             section: section.id.to_string(),
             section_title: section.title.to_string(),
         };
@@ -368,7 +371,7 @@ pub fn catalog() -> Catalog {
     }
 
     let internal_state = Location {
-        tab: GENERAL,
+        tab: ABOUT,
         group: None,
         section: INTERNAL_STATE_SECTION.to_string(),
         section_title: "Internal state (not user settings)".to_string(),

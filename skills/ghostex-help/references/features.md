@@ -208,7 +208,7 @@ C comments on the current hunk, V marks the file viewed, O opens it in Files and
 Esc clears the selection. The header's Commit button, the Git menu's Commit, Push
 and Create PR open this view (Commit and Push on Uncommitted only, a pull request on
 Whole branch). A chat's **Review all** and Session details' Changes card follow
-**Open file changes in** (Settings > General > File opening,
+**Open file changes in** (Settings > Files & Links > File opening,
 `fileChangesOpenTarget`): **Changes view** (the default) opens Changes scrolled to
 the card's first file, on Uncommitted only when that file has uncommitted edits and
 Whole branch otherwise (Session details opens Whole branch); **VS Code** opens the
@@ -304,7 +304,7 @@ view from the strip.
   its project's VS Code view, and a file that is in no project in the VS Code
   view of the project on screen, without adding a project. Optional Use VS Code settings
   reuses the local VS Code configuration. VS Code shows one window per project;
-  turn on Open VS Code windows as tabs (Settings > General > Tools > Editor,
+  turn on Open VS Code windows as tabs (Settings > Files & Links > Editor,
   advanced) and a window VS Code opens (File > New Window, a folder or workspace
   opened in a new window, or the + after the window tabs) becomes another window
   tab in a row above the VS Code page, so several projects or workspaces stay
@@ -330,7 +330,7 @@ view from the strip.
   with its last tab on) when Browser was the last one. **Browser Tab** at the top of the strip's **+** menu opens
   another tab. A tab with no address yet is blank: type or paste an address, or
   pick a running server from the ⋯ menu's Dev servers panel.
-  Turn on Show pages in their own row (Settings > General > Tools > Browser) to
+  Turn on Show pages in their own row (Settings > Files & Links > Browser) to
   show one Browser tab in the strip instead, with the pages as a row of tabs
   under it, like VS Code's window tabs and Files' tabs: click a tab to show its
   page, close it with its × or a middle click, right-click it for the same menu,
@@ -495,7 +495,7 @@ view from the strip.
   back, and hovering that button peeks the list without pinning it. Hidden or pinned is remembered.
   Every file you open stays open, with its own unsaved changes and notes, and is
   listed under Open Files, above the Project Docs tree. Turn on Show open files
-  as tabs (Settings > General > Tools > File opening) to show them as a row of
+  as tabs (Settings > Files & Links > File opening) to show them as a row of
   tabs above the document instead: click a tab to show its file, close it with
   its × (a dot marks unsaved changes) or a middle click, right-click a tab for
   Close All, and use the + after the tabs to open another file. After clicking a
@@ -642,7 +642,7 @@ Settings > Projects or, from the command line, `ghostex remove-project` with
 them. Removing a project deletes its session records, so close its sessions first
 (`ghostex close-session`) if they are still running.
 Session rows show the agent icon, title, status, tags, and last-active time.
-In Settings > Sidebar, enable Show Advanced to find **Highlight unanswered
+In Settings > Sidebar & Sessions, enable Show Advanced to find **Highlight unanswered
 questions**. It adds a soft pink background to sessions with a detected unanswered
 question, even while the agent keeps working. It is off by default and currently
 supports Codex asynchronous questions (`highlightPendingQuestions`).
@@ -787,7 +787,7 @@ Space opens on is the exception: it stays loaded for as long as that Space opens
 on it, so swiping to a Space always shows its web page instantly. To keep every
 side panel view you opened in a project loaded, not only the one on screen, until
 its Auto Sleep time instead of these minutes (Auto Sleep Off keeps them), turn on
-Settings > General > System > Auto Sleep > Keep views loaded (`keepViewsLoaded`).
+Settings > Power & Sleep > Auto Sleep > Keep views loaded (`keepViewsLoaded`).
 Sleep on the project or its Space still releases them, it uses more memory,
 and terminals and chats keep the minutes above. VS Code still reloads when you
 switch VS Code between computers, including when you switch back.
@@ -832,7 +832,7 @@ where they are while you open, change and close views.
 - Pane width: agent panes have a minimum resize width of 388px, and so does the
   Agents Panel when a view is open beside it. In the desktop app, an open Code,
   Browser, Kanban, Automate, or Files view has a minimum width of 455px.
-- Presets: Settings > General > Sidebar > Preset switches groups of card
+- Presets: Settings > Sidebar & Sessions > Sidebar > Preset switches groups of card
   details at once; the individual rows below it are marked Advanced.
 - Timed Delayed Send: open **Delayed Send** from an agent's right-click menu
   under **Advanced**. Session Automations opens with **When all agents finish**
@@ -847,10 +847,10 @@ where they are while you open, change and close views.
   to reopen its settings and **Disable Delayed Send** to cancel the pending send.
 - Project icons: Ghostex finds favicons in the project and nested app folders.
   Projects without artwork show a square with the first letter of their name.
-  Toggle them in Settings > General > Sidebar (`showProjectIcons`).
+  Toggle them in Settings > Sidebar & Sessions > Sidebar (`showProjectIcons`).
 - Session cards: agent icon, favicon, last-active time, git stats, colored
   icons, and rename-on-double-click are all toggles.
-- Session hover buttons (click to toggle, drag to reorder), under General >
+- Session hover buttons (click to toggle, drag to reorder), under Sidebar & Sessions >
   Session Cards (shown with Show Advanced), is a strip
   of icons: Rename, Pin, Note, Snooze, Close After Done, Tag, Park, Sleep,
   Close, and a chevron. Click an icon to turn that hover button on or off;
@@ -871,11 +871,11 @@ where they are while you open, change and close views.
   off puts Close back as the menu's last row. Hover buttons also in context
   menu (on by default) controls the rest; turn it off and every enabled
   button leaves the menu (and its Advanced submenu).
-  Both rows live under General > Session Cards and need Show Advanced. Settings:
+  Both rows live under Sidebar & Sessions > Session Cards and need Show Advanced. Settings:
   `sessionCardHoverButtons` (a list of `{ id, enabled }` with ids `rename`,
   `pin`, `note`, `snooze`, `closeAfterDone`, `tag`, `park`, `sleep`,
   `close`, `chevron`) and `showSessionCardHoverButtonsInContextMenu`.
-  Session tooltips (General > Session Cards, needs Show Advanced, on by default)
+  Session tooltips (Sidebar & Sessions > Session Cards, needs Show Advanced, on by default)
   controls the tooltip that shows a session's full name when you rest the pointer
   on its row in the sidebar; turn it off to show none. Other sidebar tooltips stay.
   Setting: `showSidebarSessionTooltips`.
@@ -944,7 +944,7 @@ where they are while you open, change and close views.
   message (on by default) moves a parked or snoozed session back out of its
   section as soon as you send it a message from chat or type a prompt into
   its terminal; Codex only notices chat sends. All four settings are in
-  General > Sidebar without Show Advanced: `enableSessionParking`,
+  Sidebar & Sessions > Sidebar without Show Advanced: `enableSessionParking`,
   `sleepSessionWhenParking`, `showTagMenuWhenParking`,
   `unparkAfterSendingMessage`. Right-click the Parked header to Sleep All or
   Close All of its sessions.
@@ -958,7 +958,7 @@ where they are while you open, change and close views.
 - Remote machines appear as their own sidebar tabs; a red cloud means the
   machine could not connect, and its tab explains why.
 
-Related settings: everything under General > Sidebar, `agentManagerZoomPercent`
+Related settings: everything under Sidebar & Sessions > Sidebar, `agentManagerZoomPercent`
 (sidebar interface size), `sidebarSpacesEnabled`,
 `sidebarSpaceSwitchBehavior`, `sidebarSpaceFollowActiveSession`.
 
@@ -973,7 +973,7 @@ pane is on by default: after you move focus elsewhere and leave the pointer
 outside the pane for 1 minute, it minimizes while commands keep running.
 Focusing, hovering, selecting text, scrolling, or resizing keeps it open and
 restarts the countdown. Background command output does not restart it.
-In Settings > General > Sidebar, turn auto-minimize off or set Minimize after
+In Settings > Sidebar & Sessions > Sidebar, turn auto-minimize off or set Minimize after
 to 15 seconds, 30 seconds, 1 minute, 2 minutes, or 5 minutes. When auto-minimize
 is enabled, the Keep open button appears beside the minimize chevron. It shows
 an open lock when off and a highlighted closed lock when on. Keep open pauses
@@ -996,7 +996,7 @@ between panes and groups. Selecting a session shows it in the focused pane;
 dragging its row onto a pane's edge opens it in a new split beside that pane. A session carries one tag at a time, chosen from the
 Tag As menu (right-click the session): the built-in Priority, Progress, and
 Type tags, plus any custom tags you define. Custom tags are created in one
-place, Settings > General > Sidebar > Sidebar Tags: choose Add tag, then give
+place, Settings > Sidebar & Sessions > Sidebar Tags: choose Add tag, then give
 it a name, an icon from the shared icon list, and a color from the preset list.
 New Tag at the bottom of the Tag As menu opens that same place with the form
 ready. Custom tags then appear in the same drag list as the built-in ones: drag
@@ -1061,7 +1061,7 @@ when you open it.
   header's ⋯ menu sleeps many at once and shows CPU and RAM per session. Clean RAM
   copies a diagnosis prompt; paste it into an agent session to reduce RAM use.
   Sleeping sidebar sessions keep their normal title color and show a dimmer
-  last-active time on the right; turn on Settings > Advanced > Dim sleeping
+  last-active time on the right; turn on Settings > Sidebar & Sessions > Sleeping Sessions > Dim sleeping
   sessions to fade the whole row instead (`dimSleepingSessions`). Use `ghostex sleep|wake <selector>` to
   sleep or wake a session.
 - A sleeping session wakes when you ask for it. Clicking its row in the
@@ -1071,7 +1071,7 @@ when you open it.
   wake the session. With
   Click to Wake Sleeping Panes turned off, those wake right away
   (`clickToWakeSleepingSessions`). To stop a sidebar click from waking a
-  sleeping session, turn off Settings > Advanced > Wake sleeping sessions when
+  sleeping session, turn off Settings > Sidebar & Sessions > Sleeping Sessions > Wake sleeping sessions when
   selected: the click then opens the session with its Resume button, and it
   wakes only when you click the pane or press a key
   (`wakeSleepingSessionsOnSelect`).
@@ -1224,8 +1224,8 @@ until that computer has it, shows Recording, Transcribing and Transcribe again
 in a row above the chat box, and a long press on the microphone
 offers Transcribe previous.
 Read aloud speaks the agent's replies, so you can follow a session while you
-drive or walk. It is experimental and off by default: turn on Settings > General
-> Advanced > Experimental > Enable Experimental Features, then switch on Read
+drive or walk. It is experimental and off by default: turn on Settings > About
+> Experimental > Enable Experimental Features, then switch on Read
 aloud in Settings > Extensions (Features). On the computer, hover an
 agent's final reply and press Read aloud (the speaker, last before the time); on
 the reply being read it becomes Stop reading. Turn on Auto-read in the chat's
@@ -2353,7 +2353,7 @@ as the chat transcript), `terminalWidthApplyToCommandPaneTerminals`.
 
 ## Terminal
 
-On Windows, Settings > General > Terminal > Windows Environment selects native
+On Windows, Settings > Terminal > Windows Environment selects native
 PowerShell projects and agents or Linux projects in WSL. PowerShell is the default;
 an explicitly saved WSL choice is preserved. PowerShell uses Windows folders and
 installed Windows agent CLIs without requiring WSL. Switching environments opens a
@@ -2372,7 +2372,7 @@ Native Windows terminals use PowerShell 7 when it is installed (in Program Files
 your user folder, from the Microsoft Store, or anywhere on PATH; a stable release
 is preferred over a preview) and Windows PowerShell 5.1 until then, so nothing
 breaks on a computer that only has 5.1. When only 5.1 is present, Settings >
-General > Terminal shows a **PowerShell 7** row with an **Install PowerShell 7**
+Settings > Terminal shows a **PowerShell 7** row with an **Install PowerShell 7**
 button that runs `winget install --id Microsoft.PowerShell --source winget`
 (Windows may ask you to allow the installer; without winget the row links to
 Microsoft's download page). New terminals and agents use PowerShell 7 right after
@@ -2382,7 +2382,7 @@ Keys: `windowsTerminalBackend`, `windowsWslDistribution`.
 Terminals are embedded Ghostty surfaces with their own config file, separate
 from the Ghostty app: Ghostex never reads or changes Ghostty's own config. Font,
 theme, cursor, padding, scrollback, clipboard, and scrolling are Settings >
-General > Terminal rows and are written into Ghostex's terminal config
+Settings > Terminal rows and are written into Ghostex's terminal config
 (`~/.config/ghostex/ghostty/config.ghostty` on macOS and Linux,
 `%APPDATA%\Ghostex\ghostty\config.ghostty` on Windows). The Ghostty settings
 actions row applies the recommended set, resets the defaults, opens the Ghostty
@@ -2456,7 +2456,7 @@ and `background-blur` lines in the terminal config do not change Ghostex's panes
 
 On macOS, Custom shaders (experimental) runs the `custom-shader` files from
 Ghostex's terminal config over its terminal panes, in the order the config lists them.
-Turn on Enable Experimental Features (Settings, Advanced) to see it at the bottom of
+Turn on Enable Experimental Features (Settings > About > Experimental) to see it at the bottom of
 the Terminal section. While it is on, terminals use the background color and
 opacity from Ghostex's terminal config, so Terminal background and its color are greyed
 out. Shader animation follows Ghostty's `custom-shader-animation`. Turn the switch
@@ -2744,7 +2744,7 @@ version of the Projects features in Cursor and Claude Code.
   A project can have several coordinators, one per stream of work. In an
   coordinator's chat the effort picker offers the same High and XHigh only.
   To pick from every level the agent has, turn on **Show all effort levels**
-  (an advanced setting in Settings > General > Chat); anything below High
+  (an advanced setting in Settings > Chat); anything below High
   isn't recommended for a coordinator. From a terminal: `ghostex coordinator
   create [--agent <id>] [--goal <text>] [--task <first request>]`.
 - **Turn a session into a coordinator**: right-click a session of one of
@@ -3793,7 +3793,7 @@ leads with Open, the links that still need something, then Merged / Closed
 then issues, then Linear tickets. Each group folds with the
 chevron on its header and keeps its count; what you fold stays folded in every
 session and after a restart (the phone keeps its own). Click a link to open it; **Open
-session links in** (Settings > General > Browser) opens them in the internal
+session links in** (Settings > Files & Links > Browser) opens them in the internal
 browser (the default) or your default browser. In the internal browser a link opens in
 its session's project, switching to that project when another one is on screen. Click
 a link's × and then Remove?
@@ -4194,7 +4194,7 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   installs Node.js first on its own.
 - Connectors link a workspace to your apps (Gmail, Google Calendar, Slack,
   Notion, GitHub, Linear, Outlook and many more) through Composio. Connectors
-  is experimental: turn on Settings > General > Advanced > Experimental >
+  is experimental: turn on Settings > About > Experimental >
   Enable Experimental Features (or run `ghostex settings set showBetaFeatures
   true`) to use it. It is also a built-in extension, on by default: switching
   Connectors off in Settings > Extensions (or `ghostex settings set

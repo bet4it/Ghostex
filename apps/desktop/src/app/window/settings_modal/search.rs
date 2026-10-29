@@ -372,8 +372,8 @@ pub(crate) fn extra_tab_search(
     }
 }
 
-/// The General page's search: every catalog section, the rail groups, and the visibility rules of
-/// `createMainSettingsVisibility`.
+/// The search of the pages General split into (and Theme): every catalog section, the page groups,
+/// and the visibility rules of `createMainSettingsVisibility`.
 #[derive(Clone, Debug, Default)]
 pub(crate) struct GeneralSearch {
     pub(crate) query: String,
@@ -491,7 +491,7 @@ impl GeneralSearch {
         should_show_setting(&self.section(section), key, self.show_advanced)
     }
 
-    /// `mainSectionVisible(groupId, result)` for a rail group.
+    /// `mainSectionVisible(groupId, result)` for a page's group: whether anything of it shows.
     pub(crate) fn group_visible(&self, group: &str) -> bool {
         should_show_section(&self.group(group), self.show_advanced)
     }
@@ -525,64 +525,36 @@ impl GeneralSearch {
     }
 }
 
-/// One General rail entry after filtering (`visibleMainSettingsSectionNavigation`).
-#[derive(Clone, Debug)]
-pub(crate) struct GeneralNavGroup {
-    pub(crate) id: String,
-    pub(crate) title: String,
-    /// `MAIN_SETTINGS_SUBSECTION_NAVIGATION[group]` minus the hidden ones, as `(id, title)`.
-    pub(crate) subsections: Vec<(String, String)>,
-}
-
-/// `createVisibleMainSettingsNavigation(...).visibleMainSettingsSectionNavigation`.
-pub(crate) fn general_navigation(
-    search: &GeneralSearch,
-    power_visible: bool,
-) -> Vec<GeneralNavGroup> {
-    let catalog = settings_catalog();
-    let subsections = catalog.module_value(
-        super::catalog::module::SETTINGS_TYPES,
-        "MAIN_SETTINGS_SUBSECTION_NAVIGATION",
-    );
-    catalog
-        .general_navigation
-        .iter()
-        .filter(|item| search.group_visible(&item.id))
-        .map(|item| GeneralNavGroup {
-            id: item.id.clone(),
-            title: item.title.clone(),
-            subsections: subsections
-                .and_then(|table| table.get(&item.id))
-                .and_then(serde_json::Value::as_array)
-                .map(|rows| {
-                    rows.iter()
-                        .filter_map(|row| {
-                            let id = row.get("id")?.as_str()?.to_string();
-                            let title = row.get("title")?.as_str()?.to_string();
-                            Some((id, title))
-                        })
-                        .filter(|(id, _)| search.subsection_visible(id, power_visible))
-                        .collect()
-                })
-                .unwrap_or_default(),
-        })
-        .collect()
-}
-
-/// The General anchor a scroll target lands on (`mainSettingsSectionRefs`): a group scrolls to
-/// its first section (Tools to Browser, System to Power, Notifications to Sounds, Advanced to
-/// Sleeping Sessions), a section to itself.
+/// The anchor a General scroll target lands on (`mainSettingsSectionRefs`): a page's group id
+/// scrolls to its first section (Files & Links to File opening, Power & Sleep to Auto Sleep,
+/// Notifications to Sounds, the old Advanced group to Sleeping Sessions), a section to itself.
 pub(crate) fn general_scroll_anchor(target: &str) -> &str {
     match target {
-        "tools" => "browser",
-        "system" => "power",
+        "tools" => "fileOpening",
+        "system" => "autoSleep",
         "sounds" => "notifications",
         "advanced" => "sleepingSessions",
         other => other,
     }
 }
 
-/// `getMainSettingsSectionGroupId`: the rail group that owns a General scroll target.
+/// The page General split into that renders scroll target `target` (a group id such as `chat`,
+/// a section id such as `sessionCards`, or a section anchor such as `notifications`), for deep
+/// links (CDXC:Settings 2026-10-29 in model.rs).
+pub(crate) fn general_page_of_section(target: &str) -> Option<super::model::SettingsTabId> {
+    use super::model::SettingsTabId;
+    let group = general_group_of(target);
+    SettingsTabId::general_page(&group).or_else(|| {
+        settings_catalog()
+            .general_groups
+            .iter()
+            .find(|group| group.sections.iter().any(|section| section == target))
+            .and_then(|group| SettingsTabId::general_page(&group.id))
+    })
+}
+
+/// `getMainSettingsSectionGroupId`: the rail group (now a page's group id) that owns a General
+/// scroll target.
 pub(crate) fn general_group_of(scroll_target: &str) -> String {
     settings_catalog()
         .module_value(

@@ -47,6 +47,8 @@ use crate::json::J;
 ///
 /// CDXC:Settings 2026-10-21 DECISION:
 /// User (Q29): Show Advanced hides rows on General only. Q30-Q32 moved these behind it: following the active session's Space, keeping the previous project live, the session status source, the collapse and panel animations, the tooltip delay, Commands pane auto-minimize, the menu bar indicators, the tab strip's New buttons, custom transcript width, grey thinking, keeping the chat box expanded, Escape twice to interrupt, the orchestrator playbook, verbose mode, terminal padding, terminal background opacity and blur, custom shaders, ignored dev server ports, reset expiry notifications, and the action-completion and copy sounds (the action-completion sound supersedes the visible row above).
+/// CDXC:Settings 2026-10-29 DECISION:
+/// User (Q5): Power & Sleep is its own page now (layout.rs), and every one of its rows was advanced, so with Show Advanced off the page was empty. Auto sleep agents after, Default keep-awake duration and Keep awake for working sessions show without Show Advanced, so the page always has its three everyday rows; the rest stay advanced.
 pub const ADVANCED_MAIN_SETTING_KEYS: &[&str] = &[
     "closeEmptySessionsOnNew",
     "chatSendOnPick",
@@ -104,16 +106,13 @@ pub const ADVANCED_MAIN_SETTING_KEYS: &[&str] = &[
     "autoSleepProjectEditorIdleMinutes",
     "autoSleepBrowserIdleMinutes",
     "keepViewsLoaded",
-    "autoSleepAgentIdleMinutes",
     "autoSleepRequireAgentResumeCommand",
     "autoSleepFavoriteAgentSessions",
     "hideKeepAwakeTitlebarControl",
-    "keepAwakeDefaultDurationMinutes",
     "keepAwakeAllowDisplaySleep",
     "keepAwakePreventLidSleep",
     "keepAwakeActivateOnLaunch",
     "keepAwakeActivateOnExternalDisplay",
-    "keepAwakeWhileWorkingSessions",
     "keepAwakeBatteryThresholdPercent",
     "keepAwakeDeactivateOnLowPowerMode",
     "keepAwakeDeactivateOnUserSwitch",
@@ -471,6 +470,8 @@ pub const MAIN_SETTINGS_SCROLL_TARGET_SETTING_KEYS: &[(&str, &[&str])] = &[
             "titleSessionsByBranch",
             "offerCleanupWhenPrMerges",
             "sidebarSessionTagListItems",
+            "dimSleepingSessions",
+            "wakeSleepingSessionsOnSelect",
         ],
     ),
     (
@@ -727,7 +728,6 @@ pub const MAIN_SETTINGS_SCROLL_TARGET_SETTING_KEYS: &[(&str, &[&str])] = &[
         "sleepingSessions",
         &["dimSleepingSessions", "wakeSleepingSessionsOnSelect"],
     ),
-    ("beta", &["showBetaFeatures", "fasterRendering"]),
 ];
 
 pub const MAIN_SETTINGS_SECTION_SETTING_KEYS: &[(&str, &[&str])] = &[
@@ -937,15 +937,6 @@ pub const MAIN_SETTINGS_SECTION_SETTING_KEYS: &[(&str, &[&str])] = &[
             "keepAwakeDeactivateOnUserSwitch",
         ],
     ),
-    (
-        "advanced",
-        &[
-            "dimSleepingSessions",
-            "wakeSleepingSessionsOnSelect",
-            "showBetaFeatures",
-            "fasterRendering",
-        ],
-    ),
 ];
 
 /// CDXC:Settings 2026-08-19:
@@ -955,16 +946,6 @@ pub const MAIN_SETTINGS_SECTION_SETTING_KEYS: &[(&str, &[&str])] = &[
 /// side effect of clicking the group. Groups with a single section stay flat and
 /// are omitted here.
 pub const MAIN_SETTINGS_SUBSECTION_NAVIGATION: J = J::Obj(&[
-    (
-        "advanced",
-        J::Arr(&[
-            J::Obj(&[
-                ("id", J::Str("sleepingSessions")),
-                ("title", J::Str("Sleeping Sessions")),
-            ]),
-            J::Obj(&[("id", J::Str("beta")), ("title", J::Str("Experimental"))]),
-        ]),
-    ),
     (
         "appearance",
         J::Arr(&[J::Obj(&[
@@ -983,6 +964,10 @@ pub const MAIN_SETTINGS_SUBSECTION_NAVIGATION: J = J::Obj(&[
             J::Obj(&[
                 ("id", J::Str("sidebarTags")),
                 ("title", J::Str("Sidebar Tags")),
+            ]),
+            J::Obj(&[
+                ("id", J::Str("sleepingSessions")),
+                ("title", J::Str("Sleeping Sessions")),
             ]),
         ]),
     ),
@@ -1010,23 +995,22 @@ pub const MAIN_SETTINGS_SUBSECTION_NAVIGATION: J = J::Obj(&[
     (
         "tools",
         J::Arr(&[
-            J::Obj(&[("id", J::Str("browser")), ("title", J::Str("Browser"))]),
-            J::Obj(&[
-                ("id", J::Str("terminalDevServers")),
-                ("title", J::Str("Dev Servers")),
-            ]),
-            J::Obj(&[("id", J::Str("editor")), ("title", J::Str("Editor"))]),
             J::Obj(&[
                 ("id", J::Str("fileOpening")),
                 ("title", J::Str("File opening")),
+            ]),
+            J::Obj(&[("id", J::Str("browser")), ("title", J::Str("Browser"))]),
+            J::Obj(&[("id", J::Str("editor")), ("title", J::Str("Editor"))]),
+            J::Obj(&[
+                ("id", J::Str("terminalDevServers")),
+                ("title", J::Str("Dev Servers")),
             ]),
         ]),
     ),
 ]);
 
 pub const MAIN_SETTINGS_SUBSECTION_PARENT_IDS: &[(&str, &str)] = &[
-    ("sleepingSessions", "advanced"),
-    ("beta", "advanced"),
+    ("sleepingSessions", "sidebar"),
     ("theming", "appearance"),
     ("sidebar", "sidebar"),
     ("sessionCards", "sidebar"),

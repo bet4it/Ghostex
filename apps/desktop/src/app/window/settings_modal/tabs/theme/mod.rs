@@ -928,24 +928,36 @@ impl ThemeTab {
         .map(IntoElement::into_any_element)
     }
 
-    /// Related settings on General: each Open searches General for the row.
+    /// Related settings on the Chat, Sidebar & Sessions and Terminal pages: each Open searches
+    /// that page for the row.
     fn related_section(
         &mut self,
         p: &SettingsPalette,
         cx: &mut Context<Self>,
     ) -> Option<AnyElement> {
         let rows = [
-            ("Chat font and size", "Chat font", ICON_FONT),
-            ("Sidebar size", "Sidebar Interface Size", ICON_SIDEBAR),
+            (
+                "Chat font and size",
+                "Chat font",
+                ICON_FONT,
+                SettingsTabId::Chat,
+            ),
+            (
+                "Sidebar size",
+                "Sidebar Interface Size",
+                ICON_SIDEBAR,
+                SettingsTabId::Sidebar,
+            ),
             (
                 "Terminal background colour and image",
                 "Terminal background",
                 ICON_TERMINAL,
+                SettingsTabId::Terminal,
             ),
         ]
         .into_iter()
         .enumerate()
-        .map(|(index, (label, query, icon))| {
+        .map(|(index, (label, query, icon, tab))| {
             let button = settings_button(
                 p,
                 SharedString::from(format!("theme-related-{index}")),
@@ -958,7 +970,7 @@ impl ThemeTab {
                     let store = page.store.clone();
                     store.update(cx, |store, cx| {
                         store.set_search_query(query.to_string(), cx);
-                        store.set_active_tab(SettingsTabId::General, cx);
+                        store.set_active_tab(tab, cx);
                     });
                 },
                 cx,

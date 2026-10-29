@@ -624,18 +624,29 @@ fn file_opening_section(
     .map(|section| PageBlock::section("fileOpening", section))
 }
 
-pub(super) fn sections(
+/// The Chat page.
+pub(super) fn chat_sections(
+    page: &mut GeneralTab,
+    g: &GeneralCx,
+    window: &mut Window,
+    cx: &mut Context<GeneralTab>,
+) -> Vec<PageBlock> {
+    chat_section(page, g, window, cx).into_iter().collect()
+}
+
+/// The Files & Links page (the old Tools group: CDXC:Settings 2026-10-29 in model.rs): where
+/// files and links open, the editor rows, then dev servers.
+pub(super) fn files_links_sections(
     page: &mut GeneralTab,
     g: &GeneralCx,
     window: &mut Window,
     cx: &mut Context<GeneralTab>,
 ) -> Vec<PageBlock> {
     [
-        chat_section(page, g, window, cx),
-        browser_section(page, g, window, cx),
-        dev_servers_section(page, g, window, cx),
-        editor_section(page, g, cx),
         file_opening_section(page, g, window, cx),
+        browser_section(page, g, window, cx),
+        editor_section(page, g, cx),
+        dev_servers_section(page, g, window, cx),
     ]
     .into_iter()
     .flatten()

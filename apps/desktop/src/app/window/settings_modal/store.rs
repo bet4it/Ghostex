@@ -316,7 +316,7 @@ impl SettingsStore {
             settings,
             sidebar_state,
             host_payloads: HashMap::new(),
-            active_tab: SettingsTabId::General,
+            active_tab: SettingsTabId::Chat,
             page_history: Vec::new(),
             page_history_index: 0,
             search_query: String::new(),
@@ -746,7 +746,7 @@ impl SettingsStore {
             .collect();
     }
 
-    /// The General page's search and visibility.
+    /// The search and visibility of the pages General split into (and Theme).
     pub(crate) fn general_search(&self) -> &GeneralSearch {
         &self.general_search
     }
@@ -794,7 +794,7 @@ impl SettingsStore {
             || (tab == SettingsTabId::Connectors && !self.connectors_visible())
             || !self.built_in_extension_allows_page(tab)
         {
-            SettingsTabId::General
+            SettingsTabId::Chat
         } else {
             tab
         }
@@ -805,16 +805,33 @@ impl SettingsStore {
     ///
     /// CDXC:Settings 2026-10-05 WHY:
     /// An open that names General (`initialTab: "settings"`, as `ghostex settings open <key>` sends for every General setting) or carries a General deep link (`initialSection`, the Sidebar Tags `createTag` action) used to read as a plain open and returned to the remembered page, so the prefilled search ran on Agents or Accounts and said "No settings on this page match your search" for rows that exist under General. Only an open that names no page returns to the remembered one.
+    ///
+    /// CDXC:Settings 2026-10-29 WHY (in model.rs): General is several pages now, so a General
+    /// section deep link (`initialSection: "power"`, `"sidebarTags"` with `createTag`) opens the
+    /// page that renders that section, whichever General page (or `settings`) the message named.
     fn initial_tab(&self) -> SettingsTabId {
+        let section_page = self
+            .request
+            .initial_section
+            .as_deref()
+            .and_then(super::search::general_page_of_section)
+            .or_else(|| {
+                self.request
+                    .initial_sidebar_tags_action
+                    .as_ref()
+                    .map(|_| SettingsTabId::Sidebar)
+            });
         if let Some(requested) = self.request.initial_tab {
-            return self.resolve_tab(requested);
+            let tab = match section_page {
+                Some(page) if requested.is_general_page() => page,
+                _ => requested,
+            };
+            return self.resolve_tab(tab);
+        }
+        if let Some(page) = section_page {
+            return self.resolve_tab(page);
         }
         let requested = self.request.requested_tab();
-        if self.request.initial_section.is_some()
-            || self.request.initial_sidebar_tags_action.is_some()
-        {
-            return self.resolve_tab(requested);
-        }
         let remembered = REMEMBERED_TAB.with(Cell::get).or_else(|| {
             self.value("settingsModalNavigation")
                 .get("activeTab")
@@ -900,7 +917,7 @@ impl SettingsStore {
         cx: &mut Context<Self>,
     ) {
         let tracker = self.tracker(tab);
-        let anchor = if tab == SettingsTabId::General {
+        let anchor = if tab.is_general_page() {
             super::search::general_scroll_anchor(section)
         } else {
             section

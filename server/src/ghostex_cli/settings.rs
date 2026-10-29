@@ -5,10 +5,10 @@ use std::{
 };
 
 use serde::Deserialize;
-use serde_json::{json, Map, Value};
+use serde_json::{Map, Value, json};
 
 use crate::ghostex_cli::actions::send_gxserver_cli_action;
-use crate::ghostex_cli::args::{parse_args, Flags};
+use crate::ghostex_cli::args::{Flags, parse_args};
 use crate::ghostex_cli::output::{normalize_js_numbers, print_json};
 use crate::ghostex_cli::rpc::{self, CliError, CliResult};
 use crate::ghostex_cli::usage;
@@ -31,6 +31,12 @@ pub(super) const SETTINGS_UPDATE_SOURCE: &str = "cli:settings";
 /// packages/gx-core/src/renderer_commands/verbs.rs, which the desktop app checks again.
 const SETTINGS_MODAL_TABS: &[&str] = &[
     "settings",
+    "chat",
+    "sidebar",
+    "terminal",
+    "notifications",
+    "tools",
+    "system",
     "theme",
     "integrations",
     "voiceAgent",
@@ -397,7 +403,9 @@ fn list_command(args: &[String]) -> CliResult<()> {
         );
     }
     println!();
-    println!("Use `ghostex settings get <key>` for details and `ghostex settings set <key> <value>` to change an agent-writable setting.");
+    println!(
+        "Use `ghostex settings get <key>` for details and `ghostex settings set <key> <value>` to change an agent-writable setting."
+    );
     Ok(())
 }
 

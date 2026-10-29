@@ -1,15 +1,13 @@
 //! The System, Notifications and Advanced groups of General: Auto Sleep, Power, Sounds, Sleeping
 //! Sessions and Experimental.
-use super::super::super::super::native_modal_kit::*;
 use super::super::super::catalog::{SettingOption, settings_catalog};
 use super::super::super::fields::{
-    PageAction, RowSpec, action_buttons_field, card_inset, reset_key, settings_section,
-    sound_field, toggle_field_with,
+    PageAction, RowSpec, action_buttons_field, reset_key, settings_section, sound_field,
+    toggle_field_with,
 };
 use super::super::super::page::PageBlock;
 use super::{GeneralCx, GeneralTab, save};
-use gpui::{AnyElement, Context, FontWeight, ParentElement as _, Styled as _, Window, div, px};
-use gpui_component::v_flex;
+use gpui::{AnyElement, Context, Window};
 use serde_json::json;
 use std::rc::Rc;
 
@@ -337,8 +335,8 @@ fn sounds_section(
 }
 
 /// The two sleeping-session toggles (CDXC:SessionSleep 2026-09-29 DECISION in
-/// packages/shared/ghostex-settings/types.ts (deleted 2026-10-01)).
-fn sleeping_sessions_section(
+/// packages/shared/ghostex-settings/types.ts (deleted 2026-10-01)), on the Sidebar & Sessions page.
+pub(super) fn sleeping_sessions_section(
     page: &mut GeneralTab,
     g: &GeneralCx,
     cx: &mut Context<GeneralTab>,
@@ -372,79 +370,8 @@ fn sleeping_sessions_section(
         .map(|section| PageBlock::section("sleepingSessions", section))
 }
 
-fn experimental_section(
-    page: &mut GeneralTab,
-    g: &GeneralCx,
-    cx: &mut Context<GeneralTab>,
-) -> Option<PageBlock> {
-    if !g.search.subsection_visible("beta", g.power_visible) {
-        return None;
-    }
-    let p = g.p;
-    let mut rows: Vec<AnyElement> = Vec::new();
-    if g.visible("beta", "showBetaFeatures") {
-        // CDXC:Settings 2026-06-28-07:41: the inventory of what Enable Experimental Features turns on.
-        // CDXC:Automations 2026-07-26: GPUI graduated project Automate, so it lists only All Automations.
-        rows.extend(page.toggle(
-            g,
-            "beta",
-            "showBetaFeatures",
-            "Enable Experimental Features",
-            "Show experimental settings, All Automations, and the Keep Awake menu.",
-            false,
-            cx,
-        ));
-        let muted_fill = if p.light {
-            gpui::rgb(0xf1f1f1)
-        } else {
-            gpui::rgb(0x262626)
-        };
-        rows.push(card_inset(
-            v_flex()
-                .w_full()
-                .px(px(16.0))
-                .py(px(12.0))
-                .rounded(px(MODAL_RADIUS_CONTROL))
-                .border_1()
-                .border_color(hsla(p.hairline))
-                .bg(hsla(css_fade(muted_fill, 0.2)))
-                .text_size(px(14.0))
-                .line_height(px(20.0))
-                .text_color(hsla(p.muted))
-                .child(
-                    div()
-                        .mb(px(8.0))
-                        .font_weight(FontWeight::MEDIUM)
-                        .text_color(hsla(p.foreground))
-                        .child("Enabled when on"),
-                )
-                .child(
-                    v_flex()
-                        .gap(px(6.0))
-                        .child("OS Integration settings tab")
-                        .child("All Automations")
-                        .child("Power settings and the sidebar menu: Keep Awake")
-                        .children(
-                            cfg!(target_os = "macos")
-                                .then(|| div().child("Terminal custom shaders (macOS only)")),
-                        ),
-                ),
-        ));
-    }
-    rows.extend(page.toggle(
-        g,
-        "beta",
-        "fasterRendering",
-        "Faster rendering",
-        "Redraw only the parts of a window that changed, which uses less CPU while agents stream and you scroll. Experimental: turn it off if part of a window stops updating.",
-        false,
-        cx,
-    ));
-    settings_section(&p, "Experimental", None, None, rows)
-        .map(|section| PageBlock::section("beta", section))
-}
-
-pub(super) fn sections(
+/// The Power & Sleep page (the old System group: CDXC:Settings 2026-10-29 in model.rs).
+pub(super) fn power_sleep_sections(
     page: &mut GeneralTab,
     g: &GeneralCx,
     window: &mut Window,
@@ -453,11 +380,18 @@ pub(super) fn sections(
     [
         auto_sleep_section(page, g, window, cx),
         power_section(page, g, window, cx),
-        sounds_section(page, g, window, cx),
-        sleeping_sessions_section(page, g, cx),
-        experimental_section(page, g, cx),
     ]
     .into_iter()
     .flatten()
     .collect()
+}
+
+/// The Notifications page.
+pub(super) fn notifications_sections(
+    page: &mut GeneralTab,
+    g: &GeneralCx,
+    window: &mut Window,
+    cx: &mut Context<GeneralTab>,
+) -> Vec<PageBlock> {
+    sounds_section(page, g, window, cx).into_iter().collect()
 }

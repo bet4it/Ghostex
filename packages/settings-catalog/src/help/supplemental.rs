@@ -3,21 +3,22 @@
 //! source of the copy; these rows only place the key on the right page.
 
 use crate::data::{DEFAULT_EDITOR_COMMAND_OPTIONS, SESSION_TITLE_GENERATION_AGENT_OPTIONS};
-use crate::json::{opt, Opt};
+use crate::json::{Opt, opt};
 
 /// A Settings page as the Help files name it: its id and title.
 pub(crate) type Tab = (&'static str, &'static str);
 
-pub(crate) const GENERAL: Tab = ("settings", "General");
 /// The Theme page renders the `appearance` group's sections (Theme, App Icon) on its own tab.
 pub(crate) const THEME: Tab = ("theme", "Theme");
+/// The Terminal page, one of the pages General split into (layout.rs).
+const TERMINAL: Tab = ("terminal", "Terminal");
 const EXTENSIONS: Tab = ("extensions", "Extensions");
 const AGENTS: Tab = ("agents", "Agents");
 const PROJECTS: Tab = ("projects", "Projects");
 const OPEN_TARGETS: Tab = ("openTargets", "Open In");
 const HOTKEYS: Tab = ("hotkeys", "Hotkeys");
 const INTEGRATIONS: Tab = ("integrations", "Integrations");
-const ABOUT: Tab = ("about", "About");
+pub(crate) const ABOUT: Tab = ("about", "About");
 const ACCOUNTS: Tab = ("accounts", "Accounts");
 const REMOTE: Tab = ("remote", "Remote");
 
@@ -103,7 +104,7 @@ pub(crate) const SUPPLEMENTAL_ROWS: &[Supplemental] = &[
     },
     Supplemental {
         key: "showAdvancedSettings",
-        tab: GENERAL,
+        tab: ABOUT,
         group: None,
         section: "settingsModal",
         section_title: "Settings window",
@@ -631,19 +632,22 @@ pub(crate) const SUPPLEMENTAL_ROWS: &[Supplemental] = &[
     },
     Supplemental {
         key: "windowsTerminalBackend",
-        tab: GENERAL,
-        group: Some("terminal"),
+        tab: TERMINAL,
+        group: None,
         section: "terminal",
         section_title: "Terminal",
         title: "Windows Environment",
         subtitle: "Windows only. PowerShell (default) runs native Windows projects and agents. WSL runs Linux projects. Changing environments prompts you to restart Ghostex.",
-        options: &[opt("PowerShell (Native)", "powershell"), opt("WSL (Linux)", "wsl")],
+        options: &[
+            opt("PowerShell (Native)", "powershell"),
+            opt("WSL (Linux)", "wsl"),
+        ],
         user_only: false,
     },
     Supplemental {
         key: "windowsWslDistribution",
-        tab: GENERAL,
-        group: Some("terminal"),
+        tab: TERMINAL,
+        group: None,
         section: "terminal",
         section_title: "Terminal",
         title: "WSL distribution",

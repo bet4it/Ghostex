@@ -1,15 +1,14 @@
-//! `SettingsSidebarNavigation`: the left rail with every Settings page, the expandable General
-//! and Hotkeys sections (titles navigate, only the chevrons expand: CDXC:Settings 2026-09-12
-//! DECISION), About last of the everyday pages, the Extensions page and its folding pages at the
-//! bottom (CDXC:Settings 2026-10-27 in model.rs), and Show Advanced in the footer.
+//! `SettingsSidebarNavigation`: the left rail with every Settings page under its tier label (App,
+//! Setup, More: CDXC:Settings 2026-10-29 in model.rs), the expandable Hotkeys sections (titles
+//! navigate, only the chevrons expand: CDXC:Settings 2026-09-12 DECISION), About last of the Setup
+//! tier, the Extensions page and its folding pages at the bottom (CDXC:Settings 2026-10-27 in
+//! model.rs), and Show Advanced in the footer.
 use super::super::native_modal_kit::*;
 use super::catalog::{module, settings_catalog};
 use super::fields::{settings_icon, settings_switch};
-use super::model::SettingsTabId;
+use super::model::{RailTier, SettingsTabId};
 use super::palette::SettingsPalette;
-use super::search::{
-    SectionSearch, general_group_of, general_navigation, should_show_section, title_matches,
-};
+use super::search::{SectionSearch, should_show_section, title_matches};
 use super::shell::GpuiSettingsModalWindow;
 use super::store::SettingsStore;
 use crate::fold_motion::{FoldMotion, fold_duration, render_fold};
@@ -25,7 +24,7 @@ use std::collections::HashMap;
 /// `--settings-section-sidebar-width`.
 pub(crate) const RAIL_WIDTH: f32 = 192.0;
 
-/// A rail section (a General group or a Hotkeys section) with its third-level rows.
+/// A rail section (a Hotkeys section) with its third-level rows.
 pub(crate) struct RailSection {
     pub(crate) id: String,
     pub(crate) title: String,
@@ -111,37 +110,13 @@ pub(crate) fn hotkey_section_searches(
 }
 
 /// `createSettingsSidebarPages`: the pages the rail lists (filtered to those with matches while
-/// searching) and the expandable sections of General and Hotkeys.
+/// searching) and the expandable sections of Hotkeys.
 pub(crate) fn rail_pages(store: &SettingsStore) -> Vec<RailPage> {
     let searching = store.is_searching();
     let query = store.search_query().to_string();
     let active_tab = store.active_tab();
     let general = store.general_search();
     let power_visible = store.bool("showBetaFeatures");
-    let active_general = store
-        .active_section(SettingsTabId::General)
-        .unwrap_or_else(|| "sidebar".to_string());
-    let active_general_group = general_group_of(&active_general);
-    let general_sections: Vec<RailSection> = general_navigation(general, power_visible)
-        .into_iter()
-        .map(|group| RailSection {
-            active: active_tab == SettingsTabId::General && active_general_group == group.id,
-            subsections: group
-                .subsections
-                .iter()
-                .filter(|(_, title)| *title != group.title)
-                .map(|(id, title)| {
-                    (
-                        id.clone(),
-                        title.clone(),
-                        active_tab == SettingsTabId::General && active_general == *id,
-                    )
-                })
-                .collect(),
-            id: group.id,
-            title: group.title,
-        })
-        .collect();
     let hotkey_sections = hotkey_section_searches(&query, &|id| {
         ghostex_settings_catalog::built_in_extensions::hotkey_shown_with(id, |key| {
             Some(store.bool(key))
@@ -165,10 +140,12 @@ pub(crate) fn rail_pages(store: &SettingsStore) -> Vec<RailPage> {
             return true;
         }
         match tab {
-            SettingsTabId::General => !sections.is_empty() || title_matches(&query, "General"),
             SettingsTabId::Theme => general.subsection_visible("theming", power_visible),
             SettingsTabId::Hotkeys => !sections.is_empty(),
-            other => store.tab_search(other).has_matches(),
+            other => match other.general_group() {
+                Some(group) => general.group_visible(group),
+                None => store.tab_search(other).has_matches(),
+            },
         }
     };
     SettingsTabId::RAIL_ORDER
@@ -188,7 +165,6 @@ pub(crate) fn rail_pages(store: &SettingsStore) -> Vec<RailPage> {
         })
         .filter_map(|tab| {
             let sections = match tab {
-                SettingsTabId::General => general_sections.iter().map(clone_section).collect(),
                 SettingsTabId::Hotkeys => {
                     visible_hotkey_sections.iter().map(clone_section).collect()
                 }
@@ -222,9 +198,7 @@ const EXTENSIONS_FOLD: &str = "group:extensions";
 
 impl RailState {
     pub(crate) fn new() -> Self {
-        let mut state = Self::default();
-        state.expanded_pages.insert(SettingsTabId::General, true);
-        state
+        Self::default()
     }
 
     /// How open fold `key` is drawn this frame (0 to 1) and whether its content is drawn, for a
@@ -278,8 +252,24 @@ fn rail_fold(
     )
 }
 
+/// A tier's label above its pages (CDXC:Settings 2026-10-29 in model.rs).
+fn render_tier_label(p: &SettingsPalette, tier: RailTier, spaced: bool) -> AnyElement {
+    div()
+        .w_full()
+        .min_w_0()
+        .pl(px(10.0))
+        .pb(px(2.0))
+        .when(spaced, |this| this.pt(px(10.0)))
+        .text_size(px(11.0))
+        .line_height(px(14.0))
+        .font_weight(FontWeight::MEDIUM)
+        .text_color(hsla(p.muted))
+        .child(tier.title().to_uppercase())
+        .into_any_element()
+}
+
 /// CDXC:Settings 2026-09-12 DECISION:
-/// User: Settings table-of-contents titles only navigate; only the small chevron on the right expands or collapses their entries. This replaces the full-header toggle behavior. 2026-10-19: "make the sidebar collapse/expand in the sidebar of settings animate please", with the "same animation as the project collapse/expand in the sidebar": every rail fold (General's and Hotkeys' sections, their subsections, the Extensions group) grows and shrinks through the main sidebar's own fold (`crate::fold_motion`, its timing and easing), and its chevron turns with it. A search or a deep link that opens a fold shows it open without animating.
+/// User: Settings table-of-contents titles only navigate; only the small chevron on the right expands or collapses their entries. This replaces the full-header toggle behavior. 2026-10-19: "make the sidebar collapse/expand in the sidebar of settings animate please", with the "same animation as the project collapse/expand in the sidebar": every rail fold (Hotkeys' sections, their subsections, the Extensions group) grows and shrinks through the main sidebar's own fold (`crate::fold_motion`, its timing and easing), and its chevron turns with it. A search or a deep link that opens a fold shows it open without animating.
 fn chevron(fraction: f32, color: gpui::Rgba) -> gpui::Svg {
     settings_icon(super::fields::icon::CHEVRON_RIGHT, 12.0, color).with_transformation(
         gpui::Transformation::rotate(gpui::percentage(0.25 * fraction)),
@@ -616,9 +606,7 @@ fn render_extensions_group(
                 let store = shell.store.clone();
                 store.update(cx, |store, cx| store.toggle_extensions_group(cx));
             })
-            .child(
-                chevron(fraction, if selected { p.foreground } else { p.muted }).flex_shrink_0(),
-            )
+            .child(chevron(fraction, if selected { p.foreground } else { p.muted }).flex_shrink_0())
             .child(
                 div()
                     .flex_1()
@@ -651,6 +639,7 @@ fn render_extensions_group(
         .gap(px(2.0))
         .border_t_1()
         .border_color(hsla(p.hairline))
+        .child(render_tier_label(p, RailTier::More, false))
         .children(catalog)
         .children(toggle)
         .children(body)
@@ -677,6 +666,7 @@ pub(crate) fn render_rail(
     let mut groups: Vec<AnyElement> = Vec::new();
     let mut extension_pages: Vec<AnyElement> = Vec::new();
     let mut catalog: Option<AnyElement> = None;
+    let mut tier: Option<RailTier> = None;
     for page in pages {
         let tab = page.tab;
         let element = render_page(shell, p, page, active_tab, cx);
@@ -685,6 +675,10 @@ pub(crate) fn render_rail(
         } else if tab.in_extensions_group() {
             extension_pages.push(element);
         } else {
+            if tier != Some(tab.tier()) {
+                groups.push(render_tier_label(p, tab.tier(), tier.is_some()));
+                tier = Some(tab.tier());
+            }
             groups.push(element);
         }
     }

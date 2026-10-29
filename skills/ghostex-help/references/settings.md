@@ -9,11 +9,40 @@ How to use this file:
 - Rows marked `not agent-writable`, `structured value`, or `Settings UI row` must be changed by the user in Settings. Open the right page with `ghostex settings open <key>`.
 - The desktop app must be running for `set`; it applies the change exactly like a save in the Settings modal.
 
-## General (tab `settings`)
+## Chat (tab `chat`)
+
+### Chat
+
+- **Default view for compatible agents** `preferredAgentInterface` (one of terminal | chat; default chat): Automatically switch to chat as soon as Ghostex detects that an agent session supports it. Option labels: terminal = Terminal, chat = Chat.
+- **Close empty sessions when starting a new one** `closeEmptySessionsOnNew` (boolean, default false) [advanced]: When you start a new session, close this project's other sessions that have nothing typed, drafted or queued. Only applies when Chat is the default view for that agent; with Terminal it never runs.
+- **Chat font family** `sessionChatFontFamily` (text, default (empty)): Use any installed font in chat messages and the prompt composer.
+- **Default chat zoom (%)** `sessionChatZoomPercent` (number 70 to 200 step 5 default 100): Scale every desktop chat, including messages and the prompt composer, from 70% to 200% in 5% steps. Cmd+= and Cmd+- in a chat change it too, and Cmd+0 sets 100%. Default: 100%.
+- **Custom transcript width** `sessionChatCustomTranscriptWidthEnabled` (boolean, default false) [advanced]: Let the transcript use a different width from the prompt composer.
+- **Transcript width** `sessionChatTranscriptWidthPercent` (number 50 to 100 step 5 default 75) [advanced]: Set the centered transcript width without changing the prompt composer.
+- **Show file edit previews** `sessionChatFileEditPreviews` (boolean, default false): Show the first seven code lines in each file edit. Turn off to show only the path and change counts.
+- **Grey thinking** `sessionChatMutedThinking` (boolean, default false) [advanced]: Show the agent's thinking in grey and its replies in the full text colour, so the two are easy to tell apart.
+- **Tool call cards (preview)** `chatToolCallCards` (boolean, default false): Show each run of tool calls as one card: it counts the calls, says what each one is doing and then did, with its result and time, explains a failure, and folds to one line once the agent writes again. Off keeps the current look.
+- **Keep chat box expanded while scrolling** `sessionChatKeepComposerExpanded` (boolean, default false) [advanced]: Keep the desktop chat box at full size while you scroll the transcript instead of shrinking it as you scroll up and growing it back at the end.
+- **Press Escape twice to interrupt** `sessionChatConfirmEscapeInterrupt` (boolean, default true) [advanced]: While the agent is working, the first Escape asks you to press Escape again within 2 seconds before it interrupts. Turn off to interrupt on the first Escape.
+- **Simple mode** `sessionChatSimpleMode` (boolean, default true): Simplify all chats: hide tool command previews and group file edits behind an expandable file count.
+- **Catch me up button** `chatCatchMeUp` (boolean, default false): Show a Catch me up button at the top right of the chat box while it is empty. It has your Title Generation Agent (a small, cheap model) read the session's last 30 agent messages and shows where the session stands: what needs you, what is done, in progress or untested.
+- **Send when you pick an answer** `chatSendOnPick` (boolean, default false) [advanced]: When a question card asks one question, picking an answer sends it right away, without Send answers. Cards with several questions, multiple-choice questions, Other and text answers still wait for Send.
+- **Open chat pages in** `chatPageOpenTarget` (one of popup | files | system-browser; default popup): Where a page an agent shows in chat (a mockup, a question form, a comparison) opens when you click its card: a popup over the chat, the Files view, or your default web browser. Answers you send from the page reach the agent the same way in all three. The phone always opens pages in its own viewer. Option labels: popup = Popup, files = Files, system-browser = System browser.
+- **Marked handovers in every session** `markedHandovers` (boolean, default false): Coordinators and their threads start each part of the message they hand back with a marker such as ❓ Needs you, ✅ Done, ⚠️ Read this, 🧪 Untested or 🛑 Blocked, so a quick skim shows what needs you. Turn this on to have every other agent session do the same. Applies to sessions started or resumed after you change it.
+- **Show marker emojis** `markedHandoversEmoji` (boolean, default false) [advanced]: Not recommended. Show the marker emoji (❓ ✅ ⚠️ and the rest) at the start of each coloured section, in every style. Off: the colour and the label show the kind. Shown while Marked handovers is on.
+- **Marked sections style** `markedHandoversStyle` (one of labels | rule | badge; default labels) [advanced]: How the chat colours the sections an agent marks: coloured labels, a thin left rule, or a coloured badge in place of the emoji. Shown while Marked handovers is on. Option labels: labels = Coloured labels, rule = Thin left rule, badge = Coloured badge.
+- **Handover heading color strength** `markedHandoversHeadingStrength` (number 0 to 100 step 10 default 60) [advanced]: How strongly the coloured section headings in agents' handovers (Done, Needs you, Untested and the rest) stand out. 100% is full colour; lower values blend the headings toward the normal text colour, and 0% leaves them in plain bold text.
+- **Coordinators answer without markers** `orchestratorPlainReplies` (boolean, default false) [advanced]: Not recommended. Coordinators answer normally, without marking the sections of their handovers. Their threads still mark the reports they send to the coordinator. Applies to coordinators started or resumed after you change it.
+- **Show all effort levels** `orchestratorAllEfforts` (boolean, default false) [advanced]: Lists every effort level in the coordinator effort pickers. Anything below High isn't recommended for coordinators.
+- **Coordinator playbook** `orchestratorPlaybook` (Settings UI row without a settings key; use `ghostex settings open`) [advanced]: How every coordinator works: the playbook it follows. Edit it for all projects here, or for one project and its worktrees in Settings > Projects. Coordinators, existing ones too, follow the edited playbook from their next guide read, and a switch turns an edited playbook off without losing it.
+- **Verbose mode** `sessionChatVerboseMode` (boolean, default false) [advanced]: Expand thinking blocks to show their tool calls by default. Each chat can override it from its composer.
+- **Read aloud voice** `readAloudVoice` (text: the id of a voice installed on this computer (on a Mac, for example `com.apple.voice.compact.en-US.Samantha`), easiest picked on its Settings row; default (empty), the system voice): The voice Read aloud speaks the agent's replies with: System voice, or one of the voices installed on this computer. Add voices in your computer's speech or accessibility settings. The phone has its own Voice in its Settings > Chat. Only on macOS.
+- **Read aloud speed** `readAloudRate` (number one of 0.75 | 1 | 1.25 | 1.5 | 2; default 1): How fast Read aloud speaks, from 0.75× to twice as fast. Ghostex in a browser uses it too; the phone has its own Speed. Option labels: 0.75 = 0.75×, 1 = 1×, 1.25 = 1.25×, 1.5 = 1.5×, 2 = 2×.
+- **Read aloud** `readAloudUnavailable` (Settings UI row without a settings key; use `ghostex settings open`): Read aloud can't speak on this computer, so it has no controls here. It works in the Ghostex phone app and in Ghostex in a browser connected to this computer. Only on Windows and Linux.
+- **Claude task list** `sessionDetailsClaudeTaskTools` (boolean, default true): Turn on Claude's task list tools, so Claude can keep a checklist that the Session details panel shows. Recent Claude models only get them when Ghostex asks. Applies to Claude sessions started or woken after you change it. Shown while the Session details panel extension is on.
+## Sidebar & Sessions (tab `sidebar`)
 
 ### Sidebar
-
-#### Sidebar
 
 - **Preset** `sidebarSettingsPreset` (Settings UI row without a settings key; use `ghostex settings open`): Apply a sidebar UI preset or show Custom when controlled settings diverge.
 - **When switching to a Space** `sidebarSpaceSwitchBehavior` (one of restore | keep; default restore): Reopen the session you last had open in a Space when you switch to it, in the view its project was in. Shown while the Spaces extension is on. Option labels: restore = Restore the Space's projects, keep = Don't switch projects.
@@ -47,7 +76,7 @@ How to use this file:
 - **Park & Snooze with tags** `showTagMenuWhenParking` (boolean, default true): Open the Tag as menu when a session is parked or snoozed so it can be tagged right away.
 - **Unpark after sending a message** `unparkAfterSendingMessage` (boolean, default true): Move a parked session out of the Parked section when you send it a message.
 - **Double-click session cards to rename** `renameSessionOnDoubleClick` (boolean, default false) [advanced]: Makes clicking on a session respond a bit slower so we can detect the double click
-#### Session Cards
+### Session Cards
 
 - **Session hover buttons (click to toggle, drag to reorder)** `sessionCardHoverButtons` (structured value; change it in Settings, not with `ghostex settings set`) [advanced]: Buttons a session card shows when you hover it. Click an icon to turn it on or off; drag icons to reorder them. Buttons to the right of the chevron always show, buttons to its left hide until the chevron is clicked. By default the strip is Tag, Park, Sleep, chevron, Close.
 - **Session links in the sidebar** `sidebarSessionLinks` (one of always | selected | badge | open | off; default badge): How a session card shows the pull requests, issues and Linear tickets it is linked to. Always: a line of them under every card that has any. Selected session: that line only under the session you have open. Badge: a small count on the card, coloured by the most pressing one, grey once all are merged or closed. Open work only: a line of the ones still open, none once they are all merged or closed. Hovering a card with links shows them all in a card beside the sidebar, except with Off, which shows nothing. Option labels: always = Always, selected = Selected session, badge = Badge, open = Open work only, off = Off.
@@ -55,68 +84,16 @@ How to use this file:
 - **Offer Clean up when a PR merges** `offerCleanupWhenPrMerges` (boolean, default true): When a session's pull request is merged, its card asks once whether to clean up (remove the session's worktree and park the session; a worktree with uncommitted changes is kept) or keep it.
 - **Hover buttons also in context menu** `showSessionCardHoverButtonsInContextMenu` (boolean, default true) [advanced]: Also list the enabled hover buttons in the session right-click menu, in their usual place in the menu. Close is never listed while it is on the card. Turn off to leave every button out of the menu once it is on the card.
 - **Session tooltips** `showSidebarSessionTooltips` (boolean, default true) [advanced]: Show a tooltip with the full session name when you hover a session in the sidebar. Turn off to show none; other sidebar tooltips stay.
-#### Sidebar Tags
+### Sidebar Tags
 
 - **Tag Filter List** `sidebarSessionTagListItems` (structured value; change it in Settings, not with `ghostex settings set`): Add your own tags, then reorder, hide, disable, or delete tags and their separators for the sidebar and the Tag as menu.
-### Chat
+### Sleeping Sessions
 
-#### Chat
+- **Dim sleeping sessions** `dimSleepingSessions` (boolean, default false) [advanced]: Fade sleeping sessions in the sidebar so they stand apart from awake ones.
+- **Wake sleeping sessions when selected** `wakeSleepingSessionsOnSelect` (boolean, default true) [advanced]: Wake a sleeping session as soon as you select it. Turn off to open it with a Resume button instead, so switching sessions does not wake it by accident.
+## Terminal (tab `terminal`)
 
-- **Default view for compatible agents** `preferredAgentInterface` (one of terminal | chat; default chat): Automatically switch to chat as soon as Ghostex detects that an agent session supports it. Option labels: terminal = Terminal, chat = Chat.
-- **Close empty sessions when starting a new one** `closeEmptySessionsOnNew` (boolean, default false) [advanced]: When you start a new session, close this project's other sessions that have nothing typed, drafted or queued. Only applies when Chat is the default view for that agent; with Terminal it never runs.
-- **Chat font family** `sessionChatFontFamily` (text, default (empty)): Use any installed font in chat messages and the prompt composer.
-- **Default chat zoom (%)** `sessionChatZoomPercent` (number 70 to 200 step 5 default 100): Scale every desktop chat, including messages and the prompt composer, from 70% to 200% in 5% steps. Cmd+= and Cmd+- in a chat change it too, and Cmd+0 sets 100%. Default: 100%.
-- **Custom transcript width** `sessionChatCustomTranscriptWidthEnabled` (boolean, default false) [advanced]: Let the transcript use a different width from the prompt composer.
-- **Transcript width** `sessionChatTranscriptWidthPercent` (number 50 to 100 step 5 default 75) [advanced]: Set the centered transcript width without changing the prompt composer.
-- **Show file edit previews** `sessionChatFileEditPreviews` (boolean, default false): Show the first seven code lines in each file edit. Turn off to show only the path and change counts.
-- **Grey thinking** `sessionChatMutedThinking` (boolean, default false) [advanced]: Show the agent's thinking in grey and its replies in the full text colour, so the two are easy to tell apart.
-- **Tool call cards (preview)** `chatToolCallCards` (boolean, default false): Show each run of tool calls as one card: it counts the calls, says what each one is doing and then did, with its result and time, explains a failure, and folds to one line once the agent writes again. Off keeps the current look.
-- **Keep chat box expanded while scrolling** `sessionChatKeepComposerExpanded` (boolean, default false) [advanced]: Keep the desktop chat box at full size while you scroll the transcript instead of shrinking it as you scroll up and growing it back at the end.
-- **Press Escape twice to interrupt** `sessionChatConfirmEscapeInterrupt` (boolean, default true) [advanced]: While the agent is working, the first Escape asks you to press Escape again within 2 seconds before it interrupts. Turn off to interrupt on the first Escape.
-- **Simple mode** `sessionChatSimpleMode` (boolean, default true): Simplify all chats: hide tool command previews and group file edits behind an expandable file count.
-- **Catch me up button** `chatCatchMeUp` (boolean, default false): Show a Catch me up button at the top right of the chat box while it is empty. It has your Title Generation Agent (a small, cheap model) read the session's last 30 agent messages and shows where the session stands: what needs you, what is done, in progress or untested.
-- **Send when you pick an answer** `chatSendOnPick` (boolean, default false) [advanced]: When a question card asks one question, picking an answer sends it right away, without Send answers. Cards with several questions, multiple-choice questions, Other and text answers still wait for Send.
-- **Open chat pages in** `chatPageOpenTarget` (one of popup | files | system-browser; default popup): Where a page an agent shows in chat (a mockup, a question form, a comparison) opens when you click its card: a popup over the chat, the Files view, or your default web browser. Answers you send from the page reach the agent the same way in all three. The phone always opens pages in its own viewer. Option labels: popup = Popup, files = Files, system-browser = System browser.
-- **Marked handovers in every session** `markedHandovers` (boolean, default false): Coordinators and their threads start each part of the message they hand back with a marker such as ❓ Needs you, ✅ Done, ⚠️ Read this, 🧪 Untested or 🛑 Blocked, so a quick skim shows what needs you. Turn this on to have every other agent session do the same. Applies to sessions started or resumed after you change it.
-- **Show marker emojis** `markedHandoversEmoji` (boolean, default false) [advanced]: Not recommended. Show the marker emoji (❓ ✅ ⚠️ and the rest) at the start of each coloured section, in every style. Off: the colour and the label show the kind. Shown while Marked handovers is on.
-- **Marked sections style** `markedHandoversStyle` (one of labels | rule | badge; default labels) [advanced]: How the chat colours the sections an agent marks: coloured labels, a thin left rule, or a coloured badge in place of the emoji. Shown while Marked handovers is on. Option labels: labels = Coloured labels, rule = Thin left rule, badge = Coloured badge.
-- **Handover heading color strength** `markedHandoversHeadingStrength` (number 0 to 100 step 10 default 60) [advanced]: How strongly the coloured section headings in agents' handovers (Done, Needs you, Untested and the rest) stand out. 100% is full colour; lower values blend the headings toward the normal text colour, and 0% leaves them in plain bold text.
-- **Coordinators answer without markers** `orchestratorPlainReplies` (boolean, default false) [advanced]: Not recommended. Coordinators answer normally, without marking the sections of their handovers. Their threads still mark the reports they send to the coordinator. Applies to coordinators started or resumed after you change it.
-- **Show all effort levels** `orchestratorAllEfforts` (boolean, default false) [advanced]: Lists every effort level in the coordinator effort pickers. Anything below High isn't recommended for coordinators.
-- **Coordinator playbook** `orchestratorPlaybook` (Settings UI row without a settings key; use `ghostex settings open`) [advanced]: How every coordinator works: the playbook it follows. Edit it for all projects here, or for one project and its worktrees in Settings > Projects. Coordinators, existing ones too, follow the edited playbook from their next guide read, and a switch turns an edited playbook off without losing it.
-- **Verbose mode** `sessionChatVerboseMode` (boolean, default false) [advanced]: Expand thinking blocks to show their tool calls by default. Each chat can override it from its composer.
-- **Read aloud voice** `readAloudVoice` (text: the id of a voice installed on this computer (on a Mac, for example `com.apple.voice.compact.en-US.Samantha`), easiest picked on its Settings row; default (empty), the system voice): The voice Read aloud speaks the agent's replies with: System voice, or one of the voices installed on this computer. Add voices in your computer's speech or accessibility settings. The phone has its own Voice in its Settings > Chat. Only on macOS.
-- **Read aloud speed** `readAloudRate` (number one of 0.75 | 1 | 1.25 | 1.5 | 2; default 1): How fast Read aloud speaks, from 0.75× to twice as fast. Ghostex in a browser uses it too; the phone has its own Speed. Option labels: 0.75 = 0.75×, 1 = 1×, 1.25 = 1.25×, 1.5 = 1.5×, 2 = 2×.
-- **Read aloud** `readAloudUnavailable` (Settings UI row without a settings key; use `ghostex settings open`): Read aloud can't speak on this computer, so it has no controls here. It works in the Ghostex phone app and in Ghostex in a browser connected to this computer. Only on Windows and Linux.
-- **Claude task list** `sessionDetailsClaudeTaskTools` (boolean, default true): Turn on Claude's task list tools, so Claude can keep a checklist that the Session details panel shows. Recent Claude models only get them when Ghostex asks. Applies to Claude sessions started or woken after you change it. Shown while the Session details panel extension is on.
-### Tools
-
-#### Browser
-
-- **Open links in** `webLinkOpenTarget` (one of internal-browser | system-default-browser; default internal-browser): Open web links from terminal output (Command-click), session chat, and detected dev servers in the project Browser view or the system default browser. Option labels: internal-browser = Internal Browser, system-default-browser = System Default Browser.
-- **Open session links in** `sessionLinkOpenTarget` (one of embedded | external; default embedded): Open a session's pull requests, issues and Linear tickets (the chips after its title and its links list) in the project Browser view or the system default browser. The phone follows this setting too. Option labels: embedded = Internal Browser, external = System Default Browser.
-- **Show pages in their own row** `browserPagesInViewRow` (boolean, default false): Show the Browser as one tab in the side panel's tab bar, with its pages as a row of tabs under it, instead of each page as a tab beside the views. Pages open, close, sleep and drag as before.
-#### Dev Servers
-
-- **Detect running servers in terminals** `terminalDevServerDetectionEnabled` (boolean, default true): Detect localhost dev server URLs from terminal output.
-- **Ignored ports** `terminalDevServerIgnoredPortRules` (structured value; change it in Settings, not with `ghostex settings set`) [advanced]: Hide detected servers on specific ports or inclusive port ranges.
-#### Editor
-
-- **Use VS Code settings** `codeServerLinkVscodeUserConfig` (boolean, default false) [advanced]: Use the VS Code settings from the local VS Code install.
-- **Use VS Code Insiders settings** `codeServerUseVscodeInsidersUserConfig` (boolean, default false) [advanced]: Use the VS Code Insiders user settings directory.
-- **Open VS Code windows as tabs** `codeServerNewWindowsAsTabs` (boolean, default false) [advanced]: When VS Code opens a new window (File > New Window, or a folder or workspace opened in a new window), show it as another window tab above the VS Code page instead of blocking it. Each tab is its own VS Code window, so you can keep several projects or workspaces open at once.
-- **Show untracked lines without tracked changes** `showUntrackedProjectDiffWhenNoTrackedChanges` (boolean, default false) [advanced]: When tracked git diff is +0 -0, show untracked line counts in project headers (Starship-style prompts ignore untracked lines).
-#### File opening
-
-- **HTML, Markdown and images** `documentFileOpenTarget` (one of files | code | vscode | cursor | trae | kiro | vscode-insiders | vscodium | zed | antigravity | idea | aqua | clion | datagrip | dataspell | goland | phpstorm | pycharm | rider | rubymine | rustrover | webstorm; default files): Choose where HTML, Markdown and picture files open from Quick Access, agent chat, the terminal and `ghostex open`: Files, VS Code, or an editor app installed on this computer. Option labels: files = Files, code = VS Code, vscode = VS Code app, cursor = Cursor, trae = Trae, kiro = Kiro, vscode-insiders = VS Code Insiders, vscodium = VSCodium, zed = Zed, antigravity = Antigravity, idea = IntelliJ IDEA, aqua = Aqua, clion = CLion, datagrip = DataGrip, dataspell = DataSpell, goland = GoLand, phpstorm = PhpStorm, pycharm = PyCharm, rider = Rider, rubymine = RubyMine, rustrover = RustRover, webstorm = WebStorm.
-- **Other files** `otherFileOpenTarget` (one of files | code | vscode | cursor | trae | kiro | vscode-insiders | vscodium | zed | antigravity | idea | aqua | clion | datagrip | dataspell | goland | phpstorm | pycharm | rider | rubymine | rustrover | webstorm; default files): Choose where every other file (code and text) opens from Quick Access, agent chat, the terminal and `ghostex open`: Files, VS Code, or an editor app installed on this computer. Option labels: files = Files, code = VS Code, vscode = VS Code app, cursor = Cursor, trae = Trae, kiro = Kiro, vscode-insiders = VS Code Insiders, vscodium = VSCodium, zed = Zed, antigravity = Antigravity, idea = IntelliJ IDEA, aqua = Aqua, clion = CLion, datagrip = DataGrip, dataspell = DataSpell, goland = GoLand, phpstorm = PhpStorm, pycharm = PyCharm, rider = Rider, rubymine = RubyMine, rustrover = RustRover, webstorm = WebStorm.
-- **Videos** `videoFileOpenTarget` (one of files | system-app; default files): Choose whether videos linked in agent chat or the terminal, or opened with `ghostex open`, play in Files or open in the system app. Formats Files cannot play, such as .mp4 and .mov, always open in the system app. Option labels: files = Files, system-app = System App.
-- **Open file changes in** `fileChangesOpenTarget` (one of changes | code; default changes): Choose where Review all on an agent's file changes and Session details' Changes card open: the Changes view or the VS Code view. If the chosen view is turned off, the other one opens. Option labels: changes = Changes view, code = VS Code.
-- **Audio** `audioFileOpenTarget` (one of files | system-app; default files): Choose whether audio files linked in agent chat or the terminal, or opened with `ghostex open`, play in Files or open in the system app. Formats Files cannot play, such as .m4a, always open in the system app. Option labels: files = Files, system-app = System App.
-- **Show open files as tabs** `docsOpenFilesAsTabs` (boolean, default false): Show the files open in the Files view as a row of tabs above the document, instead of the Open Files list in the files sidebar. Every file you open, from the files list, Quick Access or a chat link, gets a tab, and each keeps its own unsaved changes and notes.
 ### Terminal
-
-#### Terminal
 
 - **Ghostty settings actions** `ghosttySettingsActions` (Settings UI row without a settings key; use `ghostex settings open`) [advanced]: Recommended terminal settings, Import from Ghostty (fonts and cursor, not the theme), the Ghostty app's config, Ghostex's own terminal config, Ghostty docs, and defaults.
 - **Terminal background** `terminalBackgroundMode` (one of pure | theme | custom; default pure): Only changes the terminal panes. Black / white is pure black in dark mode and pure white in light mode. Option labels: pure = Black / white, theme = Follow theme, custom = Custom color.
@@ -147,7 +124,7 @@ How to use this file:
 - **Custom shaders (experimental)** `terminalShadersEnabled` (boolean, default false) [advanced]: Apply the shaders from Ghostex's terminal config in order. macOS with Metal only; tested on Apple Silicon. Intel Mac rendering is not yet validated. Windows and Linux are unsupported. Turn off to restore ordinary rendering in the same sessions.
 - **Windows Environment** `windowsTerminalBackend` (one of powershell | wsl; default powershell): Windows only. PowerShell (default) runs native Windows projects and agents. WSL runs Linux projects. Changing environments prompts you to restart Ghostex. Option labels: powershell = PowerShell (Native), wsl = WSL (Linux).
 - **WSL distribution** `windowsWslDistribution` (text, default (empty)): Windows only. Exact distro name from `wsl.exe --list --verbose`; blank uses automatic WSL2 discovery.
-#### Terminal Behavior
+### Terminal Behavior
 
 - **Scrollback limit** `terminalScrollbackLimitMb` (number default 15) [advanced]: Set scrollback memory per terminal surface.
 - **Copy on select** `terminalCopyOnSelect` (one of false | true | clipboard; default false) [advanced]: Copy selected terminal text automatically. On macOS both options also copy to the system clipboard. Option labels: false = Off, true = Copy to clipboard, clipboard = System and selection clipboard.
@@ -157,38 +134,14 @@ How to use this file:
 - **Paste previewable images** `terminalPastePreviewableImages` (boolean, default true) [advanced]: Paste clipboard images as previewable Markdown links with ⌘V. Hold ⌘ over the linked path to preview it in the terminal, and see the same image preview in the ⌃G Rich Prompt Editor.
 - **Hide mouse while typing** `terminalMouseHideWhileTyping` (boolean, default false) [advanced]: Hide the pointer while typing in the terminal.
 - **Scrollbar** `terminalScrollbar` (one of system | never; default system) [advanced]: Control whether Ghostty shows its native scrollback scrollbar. Option labels: system = System, never = Never.
-#### Terminal Scrolling
+### Terminal Scrolling
 
 - **Precision scroll multiplier** `terminalMouseScrollMultiplierPrecision` (number default 1) [advanced]: Trackpads and high-resolution scroll wheels. Ghostty default is 1.
 - **Discrete scroll multiplier** `terminalMouseScrollMultiplierDiscrete` (number default 1) [advanced]: Traditional notched mouse wheels. Ghostty default is 3.
 - **Scroll to bottom when typing** `terminalScrollToBottomWhenTyping` (boolean, default true) [advanced]: Keep the prompt visible while typing.
-### System
+## Notifications (tab `notifications`)
 
-#### Auto Sleep
-
-- **VS Code Auto Sleep** `autoSleepCodeEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 10) [advanced]: Choose when inactive VS Code panes sleep, or turn Auto Sleep off. Off also keeps Code awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
-- **Git Auto Sleep** `autoSleepGitEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 5) [advanced]: Choose when inactive Git panes sleep, or turn Auto Sleep off. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
-- **Project Auto Sleep** `autoSleepProjectEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 5) [advanced]: Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps Files, Kanban and Automate awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
-- **Browser Auto Sleep** `autoSleepBrowserIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 10) [advanced]: Choose when inactive browser panes sleep, or turn Auto Sleep off. Off also keeps the Browser awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
-- **Keep views loaded** `keepViewsLoaded` (boolean, default false) [advanced]: Keep the side panel views you open loaded when you switch projects or workspaces, without the three-view limit or the previous project's time limit. Auto Sleep and Sleep still apply. Uses more memory.
-- **Agent Auto Sleep** `autoSleepAgentIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 0) [advanced]: Choose when eligible agent terminals sleep, or turn Auto Sleep off. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
-- **Require resume command** `autoSleepRequireAgentResumeCommand` (boolean, default true) [advanced]: Only auto-sleep agent sessions Ghostex can wake with a resume command.
-- **Include favorite agents** `autoSleepFavoriteAgentSessions` (boolean, default false) [advanced]: Allow favorite agent sessions to auto-sleep.
-#### Power
-
-- **Hide Keep Awake** `hideKeepAwakeTitlebarControl` (boolean, default false) [advanced]: Hide the Keep Awake entry from the sidebar menu.
-- **Default keep-awake duration** `keepAwakeDefaultDurationMinutes` (number one of 0 | 120 | 300; default 0) [advanced]: Choose the duration Keep Awake uses by default. Option labels: 0 = Until turned off, 120 = 2 hours, 300 = 5 hours.
-- **Allow display sleep** `keepAwakeAllowDisplaySleep` (boolean, default false) [advanced]: Keep the computer awake but allow the display to turn off.
-- **Prevent lid-close sleep** `keepAwakePreventLidSleep` (boolean, default false) [advanced]: Optional. When Keep Awake is on, Ghostex can install a small privileged helper once so closing the lid stays awake only for that active keep-awake session.
-- **Activate on launch** `keepAwakeActivateOnLaunch` (boolean, default false) [advanced]: Start preventing sleep when Ghostex launches.
-- **Activate on external display** `keepAwakeActivateOnExternalDisplay` (boolean, default false) [advanced]: Start preventing sleep when an external display is connected.
-- **Keep awake for working sessions** `keepAwakeWhileWorkingSessions` (boolean, default false) [advanced]: Keep the computer awake while sessions are working and for 20 minutes after.
-- **Battery threshold** `keepAwakeBatteryThresholdPercent` (number one of 0 | 10 | 15 | 20 | 25 | 30 | 35 | 40 | 45 | 50 | 55 | 60 | 65 | 70 | 75 | 80 | 85 | 90; default 0) [advanced]: Stop preventing sleep below this battery level, or turn the rule off. Option labels: 0 = Off, 10 = 10%, 15 = 15%, 20 = 20%, 25 = 25%, 30 = 30%, 35 = 35%, 40 = 40%, 45 = 45%, 50 = 50%, 55 = 55%, 60 = 60%, 65 = 65%, 70 = 70%, 75 = 75%, 80 = 80%, 85 = 85%, 90 = 90%.
-- **Deactivate in Low Power Mode** `keepAwakeDeactivateOnLowPowerMode` (boolean, default false) [advanced]: Stop preventing sleep when Low Power Mode is enabled.
-- **Deactivate on user switch** `keepAwakeDeactivateOnUserSwitch` (boolean, default false) [advanced]: Stop preventing sleep when this user session is no longer active.
-### Notifications
-
-#### Sounds
+### Sounds
 
 - **Completion Sound** `completionSound` (one of off | ping | pingdouble | glass | glimmer | shamisen | shamisenreverb | arcade | arcadeboost | confirmation-001 | confirmation-002 | confirmation-003 | confirmation-004 | notification-pop | success-chime | high-up | high-down | low-three-tone | tone-1 | three-tone-1 | three-tone-2 | two-tone-1 | two-tone-2 | power-up-5 | power-up-6 | power-up-8 | coin-collect | phaser-up-5 | zap-two-tone | voiceover-pack-male-mission-completed | voiceover-pack-female-mission-completed | voiceover-pack-male-you-win | voiceover-pack-female-congratulations | flawless-victory; default arcade): Sound for terminal completions, or Off. Option labels: off = Off, ping = Ping, pingdouble = Ping Double, glass = Glass, glimmer = Glimmer, shamisen = Shamisen, shamisenreverb = Shamisen Reverb, arcade = Arcade, arcadeboost = Arcade Boost, confirmation-001 = Confirmation 001, confirmation-002 = Confirmation 002, confirmation-003 = Confirmation 003, confirmation-004 = Confirmation 004, notification-pop = Notification Pop, success-chime = Success Chime, high-up = High Up, high-down = High Down, low-three-tone = Low Three Tone, tone-1 = Tone 1, three-tone-1 = Three Tone 1, three-tone-2 = Three Tone 2, two-tone-1 = Two Tone 1, two-tone-2 = Two Tone 2, power-up-5 = Power Up 5, power-up-6 = Power Up 6, power-up-8 = Power Up 8, coin-collect = Coin Collect, phaser-up-5 = Phaser Up 5, zap-two-tone = Zap Two Tone, voiceover-pack-male-mission-completed = Mission Completed (Male), voiceover-pack-female-mission-completed = Mission Completed (Female), voiceover-pack-male-you-win = You Win (Male), voiceover-pack-female-congratulations = Congratulations (Female), flawless-victory = Flawless Victory.
 - **Attention Notifications** `showMacOSAttentionNotifications` (boolean, default true): Show a system notification when a session needs attention.
@@ -196,36 +149,55 @@ How to use this file:
 - **Agent Completion Alert Test** `attentionNotificationActions` (Settings UI row without a settings key; use `ghostex settings open`) [advanced]: Test the current completion alert settings or open Notification Settings.
 - **Action Completion Sound** `actionCompletionSound` (one of ping | pingdouble | glass | glimmer | shamisen | shamisenreverb | arcade | arcadeboost | confirmation-001 | confirmation-002 | confirmation-003 | confirmation-004 | notification-pop | success-chime | high-up | high-down | low-three-tone | tone-1 | three-tone-1 | three-tone-2 | two-tone-1 | two-tone-2 | power-up-5 | power-up-6 | power-up-8 | coin-collect | phaser-up-5 | zap-two-tone | voiceover-pack-male-mission-completed | voiceover-pack-female-mission-completed | voiceover-pack-male-you-win | voiceover-pack-female-congratulations | flawless-victory; default shamisen) [advanced]: Sound for action completions. Option labels: ping = Ping, pingdouble = Ping Double, glass = Glass, glimmer = Glimmer, shamisen = Shamisen, shamisenreverb = Shamisen Reverb, arcade = Arcade, arcadeboost = Arcade Boost, confirmation-001 = Confirmation 001, confirmation-002 = Confirmation 002, confirmation-003 = Confirmation 003, confirmation-004 = Confirmation 004, notification-pop = Notification Pop, success-chime = Success Chime, high-up = High Up, high-down = High Down, low-three-tone = Low Three Tone, tone-1 = Tone 1, three-tone-1 = Three Tone 1, three-tone-2 = Three Tone 2, two-tone-1 = Two Tone 1, two-tone-2 = Two Tone 2, power-up-5 = Power Up 5, power-up-6 = Power Up 6, power-up-8 = Power Up 8, coin-collect = Coin Collect, phaser-up-5 = Phaser Up 5, zap-two-tone = Zap Two Tone, voiceover-pack-male-mission-completed = Mission Completed (Male), voiceover-pack-female-mission-completed = Mission Completed (Female), voiceover-pack-male-you-win = You Win (Male), voiceover-pack-female-congratulations = Congratulations (Female), flawless-victory = Flawless Victory.
 - **Copy Sound** `copySound` (boolean, default false) [advanced]: Play a short sound when copying to the clipboard, including text from the chat composer.
-### Advanced
+## Files & Links (tab `tools`)
 
-#### Sleeping Sessions
+### File opening
 
-- **Dim sleeping sessions** `dimSleepingSessions` (boolean, default false) [advanced]: Fade sleeping sessions in the sidebar so they stand apart from awake ones.
-- **Wake sleeping sessions when selected** `wakeSleepingSessionsOnSelect` (boolean, default true) [advanced]: Wake a sleeping session as soon as you select it. Turn off to open it with a Resume button instead, so switching sessions does not wake it by accident.
-#### Experimental
+- **HTML, Markdown and images** `documentFileOpenTarget` (one of files | code | vscode | cursor | trae | kiro | vscode-insiders | vscodium | zed | antigravity | idea | aqua | clion | datagrip | dataspell | goland | phpstorm | pycharm | rider | rubymine | rustrover | webstorm; default files): Choose where HTML, Markdown and picture files open from Quick Access, agent chat, the terminal and `ghostex open`: Files, VS Code, or an editor app installed on this computer. Option labels: files = Files, code = VS Code, vscode = VS Code app, cursor = Cursor, trae = Trae, kiro = Kiro, vscode-insiders = VS Code Insiders, vscodium = VSCodium, zed = Zed, antigravity = Antigravity, idea = IntelliJ IDEA, aqua = Aqua, clion = CLion, datagrip = DataGrip, dataspell = DataSpell, goland = GoLand, phpstorm = PhpStorm, pycharm = PyCharm, rider = Rider, rubymine = RubyMine, rustrover = RustRover, webstorm = WebStorm.
+- **Other files** `otherFileOpenTarget` (one of files | code | vscode | cursor | trae | kiro | vscode-insiders | vscodium | zed | antigravity | idea | aqua | clion | datagrip | dataspell | goland | phpstorm | pycharm | rider | rubymine | rustrover | webstorm; default files): Choose where every other file (code and text) opens from Quick Access, agent chat, the terminal and `ghostex open`: Files, VS Code, or an editor app installed on this computer. Option labels: files = Files, code = VS Code, vscode = VS Code app, cursor = Cursor, trae = Trae, kiro = Kiro, vscode-insiders = VS Code Insiders, vscodium = VSCodium, zed = Zed, antigravity = Antigravity, idea = IntelliJ IDEA, aqua = Aqua, clion = CLion, datagrip = DataGrip, dataspell = DataSpell, goland = GoLand, phpstorm = PhpStorm, pycharm = PyCharm, rider = Rider, rubymine = RubyMine, rustrover = RustRover, webstorm = WebStorm.
+- **Videos** `videoFileOpenTarget` (one of files | system-app; default files): Choose whether videos linked in agent chat or the terminal, or opened with `ghostex open`, play in Files or open in the system app. Formats Files cannot play, such as .mp4 and .mov, always open in the system app. Option labels: files = Files, system-app = System App.
+- **Open file changes in** `fileChangesOpenTarget` (one of changes | code; default changes): Choose where Review all on an agent's file changes and Session details' Changes card open: the Changes view or the VS Code view. If the chosen view is turned off, the other one opens. Option labels: changes = Changes view, code = VS Code.
+- **Audio** `audioFileOpenTarget` (one of files | system-app; default files): Choose whether audio files linked in agent chat or the terminal, or opened with `ghostex open`, play in Files or open in the system app. Formats Files cannot play, such as .m4a, always open in the system app. Option labels: files = Files, system-app = System App.
+- **Show open files as tabs** `docsOpenFilesAsTabs` (boolean, default false): Show the files open in the Files view as a row of tabs above the document, instead of the Open Files list in the files sidebar. Every file you open, from the files list, Quick Access or a chat link, gets a tab, and each keeps its own unsaved changes and notes.
+### Browser
 
-- **Enable Experimental Features** `showBetaFeatures` (boolean, default false) [advanced]: Show experimental surfaces: OS Integration settings, Browser color scheme, Keep Awake, Connectors, and Read aloud.
-- **Faster rendering** `fasterRendering` (boolean, default false) [advanced]: Redraw only the parts of a window that changed, which uses less CPU while agents stream and you scroll. Experimental: turn it off if part of a window stops updating.
-### Settings window
+- **Open links in** `webLinkOpenTarget` (one of internal-browser | system-default-browser; default internal-browser): Open web links from terminal output (Command-click), session chat, and detected dev servers in the project Browser view or the system default browser. Option labels: internal-browser = Internal Browser, system-default-browser = System Default Browser.
+- **Open session links in** `sessionLinkOpenTarget` (one of embedded | external; default embedded): Open a session's pull requests, issues and Linear tickets (the chips after its title and its links list) in the project Browser view or the system default browser. The phone follows this setting too. Option labels: embedded = Internal Browser, external = System Default Browser.
+- **Show pages in their own row** `browserPagesInViewRow` (boolean, default false): Show the Browser as one tab in the side panel's tab bar, with its pages as a row of tabs under it, instead of each page as a tab beside the views. Pages open, close, sleep and drag as before.
+### Editor
 
-- **Show Advanced settings** `showAdvancedSettings` (boolean, default false): Show the rows marked Advanced in Settings.
-### Internal state (not user settings)
+- **Use VS Code settings** `codeServerLinkVscodeUserConfig` (boolean, default false) [advanced]: Use the VS Code settings from the local VS Code install.
+- **Use VS Code Insiders settings** `codeServerUseVscodeInsidersUserConfig` (boolean, default false) [advanced]: Use the VS Code Insiders user settings directory.
+- **Open VS Code windows as tabs** `codeServerNewWindowsAsTabs` (boolean, default false) [advanced]: When VS Code opens a new window (File > New Window, or a folder or workspace opened in a new window), show it as another window tab above the VS Code page instead of blocking it. Each tab is its own VS Code window, so you can keep several projects or workspaces open at once.
+- **Show untracked lines without tracked changes** `showUntrackedProjectDiffWhenNoTrackedChanges` (boolean, default false) [advanced]: When tracked git diff is +0 -0, show untracked line counts in project headers (Starship-style prompts ignore untracked lines).
+### Dev Servers
 
-- **gpuiTitlebarActionCommandByProject** `gpuiTitlebarActionCommandByProject` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **gpuiTitlebarOpenTargetByProject** `gpuiTitlebarOpenTargetByProject` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **agentsTidyUpOfferDismissed** `agentsTidyUpOfferDismissed` (boolean, default false) [not agent-writable]: App-managed state saved with the settings; not a user preference.
-- **sessionLinksFoldedGroups** `sessionLinksFoldedGroups` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **settingsModalNavigation** `settingsModalNavigation` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **projectWebsiteViews** `projectWebsiteViews` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **appIconSourceId** `appIconSourceId` (text, default (empty)) [advanced, not agent-writable]: App-managed state saved with the settings; not a user preference.
-- **customSidebarTitlebarLightBackgroundColor** `customSidebarTitlebarLightBackgroundColor` (text, default #f4f4f5) [not agent-writable]: App-managed state saved with the settings; not a user preference.
-- **hotkeys** `hotkeys` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **customViewTemplates** `customViewTemplates` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **viewScopes** `viewScopes` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **customWorkspaceOpenTargets** `customWorkspaceOpenTargets` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **workspaceOpenTargetAvailability** `workspaceOpenTargetAvailability` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **workspaceOpenTargetHiddenIds** `workspaceOpenTargetHiddenIds` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
-- **remoteMachines** `remoteMachines` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **Detect running servers in terminals** `terminalDevServerDetectionEnabled` (boolean, default true): Detect localhost dev server URLs from terminal output.
+- **Ignored ports** `terminalDevServerIgnoredPortRules` (structured value; change it in Settings, not with `ghostex settings set`) [advanced]: Hide detected servers on specific ports or inclusive port ranges.
+## Power & Sleep (tab `system`)
+
+### Auto Sleep
+
+- **VS Code Auto Sleep** `autoSleepCodeEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 10) [advanced]: Choose when inactive VS Code panes sleep, or turn Auto Sleep off. Off also keeps Code awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
+- **Git Auto Sleep** `autoSleepGitEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 5) [advanced]: Choose when inactive Git panes sleep, or turn Auto Sleep off. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
+- **Project Auto Sleep** `autoSleepProjectEditorIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 5) [advanced]: Choose when inactive Project panes sleep, or turn Auto Sleep off. Off also keeps Files, Kanban and Automate awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
+- **Browser Auto Sleep** `autoSleepBrowserIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 10) [advanced]: Choose when inactive browser panes sleep, or turn Auto Sleep off. Off also keeps the Browser awake when more than three views are open. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
+- **Keep views loaded** `keepViewsLoaded` (boolean, default false) [advanced]: Keep the side panel views you open loaded when you switch projects or workspaces, without the three-view limit or the previous project's time limit. Auto Sleep and Sleep still apply. Uses more memory.
+- **Agent Auto Sleep** `autoSleepAgentIdleMinutes` (number one of 0 | 5 | 10 | 15 | 30 | 60 | 120 | 300; default 0): Choose when eligible agent terminals sleep, or turn Auto Sleep off. Option labels: 0 = Off, 5 = 5 minutes, 10 = 10 minutes, 15 = 15 minutes, 30 = 30 minutes, 60 = 1 hour, 120 = 2 hours, 300 = 5 hours.
+- **Require resume command** `autoSleepRequireAgentResumeCommand` (boolean, default true) [advanced]: Only auto-sleep agent sessions Ghostex can wake with a resume command.
+- **Include favorite agents** `autoSleepFavoriteAgentSessions` (boolean, default false) [advanced]: Allow favorite agent sessions to auto-sleep.
+### Power
+
+- **Hide Keep Awake** `hideKeepAwakeTitlebarControl` (boolean, default false) [advanced]: Hide the Keep Awake entry from the sidebar menu.
+- **Default keep-awake duration** `keepAwakeDefaultDurationMinutes` (number one of 0 | 120 | 300; default 0): Choose the duration Keep Awake uses by default. Option labels: 0 = Until turned off, 120 = 2 hours, 300 = 5 hours.
+- **Allow display sleep** `keepAwakeAllowDisplaySleep` (boolean, default false) [advanced]: Keep the computer awake but allow the display to turn off.
+- **Prevent lid-close sleep** `keepAwakePreventLidSleep` (boolean, default false) [advanced]: Optional. When Keep Awake is on, Ghostex can install a small privileged helper once so closing the lid stays awake only for that active keep-awake session.
+- **Activate on launch** `keepAwakeActivateOnLaunch` (boolean, default false) [advanced]: Start preventing sleep when Ghostex launches.
+- **Activate on external display** `keepAwakeActivateOnExternalDisplay` (boolean, default false) [advanced]: Start preventing sleep when an external display is connected.
+- **Keep awake for working sessions** `keepAwakeWhileWorkingSessions` (boolean, default false): Keep the computer awake while sessions are working and for 20 minutes after.
+- **Battery threshold** `keepAwakeBatteryThresholdPercent` (number one of 0 | 10 | 15 | 20 | 25 | 30 | 35 | 40 | 45 | 50 | 55 | 60 | 65 | 70 | 75 | 80 | 85 | 90; default 0) [advanced]: Stop preventing sleep below this battery level, or turn the rule off. Option labels: 0 = Off, 10 = 10%, 15 = 15%, 20 = 20%, 25 = 25%, 30 = 30%, 35 = 35%, 40 = 40%, 45 = 45%, 50 = 50%, 55 = 55%, 60 = 60%, 65 = 65%, 70 = 70%, 75 = 75%, 80 = 80%, 85 = 85%, 90 = 90%.
+- **Deactivate in Low Power Mode** `keepAwakeDeactivateOnLowPowerMode` (boolean, default false) [advanced]: Stop preventing sleep when Low Power Mode is enabled.
+- **Deactivate on user switch** `keepAwakeDeactivateOnUserSwitch` (boolean, default false) [advanced]: Stop preventing sleep when this user session is no longer active.
 ## Theme (tab `theme`)
 
 ### Theme
@@ -283,9 +255,33 @@ How to use this file:
 - **Join Discord** `discord` (Settings UI row without a settings key; use `ghostex settings open`): Chat with the community and get help.
 - **View on GitHub** `github` (Settings UI row without a settings key; use `ghostex settings open`): View the source, releases, and report issues.
 - **Sponsor Ghostex** `sponsor` (Settings UI row without a settings key; use `ghostex settings open`): Support the continued development of Ghostex.
+### Experimental
+
+- **Enable Experimental Features** `showBetaFeatures` (boolean, default false) [advanced]: Show experimental surfaces: OS Integration settings, Browser color scheme, Keep Awake, Connectors, and Read aloud.
+- **Faster rendering** `fasterRendering` (boolean, default false) [advanced]: Redraw only the parts of a window that changed, which uses less CPU while agents stream and you scroll. Experimental: turn it off if part of a window stops updating.
+### Settings window
+
+- **Show Advanced settings** `showAdvancedSettings` (boolean, default false): Show the rows marked Advanced in Settings.
 ### Privacy
 
 - **Anonymous analytics** `analyticsEnabled` (boolean, default true) [not agent-writable]: Send anonymous usage analytics. Ask the user before changing it.
+### Internal state (not user settings)
+
+- **gpuiTitlebarActionCommandByProject** `gpuiTitlebarActionCommandByProject` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **gpuiTitlebarOpenTargetByProject** `gpuiTitlebarOpenTargetByProject` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **agentsTidyUpOfferDismissed** `agentsTidyUpOfferDismissed` (boolean, default false) [not agent-writable]: App-managed state saved with the settings; not a user preference.
+- **sessionLinksFoldedGroups** `sessionLinksFoldedGroups` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **settingsModalNavigation** `settingsModalNavigation` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **projectWebsiteViews** `projectWebsiteViews` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **appIconSourceId** `appIconSourceId` (text, default (empty)) [advanced, not agent-writable]: App-managed state saved with the settings; not a user preference.
+- **customSidebarTitlebarLightBackgroundColor** `customSidebarTitlebarLightBackgroundColor` (text, default #f4f4f5) [not agent-writable]: App-managed state saved with the settings; not a user preference.
+- **hotkeys** `hotkeys` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **customViewTemplates** `customViewTemplates` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **viewScopes** `viewScopes` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **customWorkspaceOpenTargets** `customWorkspaceOpenTargets` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **workspaceOpenTargetAvailability** `workspaceOpenTargetAvailability` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **workspaceOpenTargetHiddenIds** `workspaceOpenTargetHiddenIds` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
+- **remoteMachines** `remoteMachines` (structured value; change it in Settings, not with `ghostex settings set`): App-managed state saved with the settings; not a user preference.
 ## Actions (tab `actions`)
 
 ### Actions

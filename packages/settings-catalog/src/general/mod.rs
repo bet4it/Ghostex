@@ -1,4 +1,4 @@
-//! The General page's search rows, one function per section, in the order the page lists them.
+//! The General pages' search rows (layout.rs), one function per section.
 mod chat;
 mod sidebar;
 mod system;
@@ -6,8 +6,8 @@ mod terminal;
 mod theme;
 mod tools;
 
-use crate::rows::Section;
 use crate::Platform;
+use crate::rows::Section;
 
 pub fn sections(platform: Platform) -> Vec<Section> {
     vec![
@@ -27,6 +27,5 @@ pub fn sections(platform: Platform) -> Vec<Section> {
         terminal::terminal_scrolling(),
         tools::terminal_dev_servers(),
         system::sleeping_sessions(),
-        system::beta(),
     ]
 }

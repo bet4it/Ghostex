@@ -563,6 +563,8 @@ pub(super) fn sections(
         sidebar_section(page, g, window, cx),
         session_cards_section(page, g, window, cx),
         sidebar_tags_section(page, g, window, cx),
+        // CDXC:Settings 2026-10-29 (model.rs): Sleeping Sessions left the Advanced group for this page.
+        super::system::sleeping_sessions_section(page, g, cx),
     ]
     .into_iter()
     .flatten()

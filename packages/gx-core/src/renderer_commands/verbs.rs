@@ -20,8 +20,8 @@ use serde_json::{Map, Value};
 use super::errors::RendererCommandError;
 use super::project_step::ProjectStepDirection;
 use super::targets::{
-    known_project_id, local_project_at_path, local_project_named, resolve_renderer_group_project,
-    resolve_renderer_session, RendererSession,
+    RendererSession, known_project_id, local_project_at_path, local_project_named,
+    resolve_renderer_group_project, resolve_renderer_session,
 };
 use crate::core::Core;
 use crate::keys::MachineId;
@@ -31,8 +31,14 @@ use crate::workspace_groups::{SessionGroupOp, SessionGroupRequest};
 /// The tabs `ghostex settings open --tab` may name, each a `SettingsTabId` id
 /// (apps/desktop/src/app/window/settings_modal/model.rs). Keep in lockstep with
 /// `SETTINGS_MODAL_TABS` in server/src/ghostex_cli/settings.rs, which checks `--tab` first.
-pub const SETTINGS_MODAL_TABS: [&str; 18] = [
+pub const SETTINGS_MODAL_TABS: [&str; 24] = [
     "settings",
+    "chat",
+    "sidebar",
+    "terminal",
+    "notifications",
+    "tools",
+    "system",
     "theme",
     "integrations",
     "voiceAgent",
