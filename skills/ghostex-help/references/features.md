@@ -1701,7 +1701,9 @@ count, also while the agent is idle; the Scroll to bottom and "?" buttons and an
 armed Delayed Send sit to their left. A long label is cut with "…" so the pills
 keep their full size; hover it to read all of it (on the phone, press and hold the
 card). The card itself does not open: click or tap a pill to open its list in a
-menu (a sheet on the phone). The Background list has each running command with its
+menu (a sheet on the phone) that opens upward from the chat box's top edge, lined
+up with the pill you clicked: its right edge on the pill's, or its left edge for a
+pill in the left half of the box, shifted to stay inside the box. The Background list has each running command with its
 own timer; hover a row, or press and hold it on the phone, to see the command
 itself.
 Claude children stay in the Subagents list while the terminal lists them, including
@@ -3777,7 +3779,7 @@ that reads like the sidebar's badge, in the softer colours of the project header
 +/- line counts: a link icon and one link's number or ID, with a + after it when
 there are more (`#123`, `SPX-123+`); with no links yet but suggestions it says
 `3 suggested`, muted and dashed. Click it for the whole list, which opens above the
-chat box:
+chat box, lined up with the pill like the other pills' menus:
 each link with its icon (a branch for a pull request, the
 GitHub mark for an issue, the Linear logo for a Linear ticket, coloured by its
 state; rest the pointer on the icon to see the state in words, with a pull request's

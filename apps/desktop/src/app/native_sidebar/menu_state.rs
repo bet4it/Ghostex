@@ -21,6 +21,32 @@ pub(crate) enum SidebarMenuPlacement {
     },
 }
 
+/// The left edge of a `width`-wide menu lined up with the button `from` between `min_left` and
+/// `max_right`: its left edge on the button's, or its right edge with `align_right`; the other edge
+/// when that side runs out of room, and shifted inside when neither fits. The sidebar's attached
+/// menus and the chat's pill strip menus (native_chat/pills_strip.rs) both place menus with it.
+pub(crate) fn menu_left_at_button(
+    from: Bounds<Pixels>,
+    align_right: bool,
+    min_left: Pixels,
+    max_right: Pixels,
+    width: Pixels,
+) -> Pixels {
+    let fits = |left: Pixels| left >= min_left && left + width <= max_right;
+    let (preferred, flipped) = if align_right {
+        (from.right() - width, from.left())
+    } else {
+        (from.left(), from.right() - width)
+    };
+    if fits(preferred) || !fits(flipped) {
+        preferred
+    } else {
+        flipped
+    }
+    .min(max_right - width)
+    .max(min_left)
+}
+
 #[derive(Clone)]
 pub(crate) struct SidebarMenuPanel {
     pub(crate) items: Vec<Value>,
@@ -165,19 +191,7 @@ impl SidebarMenuPanel {
         {
             // No margin against the sidebar's sides: the owner sits inside them, and the panel's
             // edge has to meet the owner's exactly.
-            let fits = |left: Pixels| left >= sidebar.left() && left + width <= sidebar.right();
-            let (preferred, flipped) = if align_right {
-                (from.right() - width, from.left())
-            } else {
-                (from.left(), from.right() - width)
-            };
-            let left = if fits(preferred) || !fits(flipped) {
-                preferred
-            } else {
-                flipped
-            }
-            .min(sidebar.right() - width)
-            .max(sidebar.left());
+            let left = menu_left_at_button(from, align_right, sidebar.left(), sidebar.right(), width);
             let below = owner.bottom() + gap;
             let above = owner.top() - gap - height;
             let top = if below + height <= sidebar.bottom() - margin {

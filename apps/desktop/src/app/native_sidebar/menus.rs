@@ -11,6 +11,8 @@ use gpui::{
 use gpui_component::{Root, h_flex, v_flex};
 use serde_json::Value;
 
+pub(crate) use super::menu_state::menu_left_at_button;
+
 /// The gap between a sidebar row or button and the menu hung from it.
 pub(crate) const SIDEBAR_MENU_OWNER_GAP: f32 = 3.0;
 

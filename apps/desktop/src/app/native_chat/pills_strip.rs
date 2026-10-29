@@ -3,7 +3,8 @@
 //! armed timers, the ? (a question waits), Resources, Workers, Links, Tasks, Subagents and
 //! Background, and the ↓ jump-to-bottom at the left of them while the strip shows. Pills that don't
 //! fit scroll sideways and fade at the edge that hides more. With no pill there is no strip; it grows
-//! in and shrinks away with the chat box's own ease. Each pill opens its menu above the box.
+//! in and shrinks away with the chat box's own ease. Each pill opens its menu above the box, lined up
+//! with the pill.
 //!
 //! CDXC:SessionChat 2026-10-29 SEE-ALSO:
 //! The user's words (option E) are on packages/gx-chat-core/src/extras/chat_pills.rs. The phone draws the same strip in apps/mobile/app/src/chat/native/cards/PillsStrip.tsx.
@@ -31,7 +32,7 @@ const STRIP_TINT: f32 = 0.035;
 /// What the strip measured and is animating.
 #[derive(Default)]
 pub(super) struct PillsStripCells {
-    /// The strip's border box at its last paint, which the pills' menus open above.
+    /// The strip's border box at its last paint, inside the chat box the pills' menus open above.
     bounds: Rc<Cell<Bounds<Pixels>>>,
     scroll: ScrollHandle,
     /// Pills hide past the scroll's left and right edges.
@@ -45,18 +46,41 @@ pub(super) struct PillsStripCells {
 }
 
 impl PillsStripCells {
-    /// Where a pill's menu opens against: the chat box's top-left corner, so the menu opens upward
-    /// with its bottom edge its 4px gap above the box and its left edge on the box's (chat_pills.rs
-    /// opens every strip menu on that side).
+    /// The chat box the strip sits in: the strip's border box one border width out.
+    pub(super) fn chat_box(&self) -> Bounds<Pixels> {
+        let strip = self.bounds.get();
+        Bounds::new(
+            point(strip.left() - px(1.0), strip.top() - px(1.0)),
+            gpui::size(strip.size.width + px(2.0), strip.size.height + px(1.0)),
+        )
+    }
+
+    /// What the menu of the pill painted at `pill` opens against: the pill's left and right edges
+    /// at the chat box's top edge, and the box to stay inside (`MenuSide::Pill`).
     ///
     /// CDXC:SessionChat 2026-10-29 DECISION:
-    /// User, of the strip's menus: "please make the menus always appear above the composer not below and to the top left ... but it shouldn't be above the bar above the composer anymore, should be above the composer itself instead". Every menu the strip opens (Resources, Workers, Tasks, Subagents, Background and Links) opens upward from the chat box's top edge, over the working bar rather than above it, aligned to the box's left edge, never below. Supersedes the 2026-10-18 menus 4px above the working card.
-    pub(super) fn box_anchor(&self) -> Bounds<Pixels> {
-        let strip = self.bounds.get();
-        // The strip sits inside the box's 1px border.
-        let corner = point(strip.left() - px(1.0), strip.top() - px(1.0));
-        Bounds::new(corner, gpui::size(px(1.0), px(1.0)))
+    /// User, of the strip's menus: "please make the menus always appear above the composer not below ... but it shouldn't be above the bar above the composer anymore, should be above the composer itself instead", and then "wtf this menu is opening so far from the trigger button's position". Every menu the strip opens (Resources, Workers, Tasks, Subagents, Background and Links) opens upward from the chat box's top edge with its 4px gap, over the working bar rather than above it, never below. Across, it lines up with its own pill: its right edge on the pill's (the pills sit at the strip's right), its left edge on the pill's for a pill in the box's left half, switching sides or shifting to stay inside the box (`strip_menu_left`, the sidebar's button-menu rule). Supersedes the same day's "aligned to the box's left edge" and the 2026-10-18 menus 4px above the working card.
+    pub(super) fn menu_anchor(&self, pill: Bounds<Pixels>) -> (Bounds<Pixels>, super::option_menu::MenuSide) {
+        let chat_box = self.chat_box();
+        let anchor = Bounds::new(
+            point(pill.left(), chat_box.top()),
+            gpui::size(pill.size.width, px(1.0)),
+        );
+        (anchor, super::option_menu::MenuSide::Pill(chat_box))
     }
+}
+
+/// The left edge of a `width`-wide strip menu for the pill at `pill` inside the chat box `within`:
+/// right-aligned with a pill in the box's right half, left-aligned with one in its left half, and
+/// kept inside the box (`PillsStripCells::menu_anchor` has the user's words).
+pub(super) fn strip_menu_left(pill: Bounds<Pixels>, within: Bounds<Pixels>, width: Pixels) -> Pixels {
+    crate::app::native_sidebar::menus::menu_left_at_button(
+        pill,
+        pill.center().x > within.center().x,
+        within.left(),
+        within.right(),
+        width,
+    )
 }
 
 impl NativeChatView {
@@ -285,5 +309,45 @@ impl NativeChatView {
                 .inset_0(),
             )
             .into_any_element()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::strip_menu_left;
+    use gpui::{Bounds, Pixels, point, px, size};
+
+    fn rect(left: f32, width: f32) -> Bounds<Pixels> {
+        Bounds::new(point(px(left), px(500.0)), size(px(width), px(22.0)))
+    }
+
+    /// A chat box from x 100 to 900.
+    fn chat_box() -> Bounds<Pixels> {
+        Bounds::new(point(px(100.0), px(499.0)), size(px(800.0), px(33.0)))
+    }
+
+    #[test]
+    fn a_pill_in_the_right_half_puts_the_menu_s_right_edge_on_its_own() {
+        // The Tasks pill at 760..840: a 360-wide menu ends at 840, not at the box's left.
+        assert_eq!(strip_menu_left(rect(760.0, 80.0), chat_box(), px(360.0)), px(480.0));
+    }
+
+    #[test]
+    fn a_pill_in_the_left_half_puts_the_menu_s_left_edge_on_its_own() {
+        assert_eq!(strip_menu_left(rect(200.0, 80.0), chat_box(), px(440.0)), px(200.0));
+    }
+
+    #[test]
+    fn a_menu_that_would_leave_the_box_shifts_inside_it() {
+        // A right-half pill at 480..560: right-aligned, a 470-wide menu would start at 90, left
+        // of the box, and left-aligned it would end at 950, past it; it starts at the box's left.
+        assert_eq!(strip_menu_left(rect(480.0, 80.0), chat_box(), px(470.0)), px(100.0));
+        // A left-half pill at 300..480 with a 700-wide menu ends at the box's right instead.
+        assert_eq!(strip_menu_left(rect(300.0, 180.0), chat_box(), px(700.0)), px(200.0));
+    }
+
+    #[test]
+    fn a_menu_wider_than_the_box_starts_at_its_left_edge() {
+        assert_eq!(strip_menu_left(rect(760.0, 80.0), chat_box(), px(1000.0)), px(100.0));
     }
 }

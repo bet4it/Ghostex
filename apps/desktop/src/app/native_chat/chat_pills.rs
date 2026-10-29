@@ -53,6 +53,8 @@ pub(super) struct ChatPillBounds {
     background: Rc<Cell<Bounds<Pixels>>>,
     /// The Resources pill, which the question list (questions_list.rs) opens against.
     resources: Rc<Cell<Bounds<Pixels>>>,
+    /// The Links pill (links_pill.rs), which the session's links list lines up with.
+    pub(super) links: Rc<Cell<Bounds<Pixels>>>,
 }
 
 impl ChatPillBounds {
@@ -439,8 +441,7 @@ impl NativeChatView {
             })
             .on_click(cx.listener(move |this, _, window, cx| {
                 cx.stop_propagation();
-                let anchor = this.pills_strip.box_anchor();
-                this.toggle_pill_menu(&id, anchor, window, cx);
+                this.toggle_pill_menu(&id, bounds.get(), window, cx);
                 if id == super::questions_list::QUESTIONS_MENU
                     && this.chat_menu_is_open(trigger)
                 {
@@ -448,8 +449,8 @@ impl NativeChatView {
                 }
             }))
             .child(
-                // The pill's own border box (its menu opens from the chat box's top-left corner,
-                // `PillsStripCells::box_anchor`). An absolute child with no insets sits at the content start (border plus
+                // The pill's own border box, which its menu lines up with
+                // (`PillsStripCells::menu_anchor`). An absolute child with no insets sits at the content start (border plus
                 // padding in) at the padding box's size, so it measured the pill 7px too far right
                 // and 1px too low; insets on the padding box, one border width out, give the border
                 // box (the composer measures its card the same way, composer.rs).
@@ -460,11 +461,12 @@ impl NativeChatView {
             .into_any_element()
     }
 
-    /// Opens `id`'s menu against its pill, or shuts it when it is the one on screen.
+    /// Opens `id`'s menu against its pill, painted at `pill`, or shuts it when it is the one on
+    /// screen.
     pub(super) fn toggle_pill_menu(
         &mut self,
         id: &str,
-        trigger: Bounds<Pixels>,
+        pill: Bounds<Pixels>,
         window: &mut Window,
         cx: &mut Context<Self>,
     ) {
@@ -475,9 +477,10 @@ impl NativeChatView {
         let Some(height) = self.pill_menu_height(id) else {
             return;
         };
-        // Upward from the chat box's top-left corner (`PillsStripCells::box_anchor` has the user's
-        // words).
-        self.menu_side = Some(super::option_menu::MenuSide::Left);
+        // Upward from the chat box's top edge, lined up with the pill (`PillsStripCells::menu_anchor`
+        // has the user's words).
+        let (trigger, side) = self.pills_strip.menu_anchor(pill);
+        self.menu_side = Some(side);
         self.show_chat_menu(
             vec![json!({"pillMenu": {"id": id, "height": height}})],
             trigger,

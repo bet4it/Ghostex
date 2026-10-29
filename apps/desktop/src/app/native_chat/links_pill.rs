@@ -15,7 +15,7 @@ use ghostex_gx_core::{SessionKey, SessionLinks, SessionLinksChatPill};
 use gpui::prelude::FluentBuilder as _;
 use gpui::{
     AnyElement, Context, InteractiveElement as _, IntoElement, ParentElement as _,
-    StatefulInteractiveElement as _, Styled as _, div, px, svg,
+    StatefulInteractiveElement as _, Styled as _, canvas, div, px, svg,
 };
 use serde_json::json;
 
@@ -80,8 +80,11 @@ impl NativeChatView {
         } else {
             session_link_badge_color(pill.tone)
         };
+        let bounds = self.pill_bounds.links.clone();
+        let measured = bounds.clone();
         div()
             .id("chat-pill-links")
+            .relative()
             .role(gpui::Role::Button)
             .aria_label(pill.aria_label.clone())
             .flex()
@@ -119,20 +122,32 @@ impl NativeChatView {
                         pill.label.clone()
                     }),
             )
-            .on_click(cx.listener(|this, _: &gpui::ClickEvent, _, cx| {
+            .on_click(cx.listener(move |this, _: &gpui::ClickEvent, _, cx| {
                 cx.stop_propagation();
-                // The list opens above the chat box at its left edge, as the other pills' menus do
-                // (`PillsStripCells::menu_anchor`; the popup's geometry keeps it above).
-                let anchor = this.pills_strip.box_anchor();
+                // The list opens above the chat box lined up with this pill, as the other pills'
+                // menus do (`PillsStripCells::menu_anchor`; the popup's geometry keeps it above and
+                // puts its left edge on the anchor's).
+                let chat_box = this.pills_strip.chat_box();
+                let left = super::pills_strip::strip_menu_left(
+                    bounds.get(),
+                    chat_box,
+                    px(crate::app::native_sidebar::links_list::SESSION_LINKS_LIST_WIDTH),
+                );
                 let anchor = json!({
-                    "x": f32::from(anchor.left()),
+                    "x": f32::from(left),
                     // The popup's 4px gap above the box, as the other menus keep.
-                    "y": f32::from(anchor.top()) - 4.0,
+                    "y": f32::from(chat_box.top()) - 4.0,
                     "width": 1.0,
                     "height": 1.0,
                 });
                 this.host("sessionLinks", json!({ "anchor": anchor }), cx);
             }))
+            // The pill's border box, measured as `chat_pill` measures the others.
+            .child(
+                canvas(move |painted, _, _| measured.set(painted), |_, _, _, _| {})
+                    .absolute()
+                    .inset(px(-s)),
+            )
             .into_any_element()
     }
 }

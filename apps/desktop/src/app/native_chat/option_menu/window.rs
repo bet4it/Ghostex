@@ -48,10 +48,14 @@ fn watch_pointer_presses() {
 ///
 /// CDXC:SessionChat 2026-10-16 DECISION:
 /// User: "model/effort picker, mode picker, statusline config all these 3 must show menu aligned to their left edge and menu appearing above. for the other menus in the composer in the chat view it should show aligned to the right side of the button/pill that triggers that menu". So the model picker, the mode and options pills and the context ring (whose tooltip reads "Statusline Config") use `Left`; More actions, Send's menu, Attach (Linux), Files and links and the working-row pills use `Right`. A menu too wide for the room on its side narrows rather than sliding off its trigger's edge; this supersedes the 2026-10-15 rule that only the pills' menus opened above.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(in crate::app::native_chat) enum MenuSide {
     Left,
     Right,
+    /// A pill strip menu: above the chat box (the anchor's top), lined up with its pill (the
+    /// anchor's sides) and shifted to stay inside the box, these bounds
+    /// (`PillsStripCells::menu_anchor` in pills_strip.rs has the user's words).
+    Pill(Bounds<Pixels>),
 }
 
 pub(in crate::app::native_chat) struct ChatOptionMenu {
@@ -424,6 +428,7 @@ impl ChatOptionMenu {
                 width.min(anchor.right() - available.left() - px(12.0 * scale))
             }
             Some(MenuSide::Left) => width.min(available.right() - px(12.0 * scale) - anchor.left()),
+            Some(MenuSide::Pill(within)) => width.min(within.size.width),
             None => width,
         };
         let heights = match super::geometry::measure_rows(
@@ -450,6 +455,8 @@ impl ChatOptionMenu {
         let margin = px(12.0 * scale);
         let x = if below && right_aligned {
             anchor.right() - width
+        } else if let Some(MenuSide::Pill(within)) = side {
+            super::super::pills_strip::strip_menu_left(anchor, within, width)
         } else if below || side == Some(MenuSide::Left) {
             anchor.left()
         } else if depth == 0 {
