@@ -48,7 +48,6 @@ pub(crate) struct GpuiSettingsModalWindow {
     tabs: HashMap<SettingsTabId, AnyView>,
     search_input: Entity<InputState>,
     focus_handle: FocusHandle,
-    last_show_advanced: bool,
     /// The debounced save of the pages' open forms (settings_modal/restore.rs).
     open_forms_save: Option<Task<()>>,
     _subscriptions: Vec<Subscription>,
@@ -90,24 +89,7 @@ impl GpuiSettingsModalWindow {
         );
         let store_subscription =
             cx.observe_in(&store, window, |shell: &mut Self, store, window, cx| {
-                let (show_advanced, searching, active) = {
-                    let store = store.read(cx);
-                    (
-                        store.show_advanced(),
-                        store.is_searching(),
-                        store.active_tab(),
-                    )
-                };
-                // Turning Show Advanced off while one of its pages is open leaves the page it just hid.
-                if shell.last_show_advanced
-                    && !show_advanced
-                    && active.needs_show_advanced()
-                    && !searching
-                {
-                    store.update(cx, |store, cx| {
-                        store.set_active_tab(SettingsTabId::General, cx)
-                    });
-                }
+                let active = store.read(cx).active_tab();
                 // OS Integration and Connectors hide with Enable Experimental Features, and a page
                 // of a built-in extension that was just turned off (Actions, Open In) hides with it.
                 if (active == SettingsTabId::OsIntegration
@@ -119,7 +101,6 @@ impl GpuiSettingsModalWindow {
                         store.set_active_tab(SettingsTabId::General, cx)
                     });
                 }
-                shell.last_show_advanced = show_advanced;
                 // A page that searches for the user (Theme's Related settings links) shows its query.
                 let query = store.read(cx).search_query().to_string();
                 if shell.search_input.read(cx).value().as_ref() != query.as_str() {
@@ -136,7 +117,6 @@ impl GpuiSettingsModalWindow {
             let end = input.value().len();
             input.set_selected_range(0..end, cx);
         });
-        let last_show_advanced = store.read(cx).show_advanced();
         let mut shell = Self {
             store,
             rail: RailState::new(),
@@ -144,7 +124,6 @@ impl GpuiSettingsModalWindow {
             tabs: HashMap::new(),
             search_input,
             focus_handle: cx.focus_handle(),
-            last_show_advanced,
             open_forms_save: None,
             _subscriptions: vec![search_subscription, store_subscription],
         };

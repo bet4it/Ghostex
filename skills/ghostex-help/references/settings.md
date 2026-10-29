@@ -447,7 +447,7 @@ How to use this file:
 - **Turn off Claude** `claudeWebHidden` (boolean, default true): Turn off Claude: the Claude button in the sidebar's top row and the Claude view, which shows claude.ai with a bar to switch between your saved Claude accounts. Off by default; each account's claude.ai sign-in is kept.
 - **Turn off Connectors** `connectorsHidden` (boolean, default false): Turn off Connectors everywhere: the Connectors page in Settings, the apps your agents get and the ghostex connectors commands. On by default, and shown only while Enable Experimental Features is on; your sign-ins and connected apps are kept.
 - **Turn off OS Integration** `osIntegrationHidden` (boolean, default false): Leave the OS Integration page out of Settings. On by default, and shown only while Enable Experimental Features is on.
-- **Turn off Debugging** `debuggingHidden` (boolean, default false): Leave the Debugging page out of Settings. On by default, and shown only while Show Advanced is on (a search still finds it).
+- **Turn off Debugging** `debuggingHidden` (boolean, default false): Leave the Debugging page out of Settings. On by default.
 - **Turn off the voice agent** `voiceAgentHidden` (boolean, default false): Turn off the voice agent everywhere: the headset at the top of the window and its arrow menu, voice calls about one session, the call rows on Settings > Extensions > Voice agent and the voice agent hotkeys, on this computer and in the phone app connected to it. A call that is running ends. Dictate keeps working, and the xAI key stays on Settings > Extensions > Voice agent. On by default; your voice settings are kept.
 ### Get more
 

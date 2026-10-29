@@ -3957,14 +3957,11 @@ backend: `ghostex team deploy|join|invite|identity|status|ping|leave`. Slack:
   pages*) folds and unfolds the add-on pages: Voice agent, Workspaces, Cloud
   Boxes, Connectors, Actions, Open In, OS Integration and Debugging, each only
   while it is shown. Connectors, OS Integration and Debugging are built-in
-  extensions, on by default, with switches in the Extensions page's Features; their
-  pages and cards still need Enable Experimental Features (Connectors, OS
-  Integration) or Show Advanced (Debugging) as before (`connectorsHidden`,
-  `osIntegrationHidden`, `debuggingHidden`). Workspaces, Cloud Boxes, Open In,
-  OS Integration and Debugging appear in the rail only while **Show Advanced**
-  is on (its switch is in the Settings sidebar); a Settings search still finds them, and a link to
-  one still opens it. Their features keep working while the page is out of the
-  rail. The pages start folded and Settings remembers whether you left
+  extensions, on by default, with switches in the Extensions page's Features; the
+  Connectors and OS Integration pages and cards also need Enable Experimental
+  Features (`connectorsHidden`, `osIntegrationHidden`, `debuggingHidden`). **Show
+  Advanced** (its switch is in the Settings sidebar) never hides a page: it only
+  shows or hides rows inside pages. The pages start folded and Settings remembers whether you left
   them open; a search opens them and lists only the pages that match, and opening
   one of them from elsewhere (a link, a menu, a turned-off message) opens
   them too. While they are folded over the page you are on, the chevron row is
@@ -4434,8 +4431,8 @@ Advanced holds Enable Experimental Features and Faster rendering (off by default
 redraws only the parts of a window that changed so Ghostex uses less CPU while agents stream
 and you scroll; it applies at once, and turning it off brings back the usual drawing if part
 of a window ever stops updating (`fasterRendering`). The separate Debugging page sits
-in the Settings sidebar's Extensions group and appears only while Show Advanced is on
-(a Settings search still finds it) and its Debugging extension is on (it is by default;
+in the Settings sidebar's Extensions group and is listed whether or not Show Advanced is on,
+while its Debugging extension is on (it is by default;
 switch it off in Settings > Extensions, or `debuggingHidden`, to drop the page). It starts with Show debug UI controls.
 Enable that switch to see Diagnostic logs. Diagnostic logs has one switch per area (terminals,
 sidebar, chat, modals, board, remote machines, agent activity, prompt editor,

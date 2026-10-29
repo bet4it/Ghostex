@@ -199,7 +199,7 @@ pub fn disabled_features_with(read: impl Fn(&str) -> Option<bool>) -> Vec<&'stat
 }
 
 /// The setting that must also be on before built-in extension `id` shows at all (`gatedBy`:
-/// Enable Experimental Features for Connectors and OS Integration, Show Advanced for Debugging).
+/// Enable Experimental Features for Connectors and OS Integration).
 /// Its switch sits on top of that gate; while the gate is closed its Store card is left out.
 pub fn gate_key(id: &str) -> Option<&'static str> {
     entry(id)?.get("gatedBy").and_then(J::as_str)

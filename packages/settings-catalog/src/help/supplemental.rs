@@ -526,7 +526,7 @@ pub(crate) const SUPPLEMENTAL_ROWS: &[Supplemental] = &[
         section: "official",
         section_title: "Built-in",
         title: "Turn off Debugging",
-        subtitle: "Leave the Debugging page out of Settings. On by default, and shown only while Show Advanced is on (a search still finds it).",
+        subtitle: "Leave the Debugging page out of Settings. On by default.",
         options: &[],
         user_only: false,
     },

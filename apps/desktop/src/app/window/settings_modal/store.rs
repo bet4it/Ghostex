@@ -801,8 +801,7 @@ impl SettingsStore {
     }
 
     /// `getInitialSettingsModalTab`: an explicit page wins; a plain Settings open returns to the
-    /// page remembered this app run, else the one saved in `settingsModalNavigation`, except a
-    /// remembered page that Show Advanced hides while it is off.
+    /// page remembered this app run, else the one saved in `settingsModalNavigation`.
     ///
     /// CDXC:Settings 2026-10-05 WHY:
     /// An open that names General (`initialTab: "settings"`, as `ghostex settings open <key>` sends for every General setting) or carries a General deep link (`initialSection`, the Sidebar Tags `createTag` action) used to read as a plain open and returned to the remembered page, so the prefilled search ran on Agents or Accounts and said "No settings on this page match your search" for rows that exist under General. Only an open that names no page returns to the remembered one.
@@ -822,12 +821,7 @@ impl SettingsStore {
                 .and_then(Value::as_str)
                 .and_then(SettingsTabId::from_id)
         });
-        let tab = match remembered {
-            Some(tab) if tab.needs_show_advanced() && !self.show_advanced() => requested,
-            Some(tab) => tab,
-            None => requested,
-        };
-        self.resolve_tab(tab)
+        self.resolve_tab(remembered.unwrap_or(requested))
     }
 
     /// `setActiveTab(nextTab)`: remembers where the page was scrolled, switches, and saves the
@@ -846,7 +840,7 @@ impl SettingsStore {
 
     /// CDXC:Settings 2026-09-28 DECISION:
     /// User: keep the current close behavior and use the mouse Back/Forward buttons to navigate between Settings pages.
-    /// Pages hidden since they were visited (OS Integration, the Show Advanced pages) are skipped, and the search clears.
+    /// Pages hidden since they were visited (OS Integration, Connectors, a switched-off extension's page) are skipped, and the search clears.
     pub(crate) fn navigate_page_history(&mut self, back: bool, cx: &mut Context<Self>) {
         let mut index = self.page_history_index;
         loop {
@@ -859,8 +853,7 @@ impl SettingsStore {
             let tab = self.page_history[index];
             let hidden = (tab == SettingsTabId::OsIntegration && !self.os_integration_visible())
                 || (tab == SettingsTabId::Connectors && !self.connectors_visible())
-                || !self.built_in_extension_allows_page(tab)
-                || (tab.needs_show_advanced() && !self.show_advanced());
+                || !self.built_in_extension_allows_page(tab);
             if tab != self.active_tab && !hidden {
                 self.page_history_index = index;
                 self.set_search_query(String::new(), cx);

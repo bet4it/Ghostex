@@ -171,11 +171,13 @@ pub(crate) fn rail_pages(store: &SettingsStore) -> Vec<RailPage> {
             other => store.tab_search(other).has_matches(),
         }
     };
-    let show_advanced = store.show_advanced();
     SettingsTabId::RAIL_ORDER
         .into_iter()
         // OS Integration, Connectors and Debugging keep their own gate under their built-in
         // extension switch (CDXC:Extensions 2026-10-19 in official_extensions.rs).
+        //
+        // CDXC:Settings 2026-10-29 DECISION:
+        // User (Q745, "rows only"): "Never hide pages; only rows inside pages". Show Advanced never takes a page out of this rail, so Workspaces, Cloud Boxes, Open In, OS Integration and Debugging stay listed whether it is on or off; it only shows or hides rows inside pages. This supersedes the 2026-09-26 decision (Debugging) and Q36-Q38 of 2026-10-21 (the other four) that took those pages out of the rail while it was off.
         .filter(|tab| {
             store.built_in_extension_allows_page(*tab)
                 && match tab {
@@ -183,8 +185,6 @@ pub(crate) fn rail_pages(store: &SettingsStore) -> Vec<RailPage> {
                     SettingsTabId::Connectors => store.connectors_visible(),
                     _ => true,
                 }
-                // CDXC:Settings 2026-09-26 DECISION: Debugging leaves the rail while Show Advanced is off; a search still finds it. The open page stays listed (a deep link). Its siblings: SettingsTabId::SHOW_ADVANCED_PAGES.
-                && (!tab.needs_show_advanced() || show_advanced || searching || *tab == active_tab)
         })
         .filter_map(|tab| {
             let sections = match tab {

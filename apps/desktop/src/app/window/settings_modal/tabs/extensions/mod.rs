@@ -273,7 +273,7 @@ impl ExtensionsTab {
             && self.official_gate_open(key, cx)
     }
 
-    /// The setting gating the entry (`gatedBy`: Enable Experimental Features, Show Advanced) is on;
+    /// The setting gating the entry (`gatedBy`: Enable Experimental Features) is on;
     /// while it is off the entry is not offered at all (CDXC:Extensions 2026-10-19).
     pub(crate) fn official_gate_open(&self, key: &str, cx: &App) -> bool {
         let store = self.store.read(cx);
