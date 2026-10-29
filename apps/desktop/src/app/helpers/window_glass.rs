@@ -669,43 +669,22 @@ pub(crate) fn sync_detached_board_window_glass(window: &Window) {
     let _ = apply_workspace_window_glass(window);
 }
 
-/// Fill coverage of a menu or popover window under glass in dark mode on macOS (the popover fill
-/// the menus, dropdowns, popovers and form dialogs share); its own window blurs what is behind it.
-/// 45% since the user's "let's try 45% tint" (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`),
-/// up from 32%, which washed out over a bright page.
-pub(crate) const WINDOW_GLASS_MENU_ALPHA: f32 = 0.45;
-
-/// `WINDOW_GLASS_MENU_ALPHA` in light mode.
-pub(crate) const WINDOW_GLASS_MENU_ALPHA_LIGHT: f32 = 0.6;
-
-/// How much a dark menu colour is lifted toward white under glass, so the frost reads as a light
-/// pane over the blur instead of a dark hole.
-const WINDOW_GLASS_MENU_LIFT_DARK: f32 = 0.08;
-
 /// CDXC:Theming 2026-09-25 DECISION:
-/// User: a single frosted menu was "not looking glassy at all", then "for the context menus and menus, we need them to be more transparent by default. Right now, the settings you have, they don't look transparent still." Every frosted menu and tooltip window uses one recipe: a 20px blur that keeps the backdrop's colour saturation (`FROSTED_MENU_BLUR_RADIUS`, `FROSTED_MENU_KEEP_SATURATION`, applied by `apply_frosted_menu_blur`; the main window's glass keeps its 60px, desaturated blur), and a fill of the theme's menu colour lifted a little toward white in dark mode covering 32% in dark mode and 60% in light mode (`frosted_menu_alpha`), so shapes and colours behind a menu read through it. Supersedes the same day's 50% fill over the main window's blur. The dark-mode coverage is 45% since 2026-10-29 (CDXC:AppModal on `frosted_dialog_fill`).
+/// User: a single frosted menu was "not looking glassy at all", then "for the context menus and menus, we need them to be more transparent by default. Right now, the settings you have, they don't look transparent still." Every frosted menu and tooltip window uses one recipe: a 20px blur that keeps the backdrop's colour saturation (`FROSTED_MENU_BLUR_RADIUS`, `FROSTED_MENU_KEEP_SATURATION`, applied by `apply_frosted_menu_blur`; the main window's glass keeps its 60px, desaturated blur), and a fill of the theme's menu colour lifted a little toward white in dark mode covering 32% in dark mode and 60% in light mode (`frosted_menu_alpha`), so shapes and colours behind a menu read through it. Supersedes the same day's 50% fill over the main window's blur. The dark-mode coverage is 45% since 2026-10-29 (CDXC:AppModal on `frosted_dialog_fill`). Superseded on 2026-10-29 on macOS by the dropdowns' fill: no lift toward white and 60% dark / 75% light, see the Theming 2026-10-29 decision below.
 ///
 /// CDXC:Theming 2026-10-10 DECISION:
-/// User, on Windows, of the sidebar's ☰ menu next to the Notifications panel: "this menu is gray right now and this one is bluish please make them all consistent with the bluish one so all menus are same". On Windows every frosted menu, dropdown, context menu and tooltip takes the Notifications panel's surface: the theme colour, not lifted toward white, covering `frosted_modal_alpha` of the blur (`frosted_lift`, `frosted_menu_alpha`). Supersedes the thinner menu fill above on Windows; macOS keeps it.
+/// User, on Windows, of the sidebar's ☰ menu next to the Notifications panel: "this menu is gray right now and this one is bluish please make them all consistent with the bluish one so all menus are same". On Windows every frosted menu, dropdown, context menu and tooltip takes the Notifications panel's surface: the theme colour, not lifted toward white, covering `frosted_modal_alpha` of the blur (`frosted_lift`, `frosted_menu_alpha`). Supersedes the thinner menu fill above on Windows; macOS keeps it (until the 2026-10-29 decision below).
 ///
 /// CDXC:Theming 2026-10-10 WHY:
 /// A blurred window on Windows 11 is backed by the system acrylic (`DWMSBT_TRANSIENTWINDOW`, chosen for slide performance), which adds its own grey luminosity layer; a 32% fill lifted toward white let that grey win, while the panels' 86% fill kept the theme's tint.
-pub(crate) fn frosted_menu_fill(color: Hsla) -> Hsla {
-    frosted_lift(color).opacity(frosted_menu_alpha())
-}
-
-/// The frosted menu colour before its coverage: lifted a little toward white in dark mode.
 ///
 /// CDXC:Theming 2026-10-01 DECISION:
-/// User, on Linux (Hyprland): "the ask ghostex dropdown is way too transparent", "the dropdown that has Ask Ghostex and Tips & Tricks needs to be same bg look as the one that's top of the sidebar" and "all dropdowns etc need to have better bgs please in the linux app ... on macos and windows they're perfect". On Linux every menu, dropdown and tooltip in a window of its own takes the sidebar menus' fill exactly (`titlebar_popup_menu_background`, opaque and not lifted toward white), because Linux draws the sidebar's menus inside the main window with that fill (`frosted_hosting_active`). macOS and Windows keep the lifted frost.
-fn frosted_lift(color: Hsla) -> Hsla {
-    if cfg!(any(target_os = "linux", target_os = "windows"))
-        || CHROME_LIGHT_APPEARANCE.load(Ordering::Relaxed)
-    {
-        color
-    } else {
-        color.blend(gpui::white().opacity(WINDOW_GLASS_MENU_LIFT_DARK))
-    }
+/// User, on Linux (Hyprland): "the ask ghostex dropdown is way too transparent", "the dropdown that has Ask Ghostex and Tips & Tricks needs to be same bg look as the one that's top of the sidebar" and "all dropdowns etc need to have better bgs please in the linux app ... on macos and windows they're perfect". On Linux every menu, dropdown and tooltip in a window of its own takes the sidebar menus' fill exactly (`titlebar_popup_menu_background`, opaque and not lifted toward white), because Linux draws the sidebar's menus inside the main window with that fill (`frosted_hosting_active`). macOS and Windows keep the lifted frost. Superseded on 2026-10-29 on macOS: the lift is gone (see below).
+///
+/// CDXC:Theming 2026-10-29 DECISION:
+/// User, of the titlebar's dropdown panels (Notifications, Tips & Tricks, Resources, Dev servers) looking darker than the menus next to them (the sidebar's ☰ menu, the ⋯ menus, context menus), asked which way they should match, picked "Menus take the dropdowns' fill: every menu gets the darker 60% frost of Notifications and the large panels" (Q751). On macOS every menu is the large panels' fill: the theme colour, not lifted toward white, covering 60% of the blur in dark mode and 75% in light mode (`FROSTED_PANEL_ALPHA_DARK` / `_LIGHT`). Everything that shared the menus' fill follows: tooltips (`frosted_tooltip_fill`), the popovers and the form dialogs (`frosted_dialog_fill`) and the header's dropdown menus (`popup_window_surface`), so every frosted surface on macOS is one material. Supersedes the lifted 45% dark / 60% light menu fill (32% before 2026-10-29). Windows (86%, unlifted) and Linux (opaque) are unchanged, and so is the blur.
+pub(crate) fn frosted_menu_fill(color: Hsla) -> Hsla {
+    frosted_panel_fill(color)
 }
 
 /// CDXC:Tooltips 2026-09-30 DECISION:
@@ -734,20 +713,11 @@ pub(crate) fn frosted_tooltip_fill(menu: Hsla) -> Hsla {
     frosted_menu_fill(menu)
 }
 
-/// How much of a frosted menu or tooltip its fill covers: little in dark mode, where the menu's
-/// light text reads over anything behind it, more in light mode, where dark text needs a lighter
-/// backing. Opaque on Linux, like the dialogs (`frosted_modal_alpha`), and the dialogs' coverage on
-/// Windows.
+/// How much of a frosted menu or tooltip its fill covers: the large panels' coverage
+/// (`frosted_panel_alpha`), so every frosted surface is one material (CDXC:Theming 2026-10-29 on
+/// `frosted_menu_fill`).
 pub(crate) fn frosted_menu_alpha() -> f32 {
-    if cfg!(target_os = "linux") {
-        FROSTED_ALPHA_LINUX
-    } else if cfg!(target_os = "windows") {
-        frosted_modal_alpha()
-    } else if CHROME_LIGHT_APPEARANCE.load(Ordering::Relaxed) {
-        WINDOW_GLASS_MENU_ALPHA_LIGHT
-    } else {
-        WINDOW_GLASS_MENU_ALPHA
-    }
+    frosted_panel_alpha()
 }
 
 /// Default blur radius of a frosted menu or tooltip window (`windowGlassMenuBlurRadius`); every
@@ -843,25 +813,29 @@ pub(crate) fn popup_window_panel_surface(color: Hsla) -> Hsla {
 }
 
 /// CDXC:AppModal 2026-10-29 DECISION:
-/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark at first, 45% now, see below; 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Then, of those large panels: "please make the glass in the settings and other similar windows that we made transparent+frosted show darker bg pls". The large panels stay frosted but take a darker tint (`frosted_panel_fill`): the theme colour, not lifted toward white, covering `FROSTED_PANEL_ALPHA_DARK` (60%) of the blur in dark mode and `FROSTED_PANEL_ALPHA_LIGHT` (75%) in light mode on macOS; Windows keeps the menus' 86%, already darker, and Linux stays opaque. Their washes are unchanged. The form dialogs keep the popover's fill. Then, of the bell's Notifications dropdown: "please for dropdowns like this one we need to do same as what we did for settings bg ... this dropdown is too black now": the titlebar's dropdown panels (Notifications, Tips, Resources, Dev servers) take the large panels' fill (`popup_window_panel_surface`) and the dialogs' washes on their cards and hairlines, instead of the 2026-09-30 near-solid fill. And: "we need to make all of those frosted backgrounds we did in settings and other backgrounds have 25% more blur (same for the dropdowns too)": every frosted surface but a tooltip (the dialogs, the large panels, the popovers, the dropdowns and menus) blurs `FROSTED_SURFACE_BLUR_SCALE` (1.25) times the Menu blur value, 25 points at the default 20, so the user's own Menu blur choice still scales it; tooltips keep the Menu blur value. Asked whether tooltips should blur more too, the user answered "No, keep tooltips as they are", and Settings and Help say that menus, panels and dialogs blur a quarter more than the Menu blur number while tooltips use it as is. Asked whether the terminal bar's account and skills flyouts should become frosted windows too, the user answered "Yes, as a separate task": they draw in a frosted host of their own with the popover's fill and this blur, and, approved next, so does the ⋯ menu itself, so the menu and its flyouts match (CDXC:AppModal 2026-10-29 in render/terminal_agent_action_bar/flyout_host.rs). Then, shown the browser panel's ⋯ menu, Browser History and Settings washing out over a white page and offered darker tints, macOS vibrancy or solid fills, the user answered "let's try 45% tint": in dark mode on macOS the popover fill the menus, dropdowns, popovers and form dialogs share covers 45% of the blur (`WINDOW_GLASS_MENU_ALPHA`) instead of 32%; the large panels stay at 60% for now, and light mode (60%), Windows (86%) and Linux (opaque) are unchanged. Glass off, nothing changes.
+/// User, of the Send Bug / Feedback dialog drawn as a near-black box over the glass window, next to the Accounts & limits popover: "please make these kinds of pop ups not so black when transparency is enabled it looks weird, make them transparent but with frosted bg like this one". Under window glass the form dialogs (Send Bug / Feedback, Add Project, Rename Session and Rename Worktree, Add and Delete Worktree, New and Make Coordinator, Agent Hooks, Session note, Delayed send and the other small dialogs opened through `gpui_native_dialog_palette`) take the popover's fill exactly: `frosted_menu_fill` over the frosted menus' blur in their own window, so the content behind them reads blurred through a thin tint (32% dark at first, 45% now, see below; 60% light on macOS; the menus' coverage on Windows; opaque on Linux, where a compositor may not blur). Their fields and section panels get a stronger ink wash (`ModalPalette::frosted_dialog`, `frosted_dialog_washes`) so they stay clear on the thinner glass. Asked whether the large panels should follow, the user answered "Frost them too": Settings and its pages, Search by Prompt, the Agents Hub, Quick Access (and Browser History, which shares its palette) and the New Thread picker take the same fill and the same stronger washes (`frosted_dialog_washes`) for their lists, fields and rows. Supersedes the 2026-09-30 "less transparent (darker bg)" fill (`frosted_modal_fill`) for all of these; the Mermaid diagram, Markdown table and Visual page viewers keep it. Then, of those large panels: "please make the glass in the settings and other similar windows that we made transparent+frosted show darker bg pls". The large panels stay frosted but take a darker tint (`frosted_panel_fill`): the theme colour, not lifted toward white, covering `FROSTED_PANEL_ALPHA_DARK` (60%) of the blur in dark mode and `FROSTED_PANEL_ALPHA_LIGHT` (75%) in light mode on macOS; Windows keeps the menus' 86%, already darker, and Linux stays opaque. Their washes are unchanged. The form dialogs keep the popover's fill. Then, of the bell's Notifications dropdown: "please for dropdowns like this one we need to do same as what we did for settings bg ... this dropdown is too black now": the titlebar's dropdown panels (Notifications, Tips, Resources, Dev servers) take the large panels' fill (`popup_window_panel_surface`) and the dialogs' washes on their cards and hairlines, instead of the 2026-09-30 near-solid fill. And: "we need to make all of those frosted backgrounds we did in settings and other backgrounds have 25% more blur (same for the dropdowns too)": every frosted surface but a tooltip (the dialogs, the large panels, the popovers, the dropdowns and menus) blurs `FROSTED_SURFACE_BLUR_SCALE` (1.25) times the Menu blur value, 25 points at the default 20, so the user's own Menu blur choice still scales it; tooltips keep the Menu blur value. Asked whether tooltips should blur more too, the user answered "No, keep tooltips as they are", and Settings and Help say that menus, panels and dialogs blur a quarter more than the Menu blur number while tooltips use it as is. Asked whether the terminal bar's account and skills flyouts should become frosted windows too, the user answered "Yes, as a separate task": they draw in a frosted host of their own with the popover's fill and this blur, and, approved next, so does the ⋯ menu itself, so the menu and its flyouts match (CDXC:AppModal 2026-10-29 in render/terminal_agent_action_bar/flyout_host.rs). Then, shown the browser panel's ⋯ menu, Browser History and Settings washing out over a white page and offered darker tints, macOS vibrancy or solid fills, the user answered "let's try 45% tint": in dark mode on macOS the popover fill the menus, dropdowns, popovers and form dialogs share covers 45% of the blur (`WINDOW_GLASS_MENU_ALPHA`) instead of 32%; the large panels stay at 60% for now, and light mode (60%), Windows (86%) and Linux (opaque) are unchanged. Glass off, nothing changes. Superseded on 2026-10-29 for the fill's numbers: the popover fill is now the large panels' (no lift, 60% dark / 75% light on macOS), so the 45% above and the "large panels stay at 60% for now" are no longer a difference (CDXC:Theming 2026-10-29 on `frosted_menu_fill`).
 pub(crate) fn frosted_dialog_fill(color: Hsla) -> Hsla {
     frosted_menu_fill(color)
 }
 
-/// How much of the blur a large frosted panel's tint covers on macOS (Settings and its pages,
-/// Search by Prompt, the Agents Hub, Quick Access, Browser History, the New Thread picker): darker
-/// than the popover's 45% (32% when this was set) so the backdrop shows through less, still well
-/// short of the 2026-09-30 near-solid 86% (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`).
+/// How much of the blur a frosted surface's tint covers on macOS in dark mode: 60%, darker than the
+/// popover's 45% (32% when this was set) so the backdrop shows through less, still well short of the
+/// 2026-09-30 near-solid 86% (CDXC:AppModal 2026-10-29 on `frosted_dialog_fill`). Since the same day
+/// the menus, popovers, form dialogs and tooltips take it too (CDXC:Theming 2026-10-29 on
+/// `frosted_menu_fill`; their 45% is superseded).
 pub(crate) const FROSTED_PANEL_ALPHA_DARK: f32 = 0.6;
 
-/// `FROSTED_PANEL_ALPHA_DARK` in light mode, against the popover's 60%.
+/// `FROSTED_PANEL_ALPHA_DARK` in light mode (the popover's 60% before 2026-10-29).
 pub(crate) const FROSTED_PANEL_ALPHA_LIGHT: f32 = 0.75;
 
-/// How much of the blur a large frosted panel's tint covers: `FROSTED_PANEL_ALPHA_DARK` /
-/// `_LIGHT` on macOS, the menus' (and dialogs') coverage on Windows, opaque on Linux.
+/// How much of the blur a frosted surface's tint covers, the one source for the large panels, the
+/// dropdowns, the menus, the popovers, the form dialogs and the tooltips: `FROSTED_PANEL_ALPHA_DARK`
+/// / `_LIGHT` on macOS, `frosted_modal_alpha` (86% dark) on Windows, opaque on Linux.
 pub(crate) fn frosted_panel_alpha() -> f32 {
-    if cfg!(any(target_os = "linux", target_os = "windows")) {
-        frosted_menu_alpha()
+    if cfg!(target_os = "linux") {
+        FROSTED_ALPHA_LINUX
+    } else if cfg!(target_os = "windows") {
+        frosted_modal_alpha()
     } else if CHROME_LIGHT_APPEARANCE.load(Ordering::Relaxed) {
         FROSTED_PANEL_ALPHA_LIGHT
     } else {
@@ -993,26 +967,31 @@ pub(crate) fn terminal_default_background_alpha() -> f32 {
 mod frosted_dialog_tests {
     use super::*;
 
-    /// The form dialogs take the Accounts & limits popover's fill (CDXC:AppModal 2026-10-29):
-    /// thinner than the large panels' frost on macOS and Windows, opaque on Linux.
     #[test]
     fn frosted_surfaces_blur_a_quarter_more_than_the_menu_blur() {
         assert_eq!(FROSTED_MENU_BLUR_RADIUS * FROSTED_SURFACE_BLUR_SCALE, 25.0);
     }
 
+    /// Every frosted surface is one material (CDXC:Theming 2026-10-29 on `frosted_menu_fill`): the
+    /// menus, tooltips, popovers, form dialogs and dropdowns take the large panels' fill.
     #[test]
-    fn frosted_dialog_fill_is_the_popover_fill() {
+    fn every_frosted_surface_takes_the_panel_fill() {
         let chrome: Hsla = gpui::rgb(0x0e0e0e).into();
-        assert_eq!(frosted_dialog_fill(chrome), frosted_menu_fill(chrome));
-        let dialog = frosted_dialog_fill(chrome).a;
-        let large_panel = frosted_panel_fill(chrome).a;
-        let solid_era = frosted_modal_fill(chrome).a;
+        let panel = frosted_panel_fill(chrome);
+        assert_eq!(frosted_menu_fill(chrome), panel);
+        assert_eq!(frosted_dialog_fill(chrome), panel);
+        assert_eq!(frosted_tooltip_fill(chrome), panel);
+        assert_eq!(frosted_menu_alpha(), frosted_panel_alpha());
+        // Not lifted toward white, and never more see-through than the near-solid dialog era.
+        assert_eq!(panel.l, chrome.l);
+        assert!(panel.a <= frosted_modal_fill(chrome).a);
         if cfg!(target_os = "macos") {
-            // The large panels are darker than the popover yet still clearly see-through.
-            assert!(dialog < large_panel && large_panel < solid_era);
-            assert_eq!(frosted_panel_fill(chrome).l, chrome.l);
-        } else {
-            assert!(dialog <= large_panel && large_panel <= solid_era);
+            let expected = if CHROME_LIGHT_APPEARANCE.load(Ordering::Relaxed) {
+                FROSTED_PANEL_ALPHA_LIGHT
+            } else {
+                FROSTED_PANEL_ALPHA_DARK
+            };
+            assert_eq!(panel.a, expected);
         }
     }
 }
