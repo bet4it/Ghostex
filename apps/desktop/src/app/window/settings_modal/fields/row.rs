@@ -172,29 +172,10 @@ pub(crate) fn settings_icon(path: &'static str, size: f32, color: gpui::Rgba) ->
     modal_icon(path, size, color)
 }
 
-thread_local! {
-    /// `<TooltipProvider theme={isModalDarkTheme ? 'dark' : 'light'}>`: every Settings tooltip
-    /// takes the modal's appearance (set by the shell).
-    static TOOLTIP_LIGHT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
-}
-
-/// The Settings window tells its tooltips which appearance to draw in.
-pub(crate) fn set_settings_tooltip_theme(light: bool) {
-    TOOLTIP_LIGHT.set(light);
-}
-
-/// `--ghostex-tooltip-font` (`500 12px/1.35 -apple-system, BlinkMacSystemFont, "SF Pro Text",
-/// sans-serif`): the system face on macOS, Chromium's default sans-serif (Arial) on Windows.
-const TOOLTIP_FONT: &str = if cfg!(target_os = "windows") {
-    "Arial"
-} else {
-    MODAL_UI_FONT
-};
-
-/// `TooltipContent`: `tooltipSurfaceStyle` with the `data-tooltip-theme` tokens of theme.css,
-/// `px-3 py-1.5 text-xs`, `whitespace-pre-line`. `center` is `text-center`, `max_width` a
-/// `maxWidth` override, and the placement's offset (`sideOffset`) is the bubble's margin toward
-/// its trigger.
+/// Settings' tooltip: the app's plain tooltip bubble (`titlebar_tooltip`, CDXC:Tooltips 2026-10-29
+/// DECISION in helpers/titlebar/tooltips_and_popup_geometry.rs), replacing the near-black React
+/// `TooltipContent` port. `center` centres its text, `max_width` caps its width, and the
+/// placement's offset (`sideOffset`) is the bubble's margin toward its trigger.
 fn settings_tooltip_bubble(
     text: SharedString,
     placement: Option<(ManagedTooltipPlacement, f32)>,
@@ -203,41 +184,7 @@ fn settings_tooltip_bubble(
     window: &mut Window,
     cx: &mut gpui::App,
 ) -> gpui::AnyView {
-    let light = TOOLTIP_LIGHT.get();
-    let (background, foreground, border, shadow) = if light {
-        (
-            modal_rgba(0xffffff, 0.98),
-            gpui::rgb(0x27272a),
-            modal_rgba(0x000000, 0.14),
-            (8.0, 24.0, 0.14),
-        )
-    } else {
-        (
-            modal_rgba(0x0b0b0b, 0.98),
-            modal_rgba(0xffffff, 0.78),
-            modal_rgba(0xffffff, 0.12),
-            (12.0, 30.0, 0.35),
-        )
-    };
     Tooltip::new(text)
-        .font_family(TOOLTIP_FONT)
-        .text_size(px(12.0))
-        .line_height(px(16.2))
-        .font_weight(FontWeight::MEDIUM)
-        .px(px(12.0))
-        .py(px(6.0))
-        .rounded(px(gpui_component::tooltip::TOOLTIP_RADIUS))
-        .border_1()
-        .border_color(hsla(border))
-        .bg(hsla(background))
-        .text_color(hsla(foreground))
-        .shadow(vec![gpui::BoxShadow {
-            color: gpui::hsla(0.0, 0.0, 0.0, shadow.2),
-            offset: gpui::point(px(0.0), px(shadow.0)),
-            blur_radius: px(shadow.1),
-            spread_radius: px(0.0),
-            inset: false,
-        }])
         .when_some(max_width, |this, width| this.max_w(px(width)))
         .when(center, |this| this.text_center())
         .when_some(placement, |this, (placement, offset)| match placement {

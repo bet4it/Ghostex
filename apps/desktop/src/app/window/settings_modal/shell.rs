@@ -62,7 +62,6 @@ impl GpuiSettingsModalWindow {
         cx: &mut Context<Self>,
     ) -> Self {
         let palette = SettingsPalette::resolve(&config.palette);
-        super::fields::set_settings_tooltip_theme(palette.light);
         let open_forms = OpenFormMemory::from_stored(&config.open_forms);
         let store = new_settings_store(
             host,

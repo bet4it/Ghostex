@@ -20,32 +20,30 @@ pub(crate) fn titlebar_tooltip_label(label: &str, action_id: &str) -> gpui::Shar
     }
 }
 
-/// Tooltip sized to sit fully inside the titlebar strip rather than
-/// overflowing it, for the left/right placements that center on the trigger.
+/// The app's tooltip for a button: the plain mini menu bubble at its natural size, centred beside
+/// the trigger with the bubble's own gap, and any "(⌃⌥V)" after the label drawn as key caps
+/// (`gpui_component::tooltip::split_trailing_shortcut`).
+///
+/// CDXC:Tooltips 2026-10-29 DECISION:
+/// User, of this tooltip on the header's voice button ("Talk to the voice agent (^⌥V)", a 20px pill with no gap, hugging the button): "this tooltip is very bad man", and of the context ring's "Hide session details" (the stock bubble): "this one is much better ... please apply 2nd one everywhere that makes sense instead of the one we have in Image #1". The fixed 20px height, the zero margins and the 12px text are gone; header, titlebar, tab strip, Files and Kanban buttons all draw the stock bubble. Under window glass it draws in the frosted tooltip host with the frosted menus' fill and the Menu blur value as is (`apply_frosted_tooltip_blur`); without glass it is the solid dark tooltip colour.
+/// SEE-ALSO: native_sidebar/tooltips.rs (`sidebar_style_tooltip`), window/settings_modal/fields/row.rs (Settings' tooltips).
 pub(crate) fn titlebar_tooltip(
     text: impl Into<gpui_component::text::Text>,
     window: &mut Window,
     cx: &mut gpui::App,
 ) -> gpui::AnyView {
-    Tooltip::new(text)
-        .my_0()
-        .py_0()
-        .h(px(TITLEBAR_TOOLTIP_HEIGHT))
-        .text_size(px(TITLEBAR_TOOLTIP_TEXT_SIZE))
-        .line_height(px(TITLEBAR_TOOLTIP_LINE_HEIGHT))
-        .whitespace_nowrap()
-        .build(window, cx)
+    Tooltip::new(text).build(window, cx)
 }
 
 /// How far below the pointer a list row's tooltip starts: past the pointer's arrow, so the
 /// bubble never sits under the pointer's tip.
 const LIST_ROW_TOOLTIP_DROP: f32 = 20.0;
 
-/// The tooltip for a row in a list (a file's path, say): the titlebar tooltip's text, wrapped to
+/// The tooltip for a row in a list (a file's path, say): the titlebar tooltip's bubble, wrapped to
 /// the room beside the pointer instead of cut at the list's edge, and dropped below the pointer.
 ///
 /// CDXC:Tooltips 2026-10-09 DECISION:
-/// User, of the files list's path tooltips: "the tooltip here should appear below the button of the current element so I can't hover on it (it blocks clicks)" and "this tooltip is showing cut off when the files list is not floating". A row's tooltip opens below the pointer, clear of its arrow, and wraps to the room it has (the floating list's own window, or the space beside a native pane) instead of running one line past the edge; its window never takes the pointer (CDXC:Tooltips 2026-10-09 in titlebar_popup_chrome.rs). `titlebar_tooltip` stays one fixed-height line for the titlebar strip.
+/// User, of the files list's path tooltips: "the tooltip here should appear below the button of the current element so I can't hover on it (it blocks clicks)" and "this tooltip is showing cut off when the files list is not floating". A row's tooltip opens below the pointer, clear of its arrow, and wraps to the room it has (the floating list's own window, or the space beside a native pane) instead of running one line past the edge; its window never takes the pointer (CDXC:Tooltips 2026-10-09 in titlebar_popup_chrome.rs). 
 pub(crate) fn list_row_tooltip(
     text: impl Into<gpui_component::text::Text>,
     window: &mut Window,
@@ -54,8 +52,6 @@ pub(crate) fn list_row_tooltip(
     Tooltip::new(text)
         .mt(px(LIST_ROW_TOOLTIP_DROP))
         .mb_0()
-        .text_size(px(TITLEBAR_TOOLTIP_TEXT_SIZE))
-        .line_height(px(TITLEBAR_TOOLTIP_LINE_HEIGHT))
         .build(window, cx)
 }
 
@@ -188,9 +184,63 @@ pub(crate) fn titlebar_popup_window_bounds_for_trigger_bounds(
     } else {
         top
     };
+    // The chat's Links pill (native_chat/links_pill.rs) opens its list above the chat box, never
+    // over it: the list shortens (and scrolls) to the room above its trigger.
+    let (top, height) = if kind == GpuiTitlebarPopupKind::SessionLinks {
+        let room = (trigger_bounds.top().as_f32() - trigger_gap - horizontal_margin).max(120.0);
+        let height = height.min(room);
+        (
+            main_window_bounds.origin.y.as_f32() + trigger_bounds.top().as_f32()
+                - trigger_gap
+                - height,
+            height,
+        )
+    } else {
+        (top, height)
+    };
 
     Bounds {
         origin: point(px(left), px(top)),
         size: size(px(width), px(height)),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use gpui_component::tooltip::split_trailing_shortcut;
+
+    #[test]
+    fn a_bracketed_chord_after_the_label_splits_off() {
+        assert_eq!(
+            split_trailing_shortcut("Talk to the voice agent (⌃⌥V)"),
+            Some(("Talk to the voice agent", "⌃⌥V"))
+        );
+        assert_eq!(
+            split_trailing_shortcut("Back (Ctrl+[)"),
+            Some(("Back", "Ctrl+["))
+        );
+        assert_eq!(
+            split_trailing_shortcut("Save all (⌘K ⌘S)"),
+            Some(("Save all", "⌘K ⌘S"))
+        );
+        assert_eq!(
+            split_trailing_shortcut("Send (Shift+Enter)"),
+            Some(("Send", "Shift+Enter"))
+        );
+    }
+
+    #[test]
+    fn other_brackets_stay_in_the_text() {
+        for text in [
+            "Runs in agentbox main (local)",
+            "Send (⌃Enter interrupts)",
+            "Inherit (Opus 5.5)",
+            "Zoom (+)",
+            "(⌘K)",
+            "Plain label",
+            "Line one\nLine two (⌘K)",
+        ] {
+            assert_eq!(split_trailing_shortcut(text), None, "{text}");
+        }
     }
 }

@@ -97,11 +97,19 @@ fn sidebar_tooltip_sized(
 /// User: "please make tooltips that show there more blurred bg so text in tooltip is more readable (like we did for tooltips for session in sidebar)". The links' tooltips are the sidebar session tooltip's bubble (`sidebar_tooltip_bubble`), not the plain one.
 ///
 /// CDXC:Tooltips 2026-10-25 SEE-ALSO: every sidebar button, icon and menu tooltip uses this bubble now, and so does the Files Search view (the DECISION is in apps/desktop/src/app/native_docs/project_search_view.rs).
+///
+/// CDXC:Tooltips 2026-10-29 DECISION: a one-line text that fits the bubble is the app's plain tooltip (`titlebar_tooltip`, the user's "please apply 2nd one everywhere that makes sense"), so a sidebar button reads exactly like a header button, its shortcut in key caps; it is frosted by the same tooltip host. Several lines, or a line too long for 320px, keep this bubble, which cuts each line short instead of wrapping.
 pub(crate) fn sidebar_style_tooltip(text: String, window: &mut Window, cx: &mut App) -> AnyView {
+    if !text.trim().contains('\n') && text_width(window, text.trim(), 12.5) <= SINGLE_LINE_MAX {
+        return crate::app::helpers::titlebar_tooltip(text.trim().to_owned(), window, cx);
+    }
     // One line each, cut short at 320px: a bubble sized to its text with nothing to fill would
     // otherwise wrap after every letter.
-    sidebar_tooltip_bubble(text, None, px(320.0), true, 1.0, window, cx)
+    sidebar_tooltip_bubble(text, None, px(SINGLE_LINE_MAX), true, 1.0, window, cx)
 }
+
+/// The widest line `sidebar_style_tooltip` draws before it cuts the line short.
+const SINGLE_LINE_MAX: f32 = 320.0;
 
 /// The session tooltip's card for a link: the sidebar's bubble with the link's title in bold,
 /// wrapping, and its muted lines under it (`SessionLink::hover_card_text`), up to 340px wide.
