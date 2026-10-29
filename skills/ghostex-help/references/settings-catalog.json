@@ -10413,17 +10413,6 @@
       "agentWritable": false
     },
     {
-      "key": "cef",
-      "title": "Chromium runtime (CEF)",
-      "subtitle": "Install, reinstall or uninstall the optional web runtime used by the Browser, the VS Code view, website and extension views, and HTML files in Files.",
-      "tab": "extensions",
-      "tabTitle": "Extensions",
-      "section": "official",
-      "sectionTitle": "Built-in",
-      "type": "ui",
-      "agentWritable": false
-    },
-    {
       "key": "botsHidden",
       "title": "Hide Bots",
       "subtitle": "Stop offering Bots, the sidebar mode with one row per Hermes profile. Hidden by default; offered only where the Hermes CLI is installed.",

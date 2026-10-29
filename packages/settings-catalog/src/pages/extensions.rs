@@ -65,7 +65,6 @@ pub(crate) fn official(platform: Platform) -> Section {
         row("osIntegration", "OS Integration", "Make Ghostex your default editor, terminal-link handler and script runner, and check how this computer opens its files and links."),
         row("debugging", "Debugging", "The Debugging page in Settings: debug UI controls and the diagnostic logs you turn on while reproducing an issue."),
         row("extensionsButton", "Extensions", "An entry in the work area header’s ⋯ menu that lists your installed extensions."),
-        row("cef", "Chromium runtime (CEF)", "Install, reinstall or uninstall the optional web runtime used by the Browser, the VS Code view, website and extension views, and HTML files in Files."),
     ];
     rows.retain(|row| crate::built_in_extensions::available_on(row.key, platform));
     section("official", "Built-in", rows)

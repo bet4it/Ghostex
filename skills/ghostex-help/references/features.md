@@ -364,10 +364,8 @@ view from the strip.
   to remove the view), and web links and saved Browser actions open in the
   system browser. Nothing is downloaded until you press Install; once installed,
   the runtime starts quietly a few seconds after Ghostex opens, so pages open
-  fast. Settings > Extensions > Built-in > Chromium runtime (CEF)
-  installs, reinstalls or uninstalls it. Uninstall while the runtime is running
-  removes it the next time Ghostex starts (Keep installed undoes that until
-  then); on Windows a Reinstall while it runs is done at the next start too.
+  fast. The runtime is not listed in Settings > Extensions; the Install button
+  on the first view that needs it is the way to install it.
   Annotate the current page
   with Agentation in the Browser toolbar; GitHub pages disallow that tool.
   When a page shows its content inside a frame, such as a Storybook story,
