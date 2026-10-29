@@ -445,7 +445,6 @@ impl CefBrowser {
         }
     }
 
-    #[cfg(any(target_os = "macos", target_os = "linux"))]
     pub fn native_view(&self) -> Option<*mut c_void> {
         let browser = self.browser.borrow();
         browser
