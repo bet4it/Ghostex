@@ -398,6 +398,7 @@ impl RowNesting {
     /// CDXC:Coordinators 2026-10-27 DECISION:
     /// User (Q1, the order under the new red): "Light blue (waiting), then orange (working)". The badge is the crew icon and one number: how many sessions under it (at any depth) wait for approval, in red; when none, how many threads wait on the user, in light blue; when none, how many threads are working, in orange; when none of these, how many threads the coordinator lists by default (working, waiting or active in the last two hours, worktree threads included; the two-hour rule in `sidebar_view/threads.rs`), neutral, so the number matches the rows under it. The tint always follows the number. Supersedes the 2026-10-04 decision ("in this state the main coordinator should show 2 working not 5"), which put the working count ahead of the waiting one.
     /// User (2026-10-27): "Please for permissions let's show a new red dot so user knows stuff is stuck and waiting on him to approve ... This sub thread for outdated dependeincies audit was stuck on this for a long time and i didn't know!!", which added the red approval count on top.
+    /// CDXC:Coordinators 2026-10-29 SEE-ALSO: the sidebars draw no badge while it is `Idle` (the user's "remove this icon when no workers are active pls" in apps/desktop/src/app/native_sidebar/threads.rs `coordinator_badge`).
     pub fn coordinator_badge(&self) -> CoordinatorBadge {
         let threads = self.threads;
         if threads.approval > 0 {

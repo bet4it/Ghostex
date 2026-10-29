@@ -180,6 +180,9 @@ pub(super) const BADGE_TEXT_SIZE: f32 = 13.55;
 ///
 /// CDXC:Coordinators 2026-09-30 WHY:
 /// A coordinator looks like any other session of its agent otherwise, and its thread rows alone do not say which row they hang from once the list scrolls (or once the tree is folded). What the numbers mean is gx-core's `RowNesting::coordinator_badge`.
+///
+/// CDXC:Coordinators 2026-10-29 DECISION:
+/// User, of an idle coordinator's lone crew icon: "remove this icon when no workers are active pls". The badge shows only while a thread under the coordinator waits for approval, waits on the user or works; an idle coordinator (gx-core's `Idle` tone, the neutral recent-threads count) draws no badge at all. The phone's SessionRow.tsx follows.
 pub(crate) fn coordinator_badge(
     session: &NativeSidebarSession,
     appearance: &SidebarAppearance,
@@ -200,7 +203,7 @@ pub(crate) fn coordinator_badge(
         Some("approval") => rgb(super::status::APPROVAL_COLOR).into(),
         Some("waiting") => rgb(WAITING_COLOR).into(),
         Some("working") => rgb(super::status::WORKING_COLOR).into(),
-        _ => appearance.muted,
+        _ => return None,
     };
     Some(
         div()
