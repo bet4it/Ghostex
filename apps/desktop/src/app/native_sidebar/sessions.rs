@@ -118,6 +118,8 @@ impl GhostexGpuiApp {
             .and_then(Value::as_str)
             .unwrap_or(session.title())
             .to_owned();
+        // CDXC:Tooltips 2026-10-29 DECISION: User: "please let me disable the tooltip for sessions in the sidebar with a toggle (advanced setting)". `showSidebarSessionTooltips` (on unless saved off) gates only this title tooltip; this one row renderer draws every sidebar session row (project lists, a coordinator's thread rows, the peek), and the Running Agents panel has no session tooltip. Chip, badge, hover-button and project-row tooltips stay.
+        let session_tooltips = hud["settings"]["showSidebarSessionTooltips"].as_bool() != Some(false);
         let question = session
             .details
             .get("pendingQuestionCount")
@@ -203,7 +205,7 @@ impl GhostexGpuiApp {
                 // decorations above keep their tops because it starts at the card's top.
                 .child(h_flex().h(px(SESSION_HEIGHT * scale)).flex_shrink_0().w_full().min_w_0().pl(px(indent * scale)).pr(px(6.0 * scale)).gap(px(6.0 * scale))
                 .child(self.render_native_session_identity(session, icon, hovered, appearance, cx))
-                .child(div().id(format!("native-session-title-{session_id}")).flex_1().min_w_0().h_full().flex().items_center().child(title_with_rename_shake(div().min_w_0().truncate().child(session.title().to_owned()), &session_id, session.rename_failed_at.as_deref(), scale)).when(self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag(), |row| row.managed_discrete_tooltip_with_placement(tooltip_span.placement(), appearance.tooltip_delay, move |window, cx| super::tooltips::sidebar_tooltip(tooltip.clone(), tooltip_span, scale, window, cx))))
+                .child(div().id(format!("native-session-title-{session_id}")).flex_1().min_w_0().h_full().flex().items_center().child(title_with_rename_shake(div().min_w_0().truncate().child(session.title().to_owned()), &session_id, session.rename_failed_at.as_deref(), scale)).when(session_tooltips && self.native_sidebar.pointer_inside && self.native_sidebar.menu.is_none() && !cx.has_active_drag(), |row| row.managed_discrete_tooltip_with_placement(tooltip_span.placement(), appearance.tooltip_delay, move |window, cx| super::tooltips::sidebar_tooltip(tooltip.clone(), tooltip_span, scale, window, cx))))
                 // CDXC:Sidebar 2026-10-29 DECISION: User: "please swap the order of these 2 things (the threads one for orchestrator with the link tag)". The links badge comes before a coordinator's workers badge; the phone's SessionRow.tsx follows.
                 .when(!buttons_shown, |row| row.children(self.render_native_session_links_badge(session, appearance)))
                 .when(!buttons_shown, |row| row.children(super::threads::coordinator_badge(session, appearance)))

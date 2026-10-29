@@ -743,6 +743,21 @@
       "agentWritable": true
     },
     {
+      "key": "showSidebarSessionTooltips",
+      "title": "Session tooltips",
+      "subtitle": "Show a tooltip with the full session name when you hover a session in the sidebar. Turn off to show none; other sidebar tooltips stay.",
+      "tab": "settings",
+      "tabTitle": "General",
+      "group": "sidebar",
+      "groupTitle": "Sidebar",
+      "section": "sessionCards",
+      "sectionTitle": "Session Cards",
+      "type": "boolean",
+      "default": true,
+      "advanced": true,
+      "agentWritable": true
+    },
+    {
       "key": "sidebarSessionTagListItems",
       "title": "Tag Filter List",
       "subtitle": "Add your own tags, then reorder, hide, disable, or delete tags and their separators for the sidebar and the Tag as menu.",

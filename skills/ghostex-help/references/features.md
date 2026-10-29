@@ -874,6 +874,10 @@ where they are while you open, change and close views.
   `sessionCardHoverButtons` (a list of `{ id, enabled }` with ids `rename`,
   `pin`, `note`, `snooze`, `closeAfterDone`, `tag`, `park`, `sleep`,
   `close`, `chevron`) and `showSessionCardHoverButtonsInContextMenu`.
+  Session tooltips (General > Session Cards, needs Show Advanced, on by default)
+  controls the tooltip that shows a session's full name when you rest the pointer
+  on its row in the sidebar; turn it off to show none. Other sidebar tooltips stay.
+  Setting: `showSidebarSessionTooltips`.
 - Long projects: every project always lists all of its sessions; there is
   no Show all row or Compact mode. Collapse a section heading (Pinned, Drafts,
   Working, Sessions, Parked, Snoozed) to tuck its rows away. The sidebar is the only

@@ -274,6 +274,8 @@ pub const DEFAULT_GHOSTEX_SETTINGS: &[(&str, J)] = &[
     // CDXC:Sessions 2026-10-01 DECISION:
     // User: the enabled hover buttons also appear in the session context menu by default, in the menu's own ChatGPT-style order (Rename, Pin, Snooze, Park, Sleep, Note, Tag As); this supersedes the 2026-09-15 rule that they led the menu in the card's right-to-left order. Close is the exception and never appears in the menu while it is on the card. Turning this off restores the 2026-09-12 rule where every enabled hover button leaves the context menu.
     ("showSessionCardHoverButtonsInContextMenu", J::Bool(true)),
+    // CDXC:Tooltips 2026-10-29 DECISION: User: "please let me disable the tooltip for sessions in the sidebar with a toggle (advanced setting)". Session tooltips stay on by default, as before; turning this off removes only the hover tooltip on a sidebar session row's title.
+    ("showSidebarSessionTooltips", J::Bool(true)),
     // CDXC:Sessions 2026-06-13-15:42
     // Recommended is the default sidebar style and hides session-card Last Active
     // timestamps by default. Settings still owns an explicit toggle for users who

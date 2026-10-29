@@ -55,6 +55,7 @@ How to use this file:
 - **Title sessions by their branch** `titleSessionsByBranch` (boolean, default false): Name a session after the branch it works on, without your name and the ticket number (yahia/spx-1245-copy-link shows as copy-link), until you rename it yourself. Sessions on main keep their own title.
 - **Offer Clean up when a PR merges** `offerCleanupWhenPrMerges` (boolean, default true): When a session's pull request is merged, its card asks once whether to clean up (remove the session's worktree and park the session; a worktree with uncommitted changes is kept) or keep it.
 - **Hover buttons also in context menu** `showSessionCardHoverButtonsInContextMenu` (boolean, default true) [advanced]: Also list the enabled hover buttons in the session right-click menu, in their usual place in the menu. Close is never listed while it is on the card. Turn off to leave every button out of the menu once it is on the card.
+- **Session tooltips** `showSidebarSessionTooltips` (boolean, default true) [advanced]: Show a tooltip with the full session name when you hover a session in the sidebar. Turn off to show none; other sidebar tooltips stay.
 #### Sidebar Tags
 
 - **Tag Filter List** `sidebarSessionTagListItems` (structured value; change it in Settings, not with `ghostex settings set`): Add your own tags, then reorder, hide, disable, or delete tags and their separators for the sidebar and the Tag as menu.

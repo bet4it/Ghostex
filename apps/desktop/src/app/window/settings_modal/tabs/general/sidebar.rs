@@ -526,6 +526,15 @@ fn session_cards_section(
         false,
         cx,
     ));
+    rows.extend(page.toggle(
+        g,
+        s,
+        "showSidebarSessionTooltips",
+        "Session tooltips",
+        "Show a tooltip with the full session name when you hover a session in the sidebar. Turn off to show none; other sidebar tooltips stay.",
+        false,
+        cx,
+    ));
     settings_section(&g.p, "Session Cards", None, None, rows)
         .map(|section| PageBlock::section("sessionCards", section))
 }
