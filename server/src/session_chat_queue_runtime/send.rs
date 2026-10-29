@@ -385,6 +385,22 @@ pub(crate) async fn send_session_chat_message_with_draft(
             return Err(starting);
         }
     }
+    // A queued row delivered to a sleeping session wakes it and waits for the woken agent as a
+    // startup send (CDXC:SessionChat 2026-10-29 in session_chat_send_wake.rs).
+    if matches!(
+        source,
+        SessionChatMessageSource::AutomaticQueue | SessionChatMessageSource::ManualQueue
+    ) {
+        if let Some(refusal) =
+            crate::session_chat_send_wake::queued_delivery_wake_refusal(state, &target, &detection)
+                .await
+        {
+            if refusal.code != crate::session_chat_send_wake::SESSION_CHAT_SESSION_STARTING {
+                return Err(refusal);
+            }
+            return hold_for_restarted_agent(state, &target, source, drafted_text, image_paths);
+        }
+    }
     // Recheck automatic delivery against the fresh capture: the scheduler's
     // cached notice may predate a quota, authentication, or agent error.
     // Explicit Send now is a retry.

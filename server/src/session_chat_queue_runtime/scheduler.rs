@@ -255,6 +255,7 @@ impl SessionChatQueueRuntime {
         let generated_at = now.to_rfc3339_opts(SecondsFormat::Millis, true);
         let mut ready: Vec<ReadyDelivery> = Vec::new();
         let mut blocked: Vec<(String, String, String, String)> = Vec::new();
+        let mut to_wake: Vec<(String, String, String)> = Vec::new();
 
         for (project_id, session_id) in targets {
             let key = session_queue_key(&project_id, &session_id);
@@ -272,15 +273,25 @@ impl SessionChatQueueRuntime {
             the rows drain once it is awake again. Writing into a dead provider
             would lose the text with nothing to show for it. A message the user already sent (a
             startup send) wakes it instead (CDXC:SessionChat 2026-10-12 in
-            session_chat_send_wake.rs); a row queued for the next stop keeps waiting.
+            session_chat_send_wake.rs), and so does any other row at the head of a sleeping
+            session's queue, which becomes a startup send first (CDXC:SessionChat 2026-10-29 in
+            session_chat_send_wake.rs); a closed session's rows keep waiting.
             */
-            if session_text(&session, "lifecycleState").as_deref() != Some("running") {
+            let lifecycle = session_text(&session, "lifecycleState");
+            if lifecycle.as_deref() != Some("running") {
                 self.reset_gate(&key);
                 let snapshot = read_session_chat_queue_snapshot_with(&db, &project_id, &session_id);
-                if let Some(head) = snapshot.deliverable_head().filter(|head| head.startup_send) {
-                    if self.composer_holds.wake_check_due(&key, &head.id, now) {
-                        (self.waker)(&project_id, &session_id, &head.id);
+                let head = snapshot.deliverable_head();
+                match not_running_head(lifecycle.as_deref(), head) {
+                    NotRunningHead::CheckWake(id) => {
+                        if self.composer_holds.wake_check_due(&key, id, now) {
+                            (self.waker)(&project_id, &session_id, id);
+                        }
                     }
+                    NotRunningHead::HoldAndWake(id) => {
+                        to_wake.push((project_id, session_id, id.to_string()));
+                    }
+                    NotRunningHead::Wait => {}
                 }
                 continue;
             }
@@ -523,6 +534,23 @@ impl SessionChatQueueRuntime {
             }
             self.reset_gate(&session_queue_key(&project_id, &session_id));
         }
+        for (project_id, session_id, prompt_id) in to_wake {
+            if crate::session_chat_queue::hold_queued_prompt_for_wake(
+                &self.paths,
+                &project_id,
+                &session_id,
+                &prompt_id,
+            ) {
+                (self.publisher_factory)(&project_id, &session_id)();
+                // Seeds the wake check's backoff, so the next ticks do not wake it again at once.
+                self.composer_holds.wake_check_due(
+                    &session_queue_key(&project_id, &session_id),
+                    &prompt_id,
+                    now,
+                );
+                (self.waker)(&project_id, &session_id, &prompt_id);
+            }
+        }
         ready
     }
 
@@ -674,6 +702,32 @@ impl SessionChatQueueRuntime {
     }
 }
 
+/// What the scheduler does for a session that is not running, by the head of its queue.
+#[derive(Debug, PartialEq, Eq)]
+enum NotRunningHead<'a> {
+    /// A startup send: wake the session on the wake check's backoff.
+    CheckWake(&'a str),
+    /// Any other row of a sleeping session: make it a startup send and wake the session now.
+    HoldAndWake(&'a str),
+    Wait,
+}
+
+fn not_running_head<'a>(
+    lifecycle: Option<&str>,
+    head: Option<&'a crate::session_chat_queue::SessionChatQueuedPrompt>,
+) -> NotRunningHead<'a> {
+    match head {
+        Some(head) if head.startup_send => NotRunningHead::CheckWake(&head.id),
+        Some(head)
+            if lifecycle == Some("sleeping")
+                && crate::session_chat_send_wake::wakes_sleeping_session_for(&head.created_at) =>
+        {
+            NotRunningHead::HoldAndWake(&head.id)
+        }
+        _ => NotRunningHead::Wait,
+    }
+}
+
 fn session_queue_key(project_id: &str, session_id: &str) -> String {
     format!("{project_id}\u{1f}{session_id}")
 }
@@ -744,4 +798,59 @@ pub(super) fn escape_closes_claude_panel(
 ) -> bool {
     composer.should_dismiss()
         && notice.kind == crate::session_chat_notice::SESSION_CHAT_NOTICE_CLAUDE_INPUT_BLOCKED
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::session_chat_queue::SessionChatQueuedPrompt;
+
+    fn row(startup_send: bool, age_hours: i64) -> SessionChatQueuedPrompt {
+        let created = (Utc::now() - chrono::Duration::hours(age_hours)).to_rfc3339();
+        SessionChatQueuedPrompt {
+            id: "Q1".to_string(),
+            text: "<ghostex-page-answers page=\"p\" title=\"T\">…</ghostex-page-answers>"
+                .to_string(),
+            startup_send,
+            image_paths: Vec::new(),
+            state: "queued".to_string(),
+            error_message: None,
+            created_at: created.clone(),
+            updated_at: created,
+        }
+    }
+
+    #[test]
+    fn page_answers_and_queued_rows_wake_a_sleeping_session() {
+        assert_eq!(
+            not_running_head(Some("sleeping"), Some(&row(false, 0))),
+            NotRunningHead::HoldAndWake("Q1")
+        );
+    }
+
+    #[test]
+    fn a_held_message_keeps_its_wake_backoff() {
+        for lifecycle in [Some("sleeping"), Some("stopped"), None] {
+            assert_eq!(
+                not_running_head(lifecycle, Some(&row(true, 0))),
+                NotRunningHead::CheckWake("Q1")
+            );
+        }
+    }
+
+    #[test]
+    fn closed_sessions_and_old_rows_do_not_wake_on_their_own() {
+        assert_eq!(
+            not_running_head(Some("stopped"), Some(&row(false, 0))),
+            NotRunningHead::Wait
+        );
+        assert_eq!(
+            not_running_head(Some("sleeping"), Some(&row(false, 25))),
+            NotRunningHead::Wait
+        );
+        assert_eq!(
+            not_running_head(Some("sleeping"), None),
+            NotRunningHead::Wait
+        );
+    }
 }

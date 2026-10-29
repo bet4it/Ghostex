@@ -1314,6 +1314,28 @@ pub(crate) fn hold_sending_prompt_for_restart(
     })
 }
 
+/// Turns the queued row `prompt_id` into a startup send, so it wakes its sleeping session and
+/// waits for the woken agent's input box (CDXC:SessionChat 2026-10-29 in session_chat_send_wake.rs).
+/// False when the row is not waiting (gone, being delivered, or already Not sent).
+pub(crate) fn hold_queued_prompt_for_wake(
+    paths: &GxserverPaths,
+    project_id: &str,
+    session_id: &str,
+    prompt_id: &str,
+) -> bool {
+    open_gxserver_database(paths).is_ok_and(|db| {
+        db.execute(
+            r#"
+            UPDATE session_chat_queued_prompts
+            SET startupSend = 1
+            WHERE promptId = ?1 AND projectId = ?2 AND sessionId = ?3 AND state = 'queued'
+            "#,
+            params![prompt_id, project_id, session_id],
+        )
+        .is_ok_and(|changed| changed > 0)
+    })
+}
+
 fn fail_prompt(
     db: &Connection,
     project_id: &str,
