@@ -3574,17 +3574,16 @@ on the open tab, while Next unread goes through every computer. While a remote
 computer is offline its notifications are hidden and left out of the count, and
 the panel says so until it reconnects.
 
-Session status from (Settings > Sidebar) chooses how Ghostex knows a session is
-working, waiting for you, or done. Ghostex detection, the default, reads each
-agent's hooks, terminal title and screen. Some programs report their own status
-with the Program Status Protocol (OSC 7501): Claude Code 2.1.295 and newer does,
-recent Codex betas do, and so can your own scripts. Combined keeps Ghostex
-detection and adds those reports while the program runs: failures, what it is
+Ghostex combines two sources to know whether a session is working, waiting for
+you, or done, and there is no setting for it. Its own detection reads each
+agent's hooks, terminal title and screen. Some programs also report their own
+status with the Program Status Protocol (OSC 7501): Claude Code 2.1.295 and
+newer does, recent Codex betas do, and so can your own scripts. While such a
+program runs, Ghostex adds its reports to its detection: failures, what it is
 waiting for, its message and progress, and waiting or finished as soon as the
 program says so; when the two disagree the more urgent one wins, and running
-subagents still keep a session working. Program status only takes every
-session's status from the reports alone. With the program's own status, working shows
-the orange dot, waiting for permission, an answer or a sign-in shows the blue
+subagents still keep a session working. With the program's own status, working
+shows the orange dot, waiting for permission, an answer or a sign-in shows the blue
 dot, finished shows the blue dot until you look, and a failure shows a red dot.
 An agent that goes from working back to idle also counts as finished, unless
 you stopped it with Escape or the chat's Stop button. Hover the session to read
@@ -3595,7 +3594,7 @@ reports under `programStatus`.
 With Show debug UI controls on, the Program status mismatches log on the
 Debugging page records each time detection and a program's report disagree.
 
-Related settings: `sessionStatusSource`, `completionSound`, `actionCompletionSound`, `copySound`,
+Related settings: `completionSound`, `actionCompletionSound`, `copySound`,
 `showMacOSAttentionNotifications`, `resetExpirySystemNotifications`,
 `showNotificationOnTerminalBell`,
 `hideMenuBarSessionStatusIndicators`,

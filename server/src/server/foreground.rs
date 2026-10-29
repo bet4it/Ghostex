@@ -394,7 +394,7 @@ pub async fn run_gxserver_foreground(
     startup_gate.step("starting remote access");
     start_tailcat_from_persisted_state(&paths, &state.tailcat_runtime);
     startup_gate.step("watching sessions");
-    crate::program_status::init_status_source(&paths, state.logger.clone(), &metadata.server_id);
+    crate::program_status::init_program_status_logger(state.logger.clone(), &metadata.server_id);
     sync_zmx_title_observers_for_all_sessions(&state, "server-start");
     sync_session_chat_followers_for_all_sessions(&state, "server-start");
     crate::voice_agent::recover_voice_agent_memory(&state);
@@ -415,7 +415,7 @@ pub async fn run_gxserver_foreground(
     let app_auto_update_task = crate::app_update::spawn_app_auto_update_task(&state);
     let zcode_turn_activity_task =
         crate::zcode_turn_activity::spawn_zcode_turn_activity_task(&state);
-    let program_status_source_task = tokio::spawn(crate::program_status::run_status_source_watch(
+    let program_status_source_task = tokio::spawn(crate::program_status::run_program_status_watch(
         (*state).clone(),
     ));
     let team_sync_task = crate::team_sync::spawn_team_sync_task(&state);
