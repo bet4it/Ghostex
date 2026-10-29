@@ -327,6 +327,14 @@ jobs:
         run: |
           git submodule update --init --depth 1 .dependencies/code-server
           git submodule update --init --depth 1 .dependencies/zmx
+      # The typecheck's format check runs `cargo fmt` inside apps/desktop and
+      # server, whose rust-toolchain.toml pins a channel the runner lacks; rustup
+      # would install it with the runner's minimal profile, which has no rustfmt.
+      - name: Install rustfmt for the pinned Rust toolchain
+        run: |
+          toolchain="$(sed -n 's/^channel = "\(.*\)"$/\1/p' apps/desktop/rust-toolchain.toml)"
+          tooling/release-gpui/retry.sh 3 5 -- rustup toolchain install "$toolchain" --profile minimal --component rustfmt
+          tooling/release-gpui/retry.sh 3 5 -- rustup component add rustfmt
       - name: Install and typecheck
         run: |
           bun install --frozen-lockfile

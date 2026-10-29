@@ -29,18 +29,24 @@ pub fn storage_check_command() -> Command {
     bun(["tooling/client-storage/check.mjs"])
 }
 
-/// The root TypeScript gate: the storage lint, the generated Help files, the root tsconfig and the release scripts.
+/// The root gate: the storage lint, the generated Help files, the root tsconfig, the release scripts and the formatting of
+/// app-owned files. The format check runs in the background alongside the others and reports last.
 pub fn typecheck(args: &[String]) -> Res<i32> {
     no_arguments("typecheck", args)?;
+    let format = crate::format::start_check()?;
     let help = crate::help::check()?;
     if help != 0 {
         return Ok(help);
     }
-    steps(vec![
+    let code = steps(vec![
         storage_check_command(),
         bun_x("tsc", ["--noEmit", "--pretty", "false"]),
         bun(["run", "release:typecheck"]),
-    ])
+    ])?;
+    if code != 0 {
+        return Ok(code);
+    }
+    format.finish()
 }
 
 /// `apps/desktop/tsconfig.json`: the CEF entry modules in apps/desktop/sidebar/ and the Files embed page.

@@ -1,30 +1,21 @@
 # Before committing and pushing: formatting and file-size upkeep
 
-Referenced from `AGENTS.md` ("Before committing and pushing"). Full procedure and the exact formatting commands, moved here verbatim on 2026-09-18.
+Referenced from `AGENTS.md` ("Before committing and pushing").
 
-Before you commit and push, check whether other agents are currently working in **this same worktree/folder**: run `ghostex sessions` (see `ghostex --help`). The list is grouped by project path — only look at the group whose path matches the folder you are working in; sessions in other projects or other worktrees do not block anything. Your own session counts as one `running` entry in that group.
+## Formatting happens on edit; `cargo xtask format` is the full pass; the typecheck fails on unformatted files
 
-- **If any _other_ session in this worktree is `running`**: do NOT run a repo-wide formatting pass or start file splits — that would sweep their uncommitted work into your commit or create churn under them. Format only the files you yourself changed, then commit path-scoped as usual.
-- **If no other session in this worktree is `running`** (everything else is `sleep` or the list is empty): run the full-repo formatting pass and the file-size upkeep pass below, then commit (your changes plus the formatting together, or as a separate `chore: Formatting` commit) and push.
+The app-owned set lives in one place, `tooling/format/scope.json`: the Rust crates `cargo fmt` runs in (each from inside its own folder, so `apps/desktop` gets its 2024 edition and pinned toolchain), the prettier globs, and the paths that are never formatted (`.dependencies/**`, `node_modules/**`, the `apps/mobile/app/**` submodule, generated files such as `*.generated.*`, `dist/`, `build/`, `target/`, `apps/desktop/runtime/`, and `bun.lock`). The prettier settings are the repository's own `.prettierrc` (before 2026-10-29 the tree was formatted with the maintainer's `~/.prettierrc`; the copy at the root makes CI and other machines agree).
 
-The full-repo formatting pass is:
+- **On edit.** `tooling/format/format-edited-file.mjs` formats each file an agent edits, right after the edit: a PostToolUse hook in `.claude/settings.json` (Edit, Write, MultiEdit) and in `.codex/hooks.json` (`apply_patch`; Codex asks once in `/hooks` to trust it). Rust goes through `rustfmt` on that one file with its own crate's edition (it never follows `mod` declarations into other files); files in the prettier globs go through the repository's prettier. Anything outside the scope, gitignored, or outside the repository is left alone, and it never fails the edit. Edits made another way (a `sed` or script over files, a manual change) are not seen by the hook: run `bun tooling/format/format-edited-file.mjs <files>` on them.
+- **The gate.** `cargo xtask typecheck` ends with the format check (`cargo fmt --check` per crate and `prettier --list-different` over the globs, run in the background while the other steps run; `cargo xtask format-check` runs it alone). It lists the unformatted files and the command that fixes them. If it lists files you did not touch, another session in the folder is mid-edit: leave them to it.
+- **The full pass.** `cargo xtask format` formats the whole app-owned set in place.
 
-```bash
-# Rust — each crate separately; the desktop crate MUST run from inside its folder
-(cd apps/desktop && cargo fmt)
-(cd server && cargo fmt)
-(cd apps/history-cli && cargo fmt)
-(cd packages/find && cargo fmt)
-(cd packages/paths && cargo fmt)
-cargo fmt --manifest-path tooling/xtask/Cargo.toml
+Before you commit and push, check whether other agents are currently working in **this same worktree/folder**: run `ghostex sessions` (see `ghostex --help`). The list is grouped by project path; only look at the group whose path matches the folder you are working in. Your own session counts as one `running` entry in that group.
 
-# TS/JS/JSON/MD/YAML — app-owned trees only, never .dependencies/ or generated output
-bunx prettier --write "apps/desktop/{sidebar,views,test,scripts}/**/*.{ts,tsx,mjs,md}" \
-  "packages/{shared,core-ui,components}/**/*.{ts,tsx,md}" \
-  "server/**/*.mjs" "tooling/**/*.{mjs,ts}" "*.{json,md,ts}" ".github/**/*.yml"
-```
+- **If any _other_ session in this worktree is `running`**: do NOT run `cargo xtask format` or start file splits; that would sweep their uncommitted work into your commit or create churn under them. Your own files are already formatted by the hook; commit path-scoped as usual.
+- **If no other session in this worktree is `running`** (everything else is `sleep` or the list is empty): run `cargo xtask format` and the file-size upkeep pass below, then commit (your changes plus the formatting together, or as a separate `chore: Formatting` commit) and push.
 
-Never format `.dependencies/**`, `node_modules/**`, `apps/mobile/app/**` (the submodule), generated files (`*.generated.*`, `dist/`, `build/`, `target/`, `apps/desktop/runtime/`), or `bun.lock` as part of a parent-repo pass. Format files intentionally changed inside a submodule within its own commit. After a repo-wide pass, run the typecheck/test gates before pushing, and review `git status` so you only commit formatting deltas plus your own work; if the pass touched a file with foreign uncommitted hunks, leave that file out of your commit.
+Format files intentionally changed inside a submodule within its own commit. After a full pass, run the typecheck/test gates before pushing, and review `git status` so you only commit formatting deltas plus your own work; if the pass touched a file with foreign uncommitted hunks, leave that file out of your commit.
 
 **File-size upkeep pass (same quiet-worktree window only).** A repo-wide split wave finished on 2026-08-24: every app-owned source file is under ~2,000 lines except a handful of deliberate keeps, and the big Rust god-files (`render.rs`, `terminal_sync.rs`, `presentation.rs`, `os_cli.rs`, `remote_conn.rs`, the `helpers/*` monoliths, …) are per-concern module directories. Do not regress:
 
